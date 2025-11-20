@@ -1,0 +1,636 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  ScrollView,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, borderRadius } from '../theme/colors';
+interface HomeScreenProps {
+  onDrawCard: () => void;
+  hasReadToday: boolean;
+  streak: number;
+  onViewGuides?: () => void;
+  onShowSplash?: () => void;
+  insights?: any[];
+  onSingleCard?: () => void;
+  onThreeCards?: () => void;
+}
+
+type TimeContext = 'morning' | 'evening' | 'deeper';
+
+const { width } = Dimensions.get('window');
+
+ export function HomeScreen({
+  onDrawCard,
+  hasReadToday,
+  streak,
+  onViewGuides,
+  onShowSplash,
+  insights = [],
+  onSingleCard,
+  onThreeCards,
+}: HomeScreenProps) {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedContext, setSelectedContext] = useState<TimeContext>(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'morning';
+    return 'evening';
+  });
+
+  // Animation values
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(0.95)).current;
+  const buttonY = useRef(new Animated.Value(20)).current;
+  const fabScale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Entrance animations - subtle and graceful
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeIn, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cardScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.spring(buttonY, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(fabScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // Update time every minute
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDate = () => {
+    return currentTime.toLocaleDateString('cs-CZ', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  };
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    return hour < 12
+      ? 'Dobré ráno ☀️'
+      : hour < 18
+      ? 'Krásné odpoledne 🌤️'
+      : 'Krásný večer 🌙';
+  };
+
+  const getContextualMessage = () => {
+    if (hasReadToday) {
+      return {
+        title: 'Už máš dnešní kartu',
+        subtitle: 'Zítra tě čeká nová ✨',
+      };
+    }
+
+    switch (selectedContext) {
+      case 'morning':
+        return {
+          title: 'Začni den lehce',
+          subtitle: 'Co ti dnešek připravil? 🌅',
+        };
+      case 'evening':
+        return {
+          title: 'Uklidni hlavu',
+          subtitle: 'Reflexe dne před spaním 🌙',
+        };
+      case 'deeper':
+        return {
+          title: 'Polož větší otázku',
+          subtitle: 'Karty ti napoví směr 🔮',
+        };
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={[styles.content, { opacity: fadeIn }]}>
+          {/* Streak Badge */}
+          {streak > 0 && (
+            <View style={styles.streakBadge}>
+              <Ionicons name="flame" size={16} color={colors.bronze} />
+              <Text style={styles.streakText}>{streak}</Text>
+            </View>
+          )}
+
+          {/* Main Content */}
+          <View style={styles.mainContent}>
+            {/* Greeting */}
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+
+            {/* Date */}
+            <Text style={styles.date}>{formatDate()}</Text>
+
+            {/* Card Visualization */}
+            <Animated.View
+              style={[
+                styles.cardContainer,
+                {
+                  transform: [{ scale: cardScale }],
+                },
+              ]}
+            >
+              {/* Subtle glow */}
+              <View style={styles.cardGlow} />
+              
+              {/* Card back design */}
+              <View style={styles.card}>
+                {/* Decorative border */}
+                <View style={styles.cardBorder}>
+                  {/* Center symbol */}
+                  <View style={styles.cardCenter}>
+                    <Ionicons 
+                      name="sparkles-outline" 
+                      size={48} 
+                      color={colors.lavender} 
+                      style={styles.cardIcon}
+                    />
+                    {/* Small decorative elements */}
+                    <View style={styles.cardDots}>
+                      <View style={[styles.dot, { backgroundColor: colors.bronze }]} />
+                      <View style={[styles.dot, { backgroundColor: colors.sage }]} />
+                      <View style={[styles.dot, { backgroundColor: colors.rose }]} />
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* Time Context Chips */}
+            {!hasReadToday && (
+              <View style={styles.chipsContainer}>
+                <TouchableOpacity
+                  onPress={() => setSelectedContext('morning')}
+                  style={[
+                    styles.chip,
+                    selectedContext === 'morning' && styles.chipActive,
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selectedContext === 'morning' && styles.chipTextActive,
+                    ]}
+                  >
+                    ☀️ Ráno
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setSelectedContext('evening')}
+                  style={[
+                    styles.chip,
+                    selectedContext === 'evening' && styles.chipActive,
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selectedContext === 'evening' && styles.chipTextActive,
+                    ]}
+                  >
+                    🌙 Večer
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setSelectedContext('deeper')}
+                  style={[
+                    styles.chip,
+                    selectedContext === 'deeper' && styles.chipActive,
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selectedContext === 'deeper' && styles.chipTextActive,
+                    ]}
+                  >
+                    🔮 Hlubší
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Contextual Message */}
+            <View style={styles.messageContainer}>
+              <Text style={styles.messageTitle}>
+                {getContextualMessage().title}
+              </Text>
+              <Text style={styles.messageSubtitle}>
+                {getContextualMessage().subtitle}
+              </Text>
+            </View>
+
+            {/* Main CTA Button */}
+            <Animated.View 
+              style={{ 
+                transform: [{ translateY: buttonY }],
+                width: '100%',
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  if (!hasReadToday) {
+                    onDrawCard();
+                  }
+                }}
+                disabled={hasReadToday}
+                style={[
+                  styles.mainButton,
+                  hasReadToday && styles.mainButtonDisabled,
+                ]}
+                activeOpacity={hasReadToday ? 1 : 0.8}
+              >
+                <Ionicons
+                  name="sparkles"
+                  size={20}
+                  color={colors.background}
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.mainButtonText}>
+                  {hasReadToday ? 'Hotovo na dnes' : 'Vytáhnout kartu'}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Reading Types - Placeholder */}
+            {onSingleCard && onThreeCards && (
+              <View style={styles.readingTypesContainer}>
+                <Text style={styles.sectionTitle}>Typy výkladů</Text>
+                <View style={styles.readingGrid}>
+                  <TouchableOpacity 
+                    style={styles.readingCard}
+                    onPress={onSingleCard}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="flash-outline" size={24} color={colors.bronze} />
+                    <Text style={styles.readingTitle}>Jednoduchý</Text>
+                    <Text style={styles.readingSubtitle}>1 karta</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.readingCard}
+                    onPress={onThreeCards}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="triangle-outline" size={24} color={colors.lavender} />
+                    <Text style={styles.readingTitle}>Tři karty</Text>
+                    <Text style={styles.readingSubtitle}>Minulost・Současnost・Budoucnost</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Insights - Placeholder */}
+            {insights.length > 0 && (
+              <View style={styles.insightsContainer}>
+                <Text style={styles.sectionTitle}>Tvé vhledy</Text>
+                <View style={styles.insightCard}>
+                  <Ionicons name="bulb-outline" size={20} color={colors.sage} />
+                  <Text style={styles.insightText}>
+                    Insights section připraveno
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      {/* Floating Action Button - Cat Guides */}
+      {onViewGuides && (
+        <Animated.View
+          style={[
+            styles.fab,
+            {
+              transform: [{ scale: fabScale }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={onViewGuides}
+            activeOpacity={0.8}
+            style={styles.fabButton}
+          >
+            <Text style={styles.fabEmoji}>🐱</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
+      {/* Dev Splash Button */}
+      {onShowSplash && (
+        <TouchableOpacity
+          onPress={onShowSplash}
+          style={styles.devButton}
+          activeOpacity={0.5}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 60,
+    paddingBottom: 120,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  streakBadge: {
+    position: 'absolute',
+    top: -20,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  streakText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: spacing.xs,
+  },
+  mainContent: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  greeting: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
+    letterSpacing: -0.3,
+  },
+  date: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxl,
+    textTransform: 'capitalize',
+  },
+  cardContainer: {
+    marginBottom: spacing.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardGlow: {
+    position: 'absolute',
+    width: 200,
+    height: 300,
+    backgroundColor: colors.lavender,
+    borderRadius: borderRadius.xl,
+    opacity: 0.08,
+    transform: [{ scale: 1.15 }],
+  },
+  card: {
+    width: 180,
+    height: 270,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  cardBorder: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.softLinen,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  cardCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardIcon: {
+    marginBottom: spacing.md,
+    opacity: 0.6,
+  },
+  cardDots: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.5,
+  },
+  chipsContainer: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.softLinen,
+  },
+  chipActive: {
+    backgroundColor: colors.softLinen,
+    borderColor: colors.lavender,
+    borderWidth: 1.5,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  chipTextActive: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  messageContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  messageTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
+    letterSpacing: -0.2,
+  },
+  messageSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  mainButton: {
+    width: '100%',
+    paddingVertical: spacing.md + 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.text,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  mainButtonDisabled: {
+    backgroundColor: colors.textLight,
+    opacity: 0.5,
+  },
+  buttonIcon: {
+    marginRight: spacing.sm,
+  },
+  mainButtonText: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.md,
+    letterSpacing: -0.2,
+  },
+  readingTypesContainer: {
+    marginTop: spacing.xl,
+    width: '100%',
+  },
+  readingGrid: {
+    gap: spacing.md,
+  },
+  readingCard: {
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.softLinen,
+    alignItems: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  readingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: spacing.sm,
+    marginBottom: 4,
+  },
+  readingSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  insightsContainer: {
+    marginTop: spacing.xl,
+    width: '100%',
+  },
+  insightCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.softLinen,
+    gap: spacing.sm,
+  },
+  insightText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 100,
+    right: spacing.lg,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  fabButton: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.lavender,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  fabEmoji: {
+    fontSize: 32,
+  },
+  devButton: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.lg,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.text,
+    opacity: 0.2,
+  },
+});

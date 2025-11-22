@@ -10,13 +10,15 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
-    "expo": "~54.0.23",
+    "expo": "~54.0.25",
+    "expo-asset": "^12.0.10",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
     "react-native": "0.81.5"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@types/react-native": "^0.72.8",
     "typescript": "~5.9.2"
   },
   "private": true

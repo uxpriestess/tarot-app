@@ -1,12 +1,13 @@
 import React from 'react';
-import { Image, StyleSheet, View, ImageSourcePropType, Text } from 'react-native';
+import { Image, StyleSheet, View, Text, ImageSourcePropType } from 'react-native';
+
 interface CardImageProps {
   imageName: string;
   width?: number;
   height?: number;
 }
 
-// Map of image names to require statements
+// Static mapping of image names to require statements
 const cardImages: { [key: string]: ImageSourcePropType } = {
   '0-fool.png': require('../../assets/cards/majorArcana/0-fool.png'),
   '1-magician.png': require('../../assets/cards/majorArcana/1-magician.png'),

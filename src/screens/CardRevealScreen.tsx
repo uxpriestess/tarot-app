@@ -20,9 +20,15 @@ interface CardRevealScreenProps {
   onSaveReading?: () => void;
 }
 
-const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.7;
-const CARD_HEIGHT = CARD_WIDTH * 1.5;
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = Math.round(width * 0.9);
+const CARD_PADDING = 12;
+const INNER_WIDTH = CARD_WIDTH - (CARD_PADDING * 2);
+// Image is 1040x1384 (ratio ~1.33)
+const IMAGE_RATIO = 1384 / 1040;
+const IMAGE_HEIGHT = Math.round(INNER_WIDTH * IMAGE_RATIO);
+// Card height is now just image + padding (no text area)
+const CARD_HEIGHT = IMAGE_HEIGHT + (CARD_PADDING * 2);
 
 export function CardRevealScreen({
   card,
@@ -31,7 +37,7 @@ export function CardRevealScreen({
   onSaveReading,
 }: CardRevealScreenProps) {
   const [isRevealed, setIsRevealed] = useState(false);
-  
+
   // Animation values
   const flipAnim = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -83,7 +89,7 @@ export function CardRevealScreen({
     outputRange: [0, 0, 1],
   });
 
-const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
+  const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
 
   return (
     <View style={styles.container}>
@@ -147,22 +153,23 @@ const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReve
                 },
               ]}
             >
-              {/* Card image */}
-<View style={styles.cardImagePlaceholder}>
-  <CardImage 
-    imageName={card.imageName}
-    width={CARD_WIDTH - 32}
-    height={CARD_HEIGHT - 100}
-  />
-</View>
-
-              {/* Card name */}
-              <View style={styles.cardNameContainer}>
-                <Text style={styles.cardName}>{card.nameCzech}</Text>
-                <Text style={styles.cardNameEn}>{card.name}</Text>
+              {/* Card image - fills the space */}
+              <View style={styles.cardImagePlaceholder}>
+                <CardImage
+                  imageName={card.imageName}
+                  width={INNER_WIDTH}
+                  height={IMAGE_HEIGHT}
+                />
               </View>
             </Animated.View>
           </Animated.View>
+
+          {/* Card Name - Now outside the 3D card */}
+          {isRevealed && (
+            <Animated.View style={{ opacity: contentOpacity, alignItems: 'center', marginTop: 20 }}>
+              <Text style={styles.cardName}>{card.nameCzech}</Text>
+            </Animated.View>
+          )}
 
           {/* Position indicator */}
           {isRevealed && (
@@ -276,7 +283,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
-    backfaceVisibility: 'hidden',
     borderRadius: borderRadius.lg,
     shadowColor: colors.text,
     shadowOffset: { width: 0, height: 10 },
@@ -312,31 +318,26 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   cardFront: {
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-  },
-  cardImagePlaceholder: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: CARD_PADDING,
   },
-  cardNameContainer: {
+  cardImagePlaceholder: {
+    width: INNER_WIDTH,
+    height: IMAGE_HEIGHT,
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    overflow: 'hidden',
     borderRadius: borderRadius.md,
+    backgroundColor: 'transparent',
   },
   cardName: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    color: colors.background,
-    marginBottom: 4,
+    color: colors.text,
     letterSpacing: -0.5,
-  },
-  cardNameEn: {
-    fontSize: 14,
-    color: colors.background,
-    opacity: 0.8,
+    textAlign: 'center',
+    marginBottom: 4,
   },
   positionBadge: {
     flexDirection: 'row',
@@ -419,4 +420,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.background,
   },
-}); 
+});

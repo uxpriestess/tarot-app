@@ -9,6 +9,7 @@ interface CardImageProps {
 
 // Static mapping of image names to require statements
 const cardImages: { [key: string]: ImageSourcePropType } = {
+  // Major Arcana
   '0-fool.png': require('../../assets/cards/majorArcana/0-fool.png'),
   '1-magician.png': require('../../assets/cards/majorArcana/1-magician.png'),
   '2-high-priestess.png': require('../../assets/cards/majorArcana/2-high-priestess.png'),
@@ -31,15 +32,33 @@ const cardImages: { [key: string]: ImageSourcePropType } = {
   '19-sun.png': require('../../assets/cards/majorArcana/19-sun.png'),
   '20-judgment.png': require('../../assets/cards/majorArcana/20-judgment.png'),
   '21-world.png': require('../../assets/cards/majorArcana/21-world.png'),
+
+  // Cups
+  'eso-poharu.png': require('../../assets/cards/cups/eso-poharu.png'),
+  '2-pohary.png': require('../../assets/cards/cups/2-pohary.png'),
+  '3-pohary.png': require('../../assets/cards/cups/3-pohary.png'),
+  '4-pohary.png': require('../../assets/cards/cups/4-pohary.png'),
+  '5-poharu.png': require('../../assets/cards/cups/5-poharu.png'),
+  '6-poharu.png': require('../../assets/cards/cups/6-poharu.png'),
+  '7-poharu.png': require('../../assets/cards/cups/7-poharu.png'),
+  '8-poharu.png': require('../../assets/cards/cups/8-poharu.png'),
+  '9-poharu.png': require('../../assets/cards/cups/9-poharu.png'),
+  '10-poharu.png': require('../../assets/cards/cups/10-poharu.png'),
+  'paze-poharu.png': require('../../assets/cards/cups/paze-poharu.png'),
+  'rytir-poharu.png': require('../../assets/cards/cups/rytir-poharu.png'),
+  'kralovna-poharu.png': require('../../assets/cards/cups/kralovna-poharu.png'),
+  'kral-poharu.png': require('../../assets/cards/cups/kral-poharu.png'),
 };
 
 export function CardImage({ imageName, width = 200, height = 300 }: CardImageProps) {
   const imageSource = cardImages[imageName];
 
   if (!imageSource) {
+    console.warn(`[CardImage] Image not found for: ${imageName}`);
     return (
       <View style={[styles.placeholder, { width, height }]}>
         <Text style={styles.placeholderText}>Image not found</Text>
+        <Text style={styles.debugText}>{imageName}</Text>
       </View>
     );
   }
@@ -56,15 +75,23 @@ export function CardImage({ imageName, width = 200, height = 300 }: CardImagePro
 const styles = StyleSheet.create({
   cardImage: {
     borderRadius: 20,
+    // Removed background color to allow transparency if needed
   },
   placeholder: {
     backgroundColor: '#F5F0E8',
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 10,
   },
   placeholderText: {
     color: '#857A6E',
     fontSize: 14,
+    marginBottom: 4,
+  },
+  debugText: {
+    color: 'red',
+    fontSize: 10,
+    textAlign: 'center',
   },
 });

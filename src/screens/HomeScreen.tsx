@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
+import { useInsights } from '../hooks/useInsights';
+import { useAppStore } from '../store/appStore';
 interface HomeScreenProps {
   onDrawCard: () => void;
   hasReadToday: boolean;
@@ -25,7 +27,7 @@ type TimeContext = 'morning' | 'evening' | 'deeper';
 
 const { width } = Dimensions.get('window');
 
- export function HomeScreen({
+export function HomeScreen({
   onDrawCard,
   hasReadToday,
   streak,
@@ -35,6 +37,11 @@ const { width } = Dimensions.get('window');
   onSingleCard,
   onThreeCards,
 }: HomeScreenProps) {
+  // Get insights from Zustand store
+  const { insights: dynamicInsights } = useInsights();
+  const microcopyStyle = useAppStore((s) => s.userMicrocopyStyle);
+  const setMicrocopyStyle = useAppStore((s) => s.setStyle);
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedContext, setSelectedContext] = useState<TimeContext>(() => {
     const hour = new Date().getHours();
@@ -99,8 +106,8 @@ const { width } = Dimensions.get('window');
     return hour < 12
       ? 'Dobré ráno ☀️'
       : hour < 18
-      ? 'Krásné odpoledne 🌤️'
-      : 'Krásný večer 🌙';
+        ? 'Krásné odpoledne 🌤️'
+        : 'Krásný večer 🌙';
   };
 
   const getContextualMessage = () => {
@@ -164,17 +171,17 @@ const { width } = Dimensions.get('window');
             >
               {/* Subtle glow */}
               <View style={styles.cardGlow} />
-              
+
               {/* Card back design */}
               <View style={styles.card}>
                 {/* Decorative border */}
                 <View style={styles.cardBorder}>
                   {/* Center symbol */}
                   <View style={styles.cardCenter}>
-                    <Ionicons 
-                      name="sparkles-outline" 
-                      size={48} 
-                      color={colors.lavender} 
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={48}
+                      color={colors.lavender}
                       style={styles.cardIcon}
                     />
                     {/* Small decorative elements */}
@@ -258,8 +265,8 @@ const { width } = Dimensions.get('window');
             </View>
 
             {/* Main CTA Button */}
-            <Animated.View 
-              style={{ 
+            <Animated.View
+              style={{
                 transform: [{ translateY: buttonY }],
                 width: '100%',
               }}
@@ -294,7 +301,7 @@ const { width } = Dimensions.get('window');
               <View style={styles.readingTypesContainer}>
                 <Text style={styles.sectionTitle}>Typy výkladů</Text>
                 <View style={styles.readingGrid}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.readingCard}
                     onPress={onSingleCard}
                     activeOpacity={0.8}
@@ -303,8 +310,8 @@ const { width } = Dimensions.get('window');
                     <Text style={styles.readingTitle}>Jednoduchý</Text>
                     <Text style={styles.readingSubtitle}>1 karta</Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={styles.readingCard}
                     onPress={onThreeCards}
                     activeOpacity={0.8}
@@ -317,15 +324,62 @@ const { width } = Dimensions.get('window');
               </View>
             )}
 
-            {/* Insights - Placeholder */}
-            {insights.length > 0 && (
+            {/* Tarotka Insights */}
+            {dynamicInsights.length > 0 && (
               <View style={styles.insightsContainer}>
-                <Text style={styles.sectionTitle}>Tvé vhledy</Text>
-                <View style={styles.insightCard}>
-                  <Ionicons name="bulb-outline" size={20} color={colors.sage} />
-                  <Text style={styles.insightText}>
-                    Insights section připraveno
-                  </Text>
+                <Text style={styles.sectionTitle}>Tarotka insights</Text>
+                {dynamicInsights.map((insight, index) => (
+                  <View key={`${insight.type}-${index}`} style={styles.insightCard}>
+                    <View style={styles.insightIconWrapper}>
+                      <Ionicons
+                        name={
+                          insight.type === 'Journal' ? 'book-outline' :
+                            insight.type === 'Streak' ? 'flame-outline' :
+                              insight.type === 'Favorite' ? 'heart-outline' :
+                                insight.type === 'Milestone' ? 'trophy-outline' :
+                                  'sparkles-outline'
+                        }
+                        size={20}
+                        color={colors.bronze}
+                      />
+                    </View>
+                    <Text style={styles.insightText}>{insight.text}</Text>
+                  </View>
+                ))}
+
+                {/* Microcopy Style Toggle */}
+                <View style={styles.styleToggleContainer}>
+                  <TouchableOpacity
+                    onPress={() => setMicrocopyStyle('soft')}
+                    style={[
+                      styles.styleToggle,
+                      microcopyStyle === 'soft' && styles.styleToggleActive
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.styleToggleText,
+                      microcopyStyle === 'soft' && styles.styleToggleTextActive
+                    ]}>
+                      🌙 Soft
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setMicrocopyStyle('genz')}
+                    style={[
+                      styles.styleToggle,
+                      microcopyStyle === 'genz' && styles.styleToggleActive
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.styleToggleText,
+                      microcopyStyle === 'genz' && styles.styleToggleTextActive
+                    ]}>
+                      ✨ GenZ
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -593,11 +647,48 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.softLinen,
     gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   insightText: {
     fontSize: 14,
     color: colors.textSecondary,
     flex: 1,
+  },
+  insightIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.softLinen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  styleToggleContainer: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    justifyContent: 'center',
+  },
+  styleToggle: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.softLinen,
+  },
+  styleToggleActive: {
+    backgroundColor: colors.softLinen,
+    borderColor: colors.lavender,
+    borderWidth: 1.5,
+  },
+  styleToggleText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  styleToggleTextActive: {
+    color: colors.text,
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',

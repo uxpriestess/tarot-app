@@ -9,7 +9,10 @@ export function getInsightsOutput(
     const dict = style === "soft" ? SoftMicrocopy : GenZMicrocopy;
 
     if (!insights || insights.length === 0) {
-        return [{ type: "Default", text: "Začít" }];
+        return [
+            { type: "Default", text: "Vytáhni svou první kartu!" },
+            { type: "Default", text: "Pravidelné čtení ti odhalí tajemství." }
+        ];
     }
 
     const lastThree = insights.slice(-3);

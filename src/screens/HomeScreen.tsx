@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { useInsights } from '../hooks/useInsights';
-import { useAppStore } from '../store/appStore';
+
 interface HomeScreenProps {
   onDrawCard: () => void;
   hasReadToday: boolean;
@@ -39,8 +39,7 @@ export function HomeScreen({
 }: HomeScreenProps) {
   // Get insights from Zustand store
   const { insights: dynamicInsights } = useInsights();
-  const microcopyStyle = useAppStore((s) => s.userMicrocopyStyle);
-  const setMicrocopyStyle = useAppStore((s) => s.setStyle);
+
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedContext, setSelectedContext] = useState<TimeContext>(() => {
@@ -347,40 +346,7 @@ export function HomeScreen({
                   </View>
                 ))}
 
-                {/* Microcopy Style Toggle */}
-                <View style={styles.styleToggleContainer}>
-                  <TouchableOpacity
-                    onPress={() => setMicrocopyStyle('soft')}
-                    style={[
-                      styles.styleToggle,
-                      microcopyStyle === 'soft' && styles.styleToggleActive
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.styleToggleText,
-                      microcopyStyle === 'soft' && styles.styleToggleTextActive
-                    ]}>
-                      🌙 Soft
-                    </Text>
-                  </TouchableOpacity>
 
-                  <TouchableOpacity
-                    onPress={() => setMicrocopyStyle('genz')}
-                    style={[
-                      styles.styleToggle,
-                      microcopyStyle === 'genz' && styles.styleToggleActive
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.styleToggleText,
-                      microcopyStyle === 'genz' && styles.styleToggleTextActive
-                    ]}>
-                      ✨ GenZ
-                    </Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             )}
           </View>
@@ -663,33 +629,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.sm,
   },
-  styleToggleContainer: {
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    justifyContent: 'center',
-  },
-  styleToggle: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
-    borderColor: colors.softLinen,
-    marginHorizontal: spacing.xs,
-  },
-  styleToggleActive: {
-    backgroundColor: colors.softLinen,
-    borderColor: colors.lavender,
-    borderWidth: 1.5,
-  },
-  styleToggleText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  styleToggleTextActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
+
   fab: {
     position: 'absolute',
     bottom: 100,

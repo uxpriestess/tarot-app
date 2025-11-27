@@ -1,7 +1,7 @@
 import { View, Text, Button } from "react-native";
 import { useAppStore } from "../store/appStore";
 
-export default function DrawScreen() {
+export function DrawScreen() {
     const addDraw = useAppStore((s) => s.addDraw);
 
     const drawRandomCard = () => {

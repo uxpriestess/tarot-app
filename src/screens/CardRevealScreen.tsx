@@ -183,6 +183,7 @@ export function CardRevealScreen({
                 name={position === 'upright' ? 'arrow-up-circle' : 'arrow-down-circle'}
                 size={16}
                 color={position === 'upright' ? colors.sage : colors.bronze}
+                style={{ marginRight: spacing.xs }}
               />
               <Text style={styles.positionText}>
                 {position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
@@ -223,7 +224,7 @@ export function CardRevealScreen({
                 onPress={onSaveReading}
                 activeOpacity={0.8}
               >
-                <Ionicons name="bookmark-outline" size={20} color={colors.text} />
+                <Ionicons name="bookmark-outline" size={20} color={colors.text} style={{ marginRight: spacing.xs }} />
                 <Text style={styles.saveButtonText}>Uložit výklad</Text>
               </TouchableOpacity>
             )}
@@ -308,7 +309,6 @@ const styles = StyleSheet.create({
   },
   cardDots: {
     flexDirection: 'row',
-    gap: spacing.sm,
     marginTop: spacing.lg,
   },
   dot: {
@@ -316,6 +316,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     opacity: 0.6,
+    marginRight: spacing.sm,
   },
   cardFront: {
     alignItems: 'center',
@@ -342,7 +343,6 @@ const styles = StyleSheet.create({
   positionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
@@ -362,7 +362,6 @@ const styles = StyleSheet.create({
   keywordsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
     marginBottom: spacing.lg,
     justifyContent: 'center',
   },
@@ -371,6 +370,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     backgroundColor: colors.softLinen,
     borderRadius: borderRadius.full,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
   },
   keywordText: {
     fontSize: 13,
@@ -391,18 +392,18 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   actionsContainer: {
-    gap: spacing.sm,
+    // gap removed
   },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.softLinen,
+    marginBottom: spacing.sm,
   },
   saveButtonText: {
     fontSize: 15,

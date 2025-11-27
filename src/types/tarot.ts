@@ -3,6 +3,8 @@ export interface TarotCard {
   number: number;
   name: string;
   nameCzech: string;
+  czechName?: string; // Optional - will be set from nameCzech if not provided
+  suit?: string; // Optional - will be set when combining decks
   keywords: string[];
   meaningUpright: string;
   meaningReversed?: string;

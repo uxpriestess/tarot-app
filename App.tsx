@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { HomeScreen, CardRevealScreen } from './src/screens';
+import { NavigationContainer } from '@react-navigation/native';
+import { TabNavigator } from './src/navigation/TabNavigator';
+import { CardRevealScreen } from './src/screens';
 import { drawCard } from './src/data';
 import { TarotCard } from './src/types/tarot';
 
@@ -14,13 +16,13 @@ export default function App() {
     const drawn = drawCard();
     setCurrentCard(drawn);
   };
-  
+
   const handleClose = () => {
     setCurrentCard(null);
   };
 
   return (
-    <>
+    <NavigationContainer>
       {currentCard ? (
         <CardRevealScreen
           card={currentCard.card}
@@ -29,13 +31,9 @@ export default function App() {
           onSaveReading={() => console.log('Save reading')}
         />
       ) : (
-        <HomeScreen
-          onDrawCard={handleDrawCard}
-          hasReadToday={false}
-          streak={3}
-        />
+        <TabNavigator onDrawCard={handleDrawCard} />
       )}
       <StatusBar style="auto" />
-    </>
+    </NavigationContainer>
   );
 }

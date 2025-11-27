@@ -518,7 +518,6 @@ const styles = StyleSheet.create({
   },
   cardDots: {
     flexDirection: 'row',
-    gap: spacing.xs,
     marginTop: spacing.sm,
   },
   dot: {
@@ -526,10 +525,10 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     opacity: 0.5,
+    marginRight: spacing.xs,
   },
   chipsContainer: {
     flexDirection: 'row',
-    gap: spacing.xs,
     marginBottom: spacing.lg,
   },
   chip: {
@@ -539,6 +538,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.softLinen,
+    marginRight: spacing.xs,
   },
   chipActive: {
     backgroundColor: colors.softLinen,
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   readingGrid: {
-    gap: spacing.md,
+    // gap removed
   },
   readingCard: {
     backgroundColor: colors.surface,
@@ -622,6 +622,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+    marginBottom: spacing.md,
   },
   readingTitle: {
     fontSize: 16,
@@ -646,7 +647,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.softLinen,
-    gap: spacing.sm,
     marginBottom: spacing.sm,
   },
   insightText: {
@@ -661,10 +661,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.softLinen,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: spacing.sm,
   },
   styleToggleContainer: {
     flexDirection: 'row',
-    gap: spacing.xs,
     marginTop: spacing.md,
     justifyContent: 'center',
   },
@@ -673,8 +673,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surface,
-    borderWidth: 1,
     borderColor: colors.softLinen,
+    marginHorizontal: spacing.xs,
   },
   styleToggleActive: {
     backgroundColor: colors.softLinen,

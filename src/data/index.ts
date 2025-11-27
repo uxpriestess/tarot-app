@@ -2,8 +2,20 @@ import { majorArcana } from './majorArcana';
 import { cups } from './cups';
 import { TarotCard } from '../types/tarot';
 
-// Combine all cards
-export const allCards: TarotCard[] = [...majorArcana, ...cups];
+// Add suit and czechName to cards dynamically
+const addMissingProps = (cards: any[], suit: string): TarotCard[] => {
+    return cards.map(card => ({
+        ...card,
+        suit,
+        czechName: card.nameCzech || card.czechName,
+    }));
+};
+
+// Combine all cards with suit information
+export const allCards: TarotCard[] = [
+    ...addMissingProps(majorArcana, 'Major Arcana'),
+    ...addMissingProps(cups, 'Cups'),
+];
 
 // Export individual sets if needed
 export { majorArcana, cups };

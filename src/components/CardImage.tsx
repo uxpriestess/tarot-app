@@ -48,6 +48,22 @@ const cardImages: { [key: string]: ImageSourcePropType } = {
   'rytir-poharu.png': require('../../assets/cards/cups/rytir-poharu.png'),
   'kralovna-poharu.png': require('../../assets/cards/cups/kralovna-poharu.png'),
   'kral-poharu.png': require('../../assets/cards/cups/kral-poharu.png'),
+
+  // Pentacles
+  'eso-pentaklu.png': require('../../assets/cards/pentacles/eso-pentaklu.png'),
+  '2-pentaklu.png': require('../../assets/cards/pentacles/2-pentaklu.png'),
+  '3-pentaklu.png': require('../../assets/cards/pentacles/3-pentaklu.png'),
+  '4-pentaklu.png': require('../../assets/cards/pentacles/4-pentaklu.png'),
+  '5-pentaklu.png': require('../../assets/cards/pentacles/5-pentaklu.png'),
+  '6-pentaklu.png': require('../../assets/cards/pentacles/6-pentaklu.png'),
+  '7-pentaklu.png': require('../../assets/cards/pentacles/7-pentaklu.png'),
+  '8-pentaklu.png': require('../../assets/cards/pentacles/8-pentaklu.png'),
+  '9-pentaklu.png': require('../../assets/cards/pentacles/9-pentaklu.png'),
+  '10-pentaklu.png': require('../../assets/cards/pentacles/10-pentaklu.png'),
+  'paze-pentaklu.jpg': require('../../assets/cards/pentacles/paze-pentaklu.jpg'),
+  'rytir-pentaklu.jpg': require('../../assets/cards/pentacles/rytir-pentaklu.jpg'),
+  'kralovna-pentaklu.png': require('../../assets/cards/pentacles/kralovna-pentaklu.png'),
+  'kral-pentaklu.jpg': require('../../assets/cards/pentacles/kral-pentaklu.jpg'),
 };
 
 export function CardImage({ imageName, width = 200, height = 300 }: CardImageProps) {

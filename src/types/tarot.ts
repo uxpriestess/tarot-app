@@ -8,6 +8,7 @@ export interface TarotCard {
   keywords: string[];
   meaningUpright: string;
   meaningReversed?: string;
+  tipReversed?: string;
   animal: string;
   imageName: string;
 }

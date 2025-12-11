@@ -21,7 +21,7 @@ export const wands: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: '2-hole.png',
+        imageName: '2-holi.png',
     },
     {
         id: 'wands-3',
@@ -32,7 +32,7 @@ export const wands: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: '3-hole.png',
+        imageName: '3-holi.png',
     },
     {
         id: 'wands-4',
@@ -43,7 +43,7 @@ export const wands: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: '4-hole.png',
+        imageName: '4-holi.png',
     },
     {
         id: 'wands-5',

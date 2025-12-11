@@ -64,6 +64,22 @@ const cardImages: { [key: string]: ImageSourcePropType } = {
   'rytir-pentaklu.jpg': require('../../assets/cards/pentacles/rytir-pentaklu.jpg'),
   'kralovna-pentaklu.png': require('../../assets/cards/pentacles/kralovna-pentaklu.png'),
   'kral-pentaklu.jpg': require('../../assets/cards/pentacles/kral-pentaklu.jpg'),
+
+  // Wands (Hole)
+  'eso-holi.png': require('../../assets/cards/wands/eso-holi.png'),
+  '2-holi.png': require('../../assets/cards/wands/2-holi.png'),
+  '3-holi.png': require('../../assets/cards/wands/3-holi.png'),
+  '4-holi.png': require('../../assets/cards/wands/4-holi.png'),
+  '5-holi.png': require('../../assets/cards/wands/5-holi.png'),
+  '6-holi.png': require('../../assets/cards/wands/6-holi.png'),
+  '7-holi.png': require('../../assets/cards/wands/7-holi.png'),
+  '8-holi.png': require('../../assets/cards/wands/8-holi.png'),
+  '9-holi.png': require('../../assets/cards/wands/9-holi.png'),
+  '10-holi.png': require('../../assets/cards/wands/10-holi.png'),
+  'paze-holi.png': require('../../assets/cards/wands/paze-holi.png'),
+  'rytir-holi.png': require('../../assets/cards/wands/rytir-holi.png'),
+  'kralovna-holi.png': require('../../assets/cards/wands/kralovna-holi.png'),
+  'kral-holi.png': require('../../assets/cards/wands/kral-holi.png'),
 };
 
 export function CardImage({ imageName, width = 200, height = 300 }: CardImageProps) {

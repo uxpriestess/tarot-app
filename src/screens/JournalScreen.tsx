@@ -13,6 +13,13 @@ import { useAppStore, JournalEntry } from '../store/appStore';
 import { getCardById } from '../data'; // Ensure this assumes getCardById is exported from data
 import { CardImage } from '../components/CardImage';
 import { CardRevealScreen } from './CardRevealScreen';
+import { Dimensions, TextInput } from 'react-native';
+import { TarotCard } from '../types/tarot';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = Math.round(width * 0.85); // Slightly smaller than reveal screen
+const IMAGE_RATIO = 1384 / 1040;
+const IMAGE_HEIGHT = Math.round(CARD_WIDTH * IMAGE_RATIO);
 
 export function JournalScreen() {
     const journalEntries = useAppStore((s) => s.journalEntries);
@@ -114,16 +121,85 @@ export function JournalScreen() {
                 {selectedEntry && (() => {
                     const card = getCardForEntry(selectedEntry.cardId);
                     if (!card) return null;
+
+                    const position = selectedEntry.position;
+                    const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
+
                     return (
-                        <CardRevealScreen
-                            card={card}
-                            position={selectedEntry.position}
-                            onClose={() => setSelectedEntry(null)}
-                        />
+                        <View style={styles.detailContainer}>
+                            <ScrollView
+                                contentContainerStyle={styles.detailContent}
+                                showsVerticalScrollIndicator={false}
+                            >
+                                {/* Close Button */}
+                                <TouchableOpacity
+                                    style={styles.closeButton}
+                                    onPress={() => setSelectedEntry(null)}
+                                >
+                                    <Ionicons name="close" size={28} color={colors.text} />
+                                </TouchableOpacity>
+
+                                {/* Card Image Section */}
+                                <View style={styles.detailCardSection}>
+                                    <View style={[styles.detailCardImageWrapper, position === 'reversed' && { transform: [{ rotate: '180deg' }] }]}>
+                                        <CardImage
+                                            imageName={card.imageName}
+                                            width={CARD_WIDTH}
+                                            height={IMAGE_HEIGHT}
+                                        />
+                                    </View>
+
+                                    <Text style={styles.detailCardName}>{card.nameCzech}</Text>
+
+                                    <View style={styles.detailPositionBadge}>
+                                        <Ionicons
+                                            name={position === 'upright' ? 'arrow-up-circle' : 'arrow-down-circle'}
+                                            size={16}
+                                            color={position === 'upright' ? colors.sage : colors.bronze}
+                                            style={{ marginRight: 4 }}
+                                        />
+                                        <Text style={styles.detailPositionText}>
+                                            {position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Content Section */}
+                                <View style={styles.detailInfoSection}>
+                                    {/* Keywords */}
+                                    <View style={styles.detailKeywords}>
+                                        {card.keywords.map((keyword, index) => (
+                                            <View key={index} style={styles.detailKeywordBadge}>
+                                                <Text style={styles.detailKeywordText}>{keyword}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+
+                                    {/* Meaning */}
+                                    <View style={styles.detailMeaningBox}>
+                                        <Text style={styles.detailMeaningText}>{meaning}</Text>
+                                    </View>
+
+                                    {/* Note Display (Read-only for now based on "easy display", but editable is nice) 
+                                        Let's make it display only or editable? 
+                                        The user said "only displayed the revealed card + meaning". 
+                                        I'll show notes if they exist, but maybe just as text. 
+                                        Actually, let's keep it simple and consistent with the request "card + meaning".
+                                        I'll add the note if it exists in the entry.
+                                    */}
+                                    {selectedEntry.note && (
+                                        <View style={styles.detailNoteSection}>
+                                            <Text style={styles.detailSectionTitle}>Tvé poznámky</Text>
+                                            <Text style={styles.detailNoteText}>{selectedEntry.note}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </ScrollView>
+                        </View>
                     );
                 })()}
             </Modal>
-        </View>
+        </View >
     );
 }
 
@@ -242,5 +318,126 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: colors.lavender,
         marginTop: 2,
+    },
+    // Detail View Styles
+    detailContainer: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    detailContent: {
+        paddingTop: 60,
+        paddingBottom: 40,
+        paddingHorizontal: spacing.lg,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 20, // Inside modal, 20 is enough usually if pageSheet
+        right: 0,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
+        shadowColor: colors.text,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    detailCardSection: {
+        alignItems: 'center',
+        marginTop: 40,
+        marginBottom: spacing.xl,
+    },
+    detailCardImageWrapper: {
+        borderRadius: borderRadius.lg,
+        shadowColor: colors.text,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 8,
+        backgroundColor: colors.surface,
+    },
+    detailCardName: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: colors.text,
+        letterSpacing: -0.5,
+        textAlign: 'center',
+        marginTop: spacing.lg,
+        marginBottom: 4,
+    },
+    detailPositionBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.softLinen,
+        marginTop: spacing.sm,
+    },
+    detailPositionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.text,
+    },
+    detailInfoSection: {
+        width: '100%',
+    },
+    detailKeywords: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        marginBottom: spacing.lg,
+    },
+    detailKeywordBadge: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        backgroundColor: colors.softLinen,
+        borderRadius: borderRadius.full,
+        marginRight: spacing.xs,
+        marginBottom: spacing.xs,
+    },
+    detailKeywordText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        fontWeight: '500',
+    },
+    detailMeaningBox: {
+        backgroundColor: colors.surface,
+        padding: spacing.lg,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.softLinen,
+        marginBottom: spacing.lg,
+    },
+    detailMeaningText: {
+        fontSize: 16,
+        lineHeight: 24,
+        color: colors.text,
+    },
+    detailNoteSection: {
+        marginTop: spacing.sm,
+    },
+    detailSectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.text,
+        marginBottom: spacing.sm,
+        marginLeft: 4,
+    },
+    detailNoteText: {
+        fontSize: 15,
+        lineHeight: 22,
+        color: colors.textSecondary,
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.softLinen,
     },
 });

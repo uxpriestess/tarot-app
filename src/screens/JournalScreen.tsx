@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     Modal,
+    TextInput,
+    Alert, // Added for feedback
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -13,7 +15,7 @@ import { useAppStore, JournalEntry } from '../store/appStore';
 import { getCardById } from '../data'; // Ensure this assumes getCardById is exported from data
 import { CardImage } from '../components/CardImage';
 import { CardRevealScreen } from './CardRevealScreen';
-import { Dimensions, TextInput } from 'react-native';
+import { Dimensions } from 'react-native';
 import { TarotCard } from '../types/tarot';
 
 const { width } = Dimensions.get('window');
@@ -24,7 +26,28 @@ const IMAGE_HEIGHT = Math.round(CARD_WIDTH * IMAGE_RATIO);
 export function JournalScreen() {
     const journalEntries = useAppStore((s) => s.journalEntries);
     const journalHistory = useAppStore((s) => s.journalHistory);
+    const updateEntryNote = useAppStore((s) => s.updateEntryNote);
     const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+    const [noteText, setNoteText] = useState('');
+
+    useEffect(() => {
+        if (selectedEntry) {
+            setNoteText(selectedEntry.note || '');
+        }
+    }, [selectedEntry]);
+
+    const handleSaveNote = () => {
+        if (selectedEntry) {
+            updateEntryNote(selectedEntry.id, noteText);
+            // Optional: Update local selectedEntry to reflect change immediately if we were using it for display,
+            // but we are using noteText for the input value.
+            // We should update selectedEntry so if we close/reopen it's consistent, 
+            // though the useEffect handles reopen. 
+            // To be safe and keep local consistent:
+            setSelectedEntry({ ...selectedEntry, note: noteText });
+            Alert.alert("Uloženo", "Poznámka byla uložena.");
+        }
+    };
 
     const getCardForEntry = (id: string) => {
         return getCardById(id);
@@ -180,19 +203,26 @@ export function JournalScreen() {
                                         <Text style={styles.detailMeaningText}>{meaning}</Text>
                                     </View>
 
-                                    {/* Note Display (Read-only for now based on "easy display", but editable is nice) 
-                                        Let's make it display only or editable? 
-                                        The user said "only displayed the revealed card + meaning". 
-                                        I'll show notes if they exist, but maybe just as text. 
-                                        Actually, let's keep it simple and consistent with the request "card + meaning".
-                                        I'll add the note if it exists in the entry.
-                                    */}
-                                    {selectedEntry.note && (
-                                        <View style={styles.detailNoteSection}>
-                                            <Text style={styles.detailSectionTitle}>Tvé poznámky</Text>
-                                            <Text style={styles.detailNoteText}>{selectedEntry.note}</Text>
-                                        </View>
-                                    )}
+                                    {/* Note Section - Always visible and editable */}
+                                    <View style={styles.detailNoteSection}>
+                                        <Text style={styles.detailSectionTitle}>Tvé poznámky</Text>
+                                        <TextInput
+                                            style={styles.detailNoteInput}
+                                            placeholder="Zapiš si své myšlenky..."
+                                            placeholderTextColor={colors.textSecondary}
+                                            multiline
+                                            value={noteText}
+                                            onChangeText={setNoteText}
+                                            textAlignVertical="top"
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.saveNoteButton}
+                                            onPress={handleSaveNote}
+                                        >
+                                            <Ionicons name="save-outline" size={18} color={colors.background} />
+                                            <Text style={styles.saveNoteButtonText}>Uložit poznámku</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </ScrollView>
                         </View>
@@ -430,7 +460,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
         marginLeft: 4,
     },
-    detailNoteText: {
+    detailNoteText: { // Keeping for legacy/ref if needed, can delete
         fontSize: 15,
         lineHeight: 22,
         color: colors.textSecondary,
@@ -439,5 +469,31 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: colors.softLinen,
+    },
+    detailNoteInput: {
+        fontSize: 15,
+        lineHeight: 22,
+        color: colors.text,
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.softLinen,
+        minHeight: 100,
+        marginBottom: spacing.md,
+    },
+    saveNoteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.text,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.full,
+    },
+    saveNoteButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.background,
+        marginLeft: spacing.xs,
     },
 });

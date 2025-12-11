@@ -154,13 +154,15 @@ const styles = StyleSheet.create({
     filterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        justifyContent: 'center',
+        paddingHorizontal: 16, // Explicit px for control
+        paddingVertical: 10,   // Increased vertical padding
         borderRadius: borderRadius.full,
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.softLinen,
         marginRight: spacing.sm,
+        minHeight: 40,        // Increased min height
     },
     filterChipActive: {
         backgroundColor: colors.softLinen,
@@ -169,8 +171,11 @@ const styles = StyleSheet.create({
     },
     filterText: {
         fontSize: 14,
+        lineHeight: 20,       // Explicit line height to prevent vertical clipping
         fontWeight: '500',
         color: colors.textSecondary,
+        includeFontPadding: false,
+        textAlignVertical: 'center',
     },
     filterTextActive: {
         color: colors.text,

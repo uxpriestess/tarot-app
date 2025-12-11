@@ -122,6 +122,12 @@ export function JournalScreen() {
                                         <Text style={styles.entryPosition}>
                                             {entry.position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
                                         </Text>
+                                        {/* Note Preview */}
+                                        {entry.note ? (
+                                            <Text style={styles.entryNotePreview} numberOfLines={2}>
+                                                {entry.note}
+                                            </Text>
+                                        ) : null}
                                     </View>
                                     <Ionicons
                                         name="chevron-forward"
@@ -348,6 +354,13 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: colors.lavender,
         marginTop: 2,
+    },
+    entryNotePreview: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        marginTop: 4,
+        fontStyle: 'italic',
+        opacity: 0.8,
     },
     // Detail View Styles
     detailContainer: {

@@ -7,12 +7,14 @@ import {
     TouchableOpacity,
     FlatList,
     Dimensions,
+    Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { allCards } from '../data';
 import { TarotCard } from '../types/tarot';
 import { CardImage } from '../components/CardImage';
+import { CardRevealScreen } from './CardRevealScreen';
 
 type FilterType = 'all' | 'major' | 'wands' | 'cups' | 'swords' | 'pentacles';
 
@@ -21,19 +23,22 @@ const cardWidth = (width - spacing.lg * 3) / 2;
 
 export function CollectionScreen() {
     const [filter, setFilter] = useState<FilterType>('all');
+    const [selectedCard, setSelectedCard] = useState<TarotCard | null>(null);
 
     const filteredCards = allCards.filter((card: TarotCard) => {
         if (filter === 'all') return true;
         if (filter === 'major') return card.suit === 'Major Arcana';
         if (!card.suit) return false;
-        return card.suit.toLowerCase() === filter;
+        return card.suit.toLowerCase() === filter.toLowerCase();
     });
 
     const filterOptions: { key: FilterType; label: string; icon: string }[] = [
         { key: 'all', label: 'Vše', icon: 'apps-outline' },
-        { key: 'major', label: 'Major', icon: 'star-outline' },
-        { key: 'wands', label: 'Hůlky', icon: 'flash-outline' },
-        { key: 'cups', label: 'Kalichy', icon: 'water-outline' },
+        { key: 'major', label: 'Velká Arkána', icon: 'star-outline' },
+        { key: 'wands', label: 'Hole', icon: 'flame-outline' },
+        { key: 'cups', label: 'Poháry', icon: 'water-outline' },
+        { key: 'pentacles', label: 'Pentakly', icon: 'leaf-outline' },
+        { key: 'swords', label: 'Meče', icon: 'flash-outline' },
     ];
 
     return (
@@ -85,7 +90,11 @@ export function CollectionScreen() {
                 columnWrapperStyle={styles.row}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.cardContainer} activeOpacity={0.8}>
+                    <TouchableOpacity
+                        style={styles.cardContainer}
+                        activeOpacity={0.8}
+                        onPress={() => setSelectedCard(item)}
+                    >
                         <View style={styles.cardWrapper}>
                             <CardImage imageName={item.imageName} width={cardWidth} height={cardWidth * 1.5} />
                         </View>
@@ -96,6 +105,21 @@ export function CollectionScreen() {
                     </TouchableOpacity>
                 )}
             />
+
+            <Modal
+                visible={!!selectedCard}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setSelectedCard(null)}
+            >
+                {selectedCard && (
+                    <CardRevealScreen
+                        card={selectedCard}
+                        position="upright"
+                        onClose={() => setSelectedCard(null)}
+                    />
+                )}
+            </Modal>
         </View>
     );
 }

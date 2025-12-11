@@ -1,6 +1,8 @@
 import { majorArcana } from './majorArcana';
 import { cups } from './cups';
 import { pentacles } from './pentacles';
+import { wands } from './wands';
+import { swords } from './swords';
 import { TarotCard } from '../types/tarot';
 
 // Add suit and czechName to cards dynamically
@@ -17,10 +19,12 @@ export const allCards: TarotCard[] = [
     ...addMissingProps(majorArcana, 'Major Arcana'),
     ...addMissingProps(cups, 'Cups'),
     ...addMissingProps(pentacles, 'Pentacles'),
+    ...addMissingProps(wands, 'Wands'),
+    ...addMissingProps(swords, 'Swords'),
 ];
 
 // Export individual sets if needed
-export { majorArcana, cups, pentacles };
+export { majorArcana, cups, pentacles, wands, swords };
 
 // Helper functions using the combined deck
 export const getRandomCard = (): TarotCard => {

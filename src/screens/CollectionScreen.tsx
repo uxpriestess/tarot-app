@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
     },
     filtersContent: {
         paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.sm, // Add padding to prevent clipping of shadows/borders
     },
     filterChip: {
         flexDirection: 'row',

@@ -1,21 +1,25 @@
 import { useAppStore } from "../store/appStore";
 import { getInsightsOutput } from "../insights";
 import { Insight } from "../insights/types";
+import { getCardById } from "../data";
 
 export function useInsights() {
     const journalEntries = useAppStore((s) => s.journalEntries);
     const streakDays = useAppStore((s) => s.streakDays);
-    const drawHistory = useAppStore((s) => s.drawHistory);
+    const journalHistory = useAppStore((s) => s.journalHistory);
     const style = useAppStore((s) => s.userMicrocopyStyle);
 
-    const lastCard = drawHistory[drawHistory.length - 1];
-    const mostDrawn =
-        drawHistory.length > 3
-            ? [...drawHistory].sort((a, b) =>
-                drawHistory.filter((x) => x === b).length -
-                drawHistory.filter((x) => x === a).length
-            )[0]
-            : null;
+    // Calculate most drawn card from journalHistory
+    const cardCounts = journalHistory.reduce((acc, entry) => {
+        acc[entry.cardId] = (acc[entry.cardId] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const mostDrawnId = Object.keys(cardCounts).length > 0
+        ? Object.keys(cardCounts).reduce((a, b) => cardCounts[a] > cardCounts[b] ? a : b)
+        : null;
+
+    const mostDrawnCard = mostDrawnId ? getCardById(mostDrawnId) : null;
 
     const insights: Insight[] = [];
 
@@ -33,10 +37,10 @@ export function useInsights() {
         });
     }
 
-    if (mostDrawn) {
+    if (mostDrawnCard && cardCounts[mostDrawnCard.id] > 2) { // Threshold of >2 draws
         insights.push({
             type: "Favorite",
-            payload: { card: mostDrawn }
+            payload: { card: mostDrawnCard.nameCzech }
         });
     }
 

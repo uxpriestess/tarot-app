@@ -8,6 +8,7 @@ import {
   Dimensions,
   TouchableOpacity,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -18,6 +19,9 @@ interface CardRevealScreenProps {
   position: 'upright' | 'reversed';
   onClose: () => void;
   onSaveReading?: () => void;
+  note?: string;
+  onUpdateNote?: (text: string) => void;
+  isJournalMode?: boolean;
 }
 
 const { width } = Dimensions.get('window');
@@ -35,8 +39,22 @@ export function CardRevealScreen({
   position,
   onClose,
   onSaveReading,
+  note,
+  onUpdateNote,
+  isJournalMode = false,
 }: CardRevealScreenProps) {
-  const [isRevealed, setIsRevealed] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(isJournalMode); // Auto-reveal in journal mode
+  const [localNote, setLocalNote] = useState(note || '');
+
+  // Sync local note if prop changes
+  useEffect(() => {
+    setLocalNote(note || '');
+  }, [note]);
+
+  const handleNoteChange = (text: string) => {
+    setLocalNote(text);
+    onUpdateNote?.(text);
+  };
 
   // Animation values
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -215,6 +233,22 @@ export function CardRevealScreen({
           <View style={styles.meaningContainer}>
             <Text style={styles.meaningText}>{meaning}</Text>
           </View>
+
+          {/* Notes Section (Journal Mode) */}
+          {(isJournalMode || onUpdateNote) && (
+            <View style={styles.noteContainer}>
+              <Text style={styles.sectionTitle}>Tvé poznámky</Text>
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Sem si napiš své myšlenky..."
+                placeholderTextColor={colors.textLight}
+                multiline
+                value={localNote}
+                onChangeText={handleNoteChange}
+                textAlignVertical="top"
+              />
+            </View>
+          )}
 
           {/* Actions */}
           <View style={styles.actionsContainer}>
@@ -420,5 +454,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.background,
+  },
+  noteContainer: {
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+    marginLeft: 4,
+  },
+  noteInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.softLinen,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    color: colors.text,
+    fontSize: 16,
+    minHeight: 120,
+    lineHeight: 24,
   },
 });

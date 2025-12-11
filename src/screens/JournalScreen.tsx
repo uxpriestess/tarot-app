@@ -1,18 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
+    Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
-import { useAppStore } from '../store/appStore';
+import { useAppStore, JournalEntry } from '../store/appStore';
+import { getCardById } from '../data'; // Ensure this assumes getCardById is exported from data
+import { CardImage } from '../components/CardImage';
+import { CardRevealScreen } from './CardRevealScreen';
 
 export function JournalScreen() {
-    const drawHistory = useAppStore((s) => s.drawHistory);
     const journalEntries = useAppStore((s) => s.journalEntries);
+    const journalHistory = useAppStore((s) => s.journalHistory);
+    const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+
+    const getCardForEntry = (id: string) => {
+        return getCardById(id);
+    };
 
     return (
         <View style={styles.container}>
@@ -36,9 +45,9 @@ export function JournalScreen() {
                         <Text style={styles.statLabel}>Záznamy</Text>
                     </View>
                     <View style={styles.statItem}>
-                        <Ionicons name="sparkles-outline" size={24} color={colors.bronze} />
-                        <Text style={styles.statNumber}>{drawHistory.length}</Text>
-                        <Text style={styles.statLabel}>Výklady</Text>
+                        <Ionicons name="filter-outline" size={24} color={colors.bronze} />
+                        <Text style={styles.statNumber}>{journalHistory.length}</Text>
+                        <Text style={styles.statLabel}>Uloženo</Text>
                     </View>
                 </View>
 
@@ -46,44 +55,74 @@ export function JournalScreen() {
                 <View style={styles.entriesContainer}>
                     <Text style={styles.sectionTitle}>Poslední výklady</Text>
 
-                    {drawHistory.length === 0 ? (
+                    {journalHistory.length === 0 ? (
                         <View style={styles.emptyState}>
                             <Ionicons name="calendar-outline" size={48} color={colors.textLight} />
                             <Text style={styles.emptyText}>Zatím nemáš žádné výklady</Text>
                             <Text style={styles.emptySubtext}>
-                                Vytáhni první kartu a začni svou cestu
+                                Vytáhni první kartu a ulož si ji sem
                             </Text>
                         </View>
                     ) : (
-                        drawHistory.slice().reverse().map((cardName, index) => (
-                            <TouchableOpacity
-                                key={`${cardName}-${index}`}
-                                style={styles.entryCard}
-                                activeOpacity={0.7}
-                            >
-                                <View style={styles.entryIconWrapper}>
+                        journalHistory.map((entry) => {
+                            const card = getCardForEntry(entry.cardId);
+                            if (!card) return null;
+
+                            return (
+                                <TouchableOpacity
+                                    key={entry.id}
+                                    style={styles.entryCard}
+                                    activeOpacity={0.7}
+                                    onPress={() => setSelectedEntry(entry)}
+                                >
+                                    <View style={styles.entryIconWrapper}>
+                                        <CardImage imageName={card.imageName} width={40} height={56} />
+                                    </View>
+                                    <View style={styles.entryContent}>
+                                        <Text style={styles.entryTitle}>{card.nameCzech}</Text>
+                                        <Text style={styles.entryDate}>
+                                            {new Date(entry.date).toLocaleDateString('cs-CZ', {
+                                                day: 'numeric',
+                                                month: 'numeric',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </Text>
+                                        <Text style={styles.entryPosition}>
+                                            {entry.position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
+                                        </Text>
+                                    </View>
                                     <Ionicons
-                                        name="sparkles"
+                                        name="chevron-forward"
                                         size={20}
-                                        color={colors.lavender}
+                                        color={colors.textLight}
                                     />
-                                </View>
-                                <View style={styles.entryContent}>
-                                    <Text style={styles.entryTitle}>{cardName}</Text>
-                                    <Text style={styles.entryDate}>
-                                        {new Date().toLocaleDateString('cs-CZ')}
-                                    </Text>
-                                </View>
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={20}
-                                    color={colors.textLight}
-                                />
-                            </TouchableOpacity>
-                        ))
+                                </TouchableOpacity>
+                            );
+                        })
                     )}
                 </View>
             </ScrollView>
+
+            <Modal
+                visible={!!selectedEntry}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setSelectedEntry(null)}
+            >
+                {selectedEntry && (() => {
+                    const card = getCardForEntry(selectedEntry.cardId);
+                    if (!card) return null;
+                    return (
+                        <CardRevealScreen
+                            card={card}
+                            position={selectedEntry.position}
+                            onClose={() => setSelectedEntry(null)}
+                        />
+                    );
+                })()}
+            </Modal>
         </View>
     );
 }
@@ -178,12 +217,13 @@ const styles = StyleSheet.create({
     },
     entryIconWrapper: {
         width: 40,
-        height: 40,
-        borderRadius: borderRadius.md,
+        height: 56, // Taller to match aspect ratio slightly
+        borderRadius: borderRadius.sm,
         backgroundColor: colors.softLinen,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
+        overflow: 'hidden',
     },
     entryContent: {
         flex: 1,
@@ -197,5 +237,10 @@ const styles = StyleSheet.create({
     entryDate: {
         fontSize: 13,
         color: colors.textSecondary,
+    },
+    entryPosition: {
+        fontSize: 11,
+        color: colors.lavender,
+        marginTop: 2,
     },
 });

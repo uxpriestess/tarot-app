@@ -13,7 +13,7 @@ import {
 const Tab = createBottomTabNavigator();
 
 interface TabNavigatorProps {
-    onDrawCard: () => void;
+    onDrawCard: (subsetIds?: string[]) => void;
 }
 
 export function TabNavigator({ onDrawCard }: TabNavigatorProps) {

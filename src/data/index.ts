@@ -41,8 +41,19 @@ export const getCardByNumber = (number: number): TarotCard | undefined => {
     return allCards.find(card => card.number === number);
 };
 
-export const drawCard = (): { card: TarotCard; position: 'upright' | 'reversed' } => {
-    const card = getRandomCard();
+export const drawCard = (subsetIds?: string[]): { card: TarotCard; position: 'upright' | 'reversed' } => {
+    let pool = allCards;
+
+    if (subsetIds && subsetIds.length > 0) {
+        pool = allCards.filter(c => subsetIds.includes(c.id));
+        if (pool.length === 0) {
+            console.warn('Subset result is empty, falling back to full deck');
+            pool = allCards;
+        }
+    }
+
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const card = pool[randomIndex];
     const position = Math.random() > 0.5 ? 'upright' : 'reversed';
     return { card, position };
 };

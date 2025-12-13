@@ -16,8 +16,8 @@ export default function App() {
 
   const addJournalEntry = useAppStore((state) => state.addJournalEntry);
 
-  const handleDrawCard = () => {
-    const drawn = drawCard();
+  const handleDrawCard = (subsetIds?: string[]) => {
+    const drawn = drawCard(subsetIds);
     setCurrentCard(drawn);
   };
 

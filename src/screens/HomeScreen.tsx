@@ -308,23 +308,11 @@ export function HomeScreen({
                 <TouchableOpacity
                   onPress={() => {
                     if (!hasReadToday) {
-                      // Pass context to draw function? 
-                      // The onDrawCard prop serves as the trigger. 
-                      // The parent screen handles the actual standard draw.
-                      // For evening mystery, we might need a specific prop or internal logic if we handled drawing here.
-                      // BUT, since `onDrawCard` is a prop from layout, we can't easily change the draw logic *at the root* from here
-                      // without modifying where HomeScreen is used (App.tsx or Layout).
-                      // FOR THIS STEP: We will assume onDrawCard triggers the standard flow.
-                      // To implement MYSTERY draw, we need to handle it.
-                      // If `onDrawCard` is generic, we can't change the card pool easily.
-
-                      // Correct approach: We need to modify `onDrawCard` in the parent OR 
-                      // Modify how this button behaves. Since we don't control parent here easily:
-                      // We will adhere to standard drawing for now, but update UI to REFLECT evening intent.
-                      // Wait, the user wants "Večer could provide specific cards".
-                      // This requires logic change in `useTarot` or where `onDrawCard` is defined.
-
-                      onDrawCard();
+                      if (selectedContext === 'evening') {
+                        onDrawCard(MYSTERY_CARD_IDS);
+                      } else {
+                        onDrawCard();
+                      }
                     }
                   }}
                   disabled={hasReadToday && selectedContext !== 'evening'} // Allow evening interaction if we had "action" but we split above

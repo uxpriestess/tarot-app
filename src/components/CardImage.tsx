@@ -80,6 +80,22 @@ const cardImages: { [key: string]: ImageSourcePropType } = {
   'rytir-holi.png': require('../../assets/cards/wands/rytir-holi.png'),
   'kralovna-holi.png': require('../../assets/cards/wands/kralovna-holi.png'),
   'kral-holi.png': require('../../assets/cards/wands/kral-holi.png'),
+
+  // Swords (Meče)
+  'eso-mecu.jpg': require('../../assets/cards/swords/eso-mecu.jpg'),
+  '2-mecu.png': require('../../assets/cards/swords/2-mecu.png'),
+  '3-mecu.png': require('../../assets/cards/swords/3-mecu.png'),
+  '4-mecu.png': require('../../assets/cards/swords/4-mecu.png'),
+  '5-mecu.png': require('../../assets/cards/swords/5-mecu.png'),
+  '6-mecu.png': require('../../assets/cards/swords/6-mecu.png'),
+  '7-mecu.png': require('../../assets/cards/swords/7-mecu.png'),
+  '8-mecu.png': require('../../assets/cards/swords/8-mecu.png'),
+  '9-mecu.png': require('../../assets/cards/swords/9-mecu.png'),
+  '10-mecu.png': require('../../assets/cards/swords/10-mecu.png'),
+  'paze-mecu.jpg': require('../../assets/cards/swords/paze-mecu.jpg'),
+  'rytir-mecu.jpg': require('../../assets/cards/swords/rytir-mecu.jpg'),
+  'kralovna-mecu.png': require('../../assets/cards/swords/kralovna-mecu.png'),
+  'kral-mecu.png': require('../../assets/cards/swords/kral-mecu.png'),
 };
 
 export function CardImage({ imageName, width = 200, height = 300 }: CardImageProps) {

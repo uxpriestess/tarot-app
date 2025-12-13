@@ -7,16 +7,16 @@ import {
     TouchableOpacity,
     Modal,
     TextInput,
-    Alert, // Added for feedback
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { useAppStore, JournalEntry } from '../store/appStore';
-import { getCardById } from '../data'; // Ensure this assumes getCardById is exported from data
+import { getCardById } from '../data';
 import { CardImage } from '../components/CardImage';
-import { CardRevealScreen } from './CardRevealScreen';
 import { Dimensions } from 'react-native';
-import { TarotCard } from '../types/tarot';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = Math.round(width * 0.85); // Slightly smaller than reveal screen
@@ -39,11 +39,6 @@ export function JournalScreen() {
     const handleSaveNote = () => {
         if (selectedEntry) {
             updateEntryNote(selectedEntry.id, noteText);
-            // Optional: Update local selectedEntry to reflect change immediately if we were using it for display,
-            // but we are using noteText for the input value.
-            // We should update selectedEntry so if we close/reopen it's consistent, 
-            // though the useEffect handles reopen. 
-            // To be safe and keep local consistent:
             setSelectedEntry({ ...selectedEntry, note: noteText });
             Alert.alert("Uloženo", "Poznámka byla uložena.");
         }
@@ -155,7 +150,10 @@ export function JournalScreen() {
                     const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
 
                     return (
-                        <View style={styles.detailContainer}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                            style={styles.detailContainer}
+                        >
                             <ScrollView
                                 contentContainerStyle={styles.detailContent}
                                 showsVerticalScrollIndicator={false}
@@ -231,10 +229,11 @@ export function JournalScreen() {
                                     </View>
                                 </View>
                             </ScrollView>
-                        </View>
+                        </KeyboardAvoidingView>
                     );
                 })()}
             </Modal>
+
         </View >
     );
 }

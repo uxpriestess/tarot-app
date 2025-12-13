@@ -10,7 +10,7 @@ export const swords: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: 'eso-mecu.png',
+        imageName: 'eso-mecu.jpg',
     },
     {
         id: 'swords-2',
@@ -21,7 +21,7 @@ export const swords: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: '2-mece.png',
+        imageName: '2-mecu.png',
     },
     {
         id: 'swords-3',
@@ -32,7 +32,7 @@ export const swords: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: '3-mece.png',
+        imageName: '3-mecu.png',
     },
     {
         id: 'swords-4',
@@ -43,7 +43,7 @@ export const swords: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: '4-mece.png',
+        imageName: '4-mecu.png',
     },
     {
         id: 'swords-5',
@@ -120,7 +120,7 @@ export const swords: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: 'paze-mecu.png',
+        imageName: 'paze-mecu.jpg',
     },
     {
         id: 'swords-12',
@@ -131,7 +131,7 @@ export const swords: TarotCard[] = [
         meaningUpright: 'TBD',
         meaningReversed: 'TBD',
         animal: 'TBD',
-        imageName: 'rytir-mecu.png',
+        imageName: 'rytir-mecu.jpg',
     },
     {
         id: 'swords-13',

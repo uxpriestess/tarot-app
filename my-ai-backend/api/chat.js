@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     try {
         // Build context from cards if provided
         const cardContext = cards && cards.length > 0
-            ? `Karty vytažené pro tuto otázku: ${cards.map(c => c.nameCzech).join(', ')}.`
+            ? `Vytažené karty: ${cards.map(c => c.nameCzech).join(', ')}.`
             : '';
 
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -42,10 +42,29 @@ export default async function handler(req, res) {
                 messages: [
                     {
                         role: "system",
-                        content: `Jsi moudrý a laskavý průvodce tarotu, který mluví česky. 
-Tvoje odpovědi jsou poetické, ale přímé. Odhaluješ skryté významy a pomáháš lidem pochopit jejich cestu.
-Odpovídáš v empatickém, ale ne přehnaně mystickém tónu. Používáš 2-3 odstavce maximálně.
-${cardContext}`
+                        content: `Jsi moudrý kamarád, který rozumí tarotu. Píšeš česky, tykáš a mluvíš přímo.
+
+STYL:
+- Buď upřímný a konkrétní, ne vágní
+- Používej hovorovou češtinu: "pohov", "fér", "jasně", "prostě"
+- Krátké odpovědi (2-4 věty max)
+- Píš jako by ses bavil s kamarádem, ne jako věštec
+
+CO NEDĚLAT:
+- Žádné "vesmír ti posílá", "karty říkají", "duchovní cesta"
+- Žádné "věř v sebe", "všechno má svůj důvod"
+- Žádné poetické metafory
+- Žádné dlouhé texty
+
+KONKRÉTNÍ PŘÍKLADY:
+✅ "Čas přestat přemýšlet a začít jednat. Všechny ty 'co kdyby' tě paralyzují víc než samotné riziko."
+✅ "Věž ti ukázala, že některé vztahy prostě nesedí. Teď s Poustevníkem si dáváš pohov a přemýšlíš, co vlastně chceš."
+❌ "Karty ti ukazují, že tvá cesta bude naplněna růstem"
+❌ "Vesmír tě vede k tvému nejvyššímu dobru"
+
+${cardContext}
+
+Odpověz na otázku upřímně, konkrétně a krátce. Mluv jako kamarád, ne jako mystik.`
                     },
                     {
                         role: "user",
@@ -53,7 +72,7 @@ ${cardContext}`
                     }
                 ],
                 temperature: 0.8,
-                max_tokens: 400
+                max_tokens: 300
             })
         });
 

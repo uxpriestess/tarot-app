@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -15,6 +16,7 @@ import { MYSTERY_CARD_IDS } from '../data/subsets';
 
 interface HomeScreenProps {
   onDrawCard: (subsetIds?: string[]) => void;
+  onAskUniverse?: (question: string) => Promise<void>;
   hasReadToday: boolean;
   streak: number;
   onViewGuides?: () => void;
@@ -30,6 +32,7 @@ const { width } = Dimensions.get('window');
 
 export function HomeScreen({
   onDrawCard,
+  onAskUniverse,
   hasReadToday,
   streak,
   onViewGuides,
@@ -49,6 +52,7 @@ export function HomeScreen({
     if (hour < 18) return 'morning';
     return 'evening';
   });
+  const [question, setQuestion] = useState('');
 
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -131,8 +135,8 @@ export function HomeScreen({
         };
       case 'deeper':
         return {
-          title: 'Polož větší otázku',
-          subtitle: 'Karty ti napoví směr 🔮',
+          title: question ? 'Tvoje otázka' : 'Na co se chceš zeptat?',
+          subtitle: question ? '' : 'Polož otázku a karty ti odpoví 🔮',
         };
     }
   };
@@ -247,7 +251,7 @@ export function HomeScreen({
                     selectedContext === 'deeper' && styles.chipTextActive,
                   ]}
                 >
-                  🔮 Hlubší
+                  🔮 Zeptej se cokoliv
                 </Text>
               </TouchableOpacity>
             </View>
@@ -262,6 +266,21 @@ export function HomeScreen({
                 {getContextualMessage().subtitle}
               </Text>
             </View>
+
+            {/* Question Input for "Zeptej se cokoliv" */}
+            {selectedContext === 'deeper' && !hasReadToday && (
+              <View style={styles.questionInputContainer}>
+                <TextInput
+                  style={styles.questionInput}
+                  placeholder="Na co se chceš zeptat?"
+                  placeholderTextColor={colors.textLight}
+                  value={question}
+                  onChangeText={setQuestion}
+                  multiline
+                  maxLength={200}
+                />
+              </View>
+            )}
 
             {/* Main CTA Button */}
             <Animated.View
@@ -308,7 +327,12 @@ export function HomeScreen({
                 <TouchableOpacity
                   onPress={() => {
                     if (!hasReadToday) {
-                      if (selectedContext === 'evening') {
+                      if (selectedContext === 'deeper') {
+                        // Call universe service
+                        if (onAskUniverse) {
+                          onAskUniverse(question);
+                        }
+                      } else if (selectedContext === 'evening') {
                         onDrawCard(MYSTERY_CARD_IDS);
                       } else {
                         onDrawCard();
@@ -323,15 +347,15 @@ export function HomeScreen({
                   activeOpacity={hasReadToday ? 1 : 0.8}
                 >
                   <Ionicons
-                    name={selectedContext === 'evening' ? 'moon' : 'sparkles'}
+                    name={selectedContext === 'evening' ? 'moon' : (selectedContext === 'deeper' ? 'chatbubbles' : 'sparkles')}
                     size={20}
                     color={colors.background}
                     style={styles.buttonIcon}
                   />
                   <Text style={styles.mainButtonText}>
                     {hasReadToday
-                      ? (selectedContext === 'evening' ? 'Karta dne odhalena' : 'Hotovo na dnes')
-                      : (selectedContext === 'evening' ? 'Odhalit večerní tajemství' : 'Vytáhnout kartu')
+                      ? (selectedContext === 'evening' ? 'Karta dne odhalena' : ' Hotovo na dnes')
+                      : (selectedContext === 'deeper' ? 'Vyložit karty' : (selectedContext === 'evening' ? 'Odhalit večerní tajemství' : 'Vytáhnout kartu'))
                     }
                   </Text>
                 </TouchableOpacity>
@@ -706,5 +730,21 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: colors.text,
     opacity: 0.2,
+  },
+  questionInputContainer: {
+    width: '100%',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  questionInput: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: colors.lavender,
   },
 });

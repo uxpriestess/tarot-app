@@ -14,9 +14,10 @@ const Tab = createBottomTabNavigator();
 
 interface TabNavigatorProps {
     onDrawCard: (subsetIds?: string[]) => void;
+    onAskUniverse: (question: string) => Promise<void>;
 }
 
-export function TabNavigator({ onDrawCard }: TabNavigatorProps) {
+export function TabNavigator({ onDrawCard, onAskUniverse }: TabNavigatorProps) {
     return (
         <Tab.Navigator
             screenOptions={{
@@ -48,6 +49,7 @@ export function TabNavigator({ onDrawCard }: TabNavigatorProps) {
                 {() => (
                     <HomeScreen
                         onDrawCard={onDrawCard}
+                        onAskUniverse={onAskUniverse}
                         hasReadToday={false}
                         streak={3}
                     />

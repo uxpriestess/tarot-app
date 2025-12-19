@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -110,7 +111,17 @@ export function CardRevealScreen({
   const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.primary }]}>
+      {/* Background Glow Effect (Optional visual depth) */}
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 400,
+        backgroundColor: colors.primary, // Base
+        opacity: 0.5,
+      }} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -121,7 +132,7 @@ export function CardRevealScreen({
           onPress={onClose}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={28} color={colors.text} />
+          <Ionicons name="close" size={24} color={colors.primary} />
         </TouchableOpacity>
 
         {/* Card container */}
@@ -166,7 +177,7 @@ export function CardRevealScreen({
                 styles.cardFront,
                 {
                   opacity: backOpacity,
-                  backgroundColor: colors.softLinen,
+                  backgroundColor: colors.surface,
                   transform: [{ rotateY: '180deg' }],
                 },
               ]}
@@ -200,7 +211,7 @@ export function CardRevealScreen({
               <Ionicons
                 name={position === 'upright' ? 'arrow-up-circle' : 'arrow-down-circle'}
                 size={16}
-                color={position === 'upright' ? colors.sage : colors.bronze}
+                color={colors.surface}
                 style={{ marginRight: spacing.xs }}
               />
               <Text style={styles.positionText}>
@@ -258,7 +269,7 @@ export function CardRevealScreen({
                 onPress={onSaveReading}
                 activeOpacity={0.8}
               >
-                <Ionicons name="bookmark-outline" size={20} color={colors.text} style={{ marginRight: spacing.xs }} />
+                <Ionicons name="bookmark-outline" size={20} color={colors.surface} style={{ marginRight: spacing.xs }} />
                 <Text style={styles.saveButtonText}>Uložit výklad</Text>
               </TouchableOpacity>
             )}
@@ -280,7 +291,7 @@ export function CardRevealScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary, // Ensure dark bg
   },
   scrollContent: {
     flexGrow: 1,
@@ -292,15 +303,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     right: spacing.lg,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface, // Pearl/White button
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.text,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
     zIndex: 10,
@@ -319,22 +330,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: borderRadius.lg,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowColor: colors.secondary, // Gold glow
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 30,
     elevation: 10,
   },
   cardBack: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary, // Dark back
     padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.secondary, // Gold border
   },
   cardBackBorder: {
     flex: 1,
     borderWidth: 2,
-    borderColor: colors.softLinen,
+    borderColor: colors.secondary,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
+    opacity: 0.5,
   },
   cardBackCenter: {
     flex: 1,
@@ -349,7 +363,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    opacity: 0.6,
+    opacity: 0.8,
     marginRight: spacing.sm,
   },
   cardFront: {
@@ -367,12 +381,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cardName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.surface, // White text
     letterSpacing: -0.5,
     textAlign: 'center',
     marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginTop: spacing.lg,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   positionBadge: {
     flexDirection: 'row',
@@ -380,15 +399,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.1)', // Glassy
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.softLinen,
+    borderColor: colors.secondary, // Gold border
   },
   positionText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.surface,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   contentSection: {
     width: '100%',
@@ -402,28 +422,31 @@ const styles = StyleSheet.create({
   keywordBadge: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.softLinen,
+    backgroundColor: colors.secondary, // Gold badges
     borderRadius: borderRadius.full,
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
   },
   keywordText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 14,
+    color: colors.primary, // Dark text on gold
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   meaningContainer: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
+    backgroundColor: 'rgba(255,255,255,0.08)', // Subtle light panel
+    padding: spacing.xl,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.softLinen,
+    borderColor: 'rgba(255,255,255,0.1)',
     marginBottom: spacing.lg,
   },
   meaningText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.text,
+    fontSize: 17,
+    lineHeight: 28,
+    color: colors.surfaceHighlight, // Off-white
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    textAlign: 'center',
   },
   actionsContainer: {
     // gap removed
@@ -433,47 +456,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.softLinen,
+    borderColor: colors.secondary, // Gold border
     marginBottom: spacing.sm,
   },
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.surface,
   },
   doneButton: {
     paddingVertical: spacing.md + 2,
-    backgroundColor: colors.text,
+    backgroundColor: colors.secondary, // Gold button
     borderRadius: borderRadius.full,
     alignItems: 'center',
+    marginTop: spacing.xs,
   },
   doneButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.background,
+    fontWeight: '700',
+    color: colors.primary, // Dark text
   },
   noteContainer: {
     marginBottom: spacing.lg,
+    marginTop: spacing.md,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.secondary, // Gold title
     marginBottom: spacing.sm,
     marginLeft: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   noteInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.softLinen,
+    borderColor: colors.secondary,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    color: colors.text,
+    color: colors.surface,
     fontSize: 16,
     minHeight: 120,
     lineHeight: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
 });

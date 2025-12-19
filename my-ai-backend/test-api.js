@@ -1,5 +1,5 @@
 // Test the deployed API
-const API_URL = 'https://my-ai-backend-d04s0azl3-claires-projects-7718f1e3.vercel.app/api/chat';
+const API_URL = 'https://my-ai-backend-dun.vercel.app/api/chat';
 
 async function testAPI() {
     console.log('Testing API at:', API_URL);

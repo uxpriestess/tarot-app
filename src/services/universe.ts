@@ -3,7 +3,7 @@ import { TarotCard } from '../types/tarot';
 
 // API endpoint - use the deployed Vercel URL
 // Using production domain (stable across deployments)
-const API_URL = 'https://my-ai-backend.vercel.app/api/chat';
+const API_URL = 'https://my-ai-backend-dun.vercel.app/api/chat';
 
 export interface UniverseQuestion {
     question: string;

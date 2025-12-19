@@ -8,6 +8,7 @@ import {
   Dimensions,
   ScrollView,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -178,34 +179,34 @@ export function HomeScreen({
 
               {/* Card back design */}
               <View style={styles.card}>
-                {/* Decorative border */}
-                <View style={styles.cardBorder}>
+                {/* Decorative border - "Gold Dipped" */}
+                <View style={[styles.cardBorder, { borderColor: colors.secondary }]}>
                   {/* Center symbol */}
                   <View style={styles.cardCenter}>
                     <Ionicons
                       name="sparkles-outline"
                       size={48}
-                      color={colors.lavender}
+                      color={colors.primary} // Amethyst
                       style={styles.cardIcon}
                     />
                     {/* Small decorative elements */}
                     <View style={styles.cardDots}>
-                      <View style={[styles.dot, { backgroundColor: colors.bronze }]} />
+                      <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
+                      <View style={[styles.dot, { backgroundColor: colors.tertiary }]} />
                       <View style={[styles.dot, { backgroundColor: colors.sage }]} />
-                      <View style={[styles.dot, { backgroundColor: colors.rose }]} />
                     </View>
                   </View>
                 </View>
               </View>
             </Animated.View>
 
-            {/* Time Context Chips - Override for Dev/Testing */}
+            {/* Time Context Chips - Vintage Gem Style */}
             <View style={styles.chipsContainer}>
               <TouchableOpacity
                 onPress={() => setSelectedContext('morning')}
                 style={[
                   styles.chip,
-                  selectedContext === 'morning' && styles.chipActive,
+                  selectedContext === 'morning' ? styles.chipActiveMorning : styles.chipInactive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -223,7 +224,7 @@ export function HomeScreen({
                 onPress={() => setSelectedContext('evening')}
                 style={[
                   styles.chip,
-                  selectedContext === 'evening' && styles.chipActive,
+                  selectedContext === 'evening' ? styles.chipActiveEvening : styles.chipInactive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -241,7 +242,7 @@ export function HomeScreen({
                 onPress={() => setSelectedContext('deeper')}
                 style={[
                   styles.chip,
-                  selectedContext === 'deeper' && styles.chipActive,
+                  selectedContext === 'deeper' ? styles.chipActiveDeeper : styles.chipInactive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -251,7 +252,7 @@ export function HomeScreen({
                     selectedContext === 'deeper' && styles.chipTextActive,
                   ]}
                 >
-                  🔮 Zeptej se cokoliv
+                  🔮 Zeptej se
                 </Text>
               </TouchableOpacity>
             </View>
@@ -500,6 +501,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
     letterSpacing: -0.3,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', // Editorial Serif
   },
   date: {
     fontSize: 14,
@@ -536,7 +538,7 @@ const styles = StyleSheet.create({
   cardBorder: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.softLinen,
+    borderColor: colors.border,
     borderRadius: borderRadius.md,
     padding: spacing.md,
   },
@@ -570,18 +572,34 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.softLinen,
-    marginRight: spacing.xs,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
   },
-  chipActive: {
-    backgroundColor: colors.softLinen,
-    borderColor: colors.lavender,
-    borderWidth: 1.5,
+  chipInactive: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderWidth: 1,
+  },
+  chipActiveMorning: {
+    backgroundColor: colors.gemCitrine + '40', // 25% opacity
+    borderColor: colors.gemCitrine,
+    borderWidth: 1,
+  },
+  chipActiveEvening: {
+    backgroundColor: colors.gemAmethyst + '40',
+    borderColor: colors.gemAmethyst,
+    borderWidth: 1,
+  },
+  chipActiveDeeper: {
+    backgroundColor: colors.gemMoonstone + '60',
+    borderColor: colors.gemMoonstone,
+    borderWidth: 1,
   },
   chipText: {
     fontSize: 13,
     fontWeight: '500',
     color: colors.textSecondary,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   chipTextActive: {
     color: colors.text,
@@ -648,7 +666,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.softLinen,
+    borderColor: colors.border,
     alignItems: 'center',
     shadowColor: colors.text,
     shadowOffset: { width: 0, height: 2 },
@@ -679,7 +697,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.softLinen,
+    borderColor: colors.border,
     marginBottom: spacing.sm,
   },
   insightText: {
@@ -691,7 +709,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.softLinen,
+    backgroundColor: colors.surfaceHighlight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,

@@ -161,12 +161,12 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: colors.softLinen,
+        borderColor: colors.border,
         marginRight: spacing.sm,
         minHeight: 40,        // Increased min height
     },
     filterChipActive: {
-        backgroundColor: colors.softLinen,
+        backgroundColor: colors.surfaceHighlight,
         borderColor: colors.lavender,
         borderWidth: 1.5,
     },

@@ -324,13 +324,13 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.md,
         marginBottom: spacing.sm,
         borderWidth: 1,
-        borderColor: colors.softLinen,
+        borderColor: colors.border,
     },
     entryIconWrapper: {
         width: 40,
         height: 56, // Taller to match aspect ratio slightly
         borderRadius: borderRadius.sm,
-        backgroundColor: colors.softLinen,
+        backgroundColor: colors.surfaceHighlight,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: borderRadius.full,
         borderWidth: 1,
-        borderColor: colors.softLinen,
+        borderColor: colors.border,
         marginTop: spacing.sm,
     },
     detailPositionText: {
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     detailKeywordBadge: {
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs,
-        backgroundColor: colors.softLinen,
+        backgroundColor: colors.surfaceHighlight,
         borderRadius: borderRadius.full,
         marginRight: spacing.xs,
         marginBottom: spacing.xs,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         borderRadius: borderRadius.lg,
         borderWidth: 1,
-        borderColor: colors.softLinen,
+        borderColor: colors.border,
         marginBottom: spacing.lg,
     },
     detailMeaningText: {
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: colors.softLinen,
+        borderColor: colors.border,
     },
     detailNoteInput: {
         fontSize: 15,
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: colors.softLinen,
+        borderColor: colors.border,
         minHeight: 100,
         marginBottom: spacing.md,
     },

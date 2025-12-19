@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
         paddingTop: spacing.xl,
         paddingBottom: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.softLinen,
+        borderBottomColor: colors.border,
     },
     closeButton: {
         padding: spacing.xs,

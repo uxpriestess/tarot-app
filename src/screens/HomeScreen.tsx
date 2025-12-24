@@ -25,6 +25,7 @@ interface HomeScreenProps {
   insights?: any[];
   onSingleCard?: () => void;
   onThreeCards?: () => void;
+  onOpenMystic?: () => void;
 }
 
 type TimeContext = 'morning' | 'evening' | 'deeper';
@@ -41,6 +42,7 @@ export function HomeScreen({
   insights = [],
   onSingleCard,
   onThreeCards,
+  onOpenMystic,
 }: HomeScreenProps) {
   // Get insights from Zustand store
   const { insights: dynamicInsights } = useInsights();
@@ -164,6 +166,29 @@ export function HomeScreen({
 
             {/* Date */}
             <Text style={styles.date}>{formatDate()}</Text>
+
+            {/* Mystic Entry Point */}
+            {onOpenMystic && (
+              <TouchableOpacity
+                onPress={onOpenMystic}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: colors.primary + '10',
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: borderRadius.full,
+                  marginBottom: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.primary + '40',
+                }}
+              >
+                <Ionicons name="sparkles" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
+                  Mystic Reading (New)
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Card Visualization */}
             <Animated.View

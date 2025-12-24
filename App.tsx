@@ -10,8 +10,10 @@ import { TarotCard } from './src/types/tarot';
 import { useAppStore, JournalEntry } from './src/store/appStore';
 import { askUniverse } from './src/services/universe';
 import { colors } from './src/theme/colors';
+import { TarotReadingScreen } from './src/screens/TarotReadingScreen';
 
 export default function App() {
+  const [isMysticOpen, setIsMysticOpen] = useState(false);
   const [currentCard, setCurrentCard] = useState<{
     card: TarotCard;
     position: 'upright' | 'reversed';
@@ -89,6 +91,8 @@ export default function App() {
           cards={universeResponse.cards}
           onClose={handleCloseUniverse}
         />
+      ) : isMysticOpen ? (
+        <TarotReadingScreen onClose={() => setIsMysticOpen(false)} />
       ) : currentCard ? (
         <CardRevealScreen
           card={currentCard.card}
@@ -97,7 +101,11 @@ export default function App() {
           onSaveReading={handleSaveReading}
         />
       ) : (
-        <TabNavigator onDrawCard={handleDrawCard} onAskUniverse={handleAskUniverse} />
+        <TabNavigator
+          onDrawCard={handleDrawCard}
+          onAskUniverse={handleAskUniverse}
+          onOpenMystic={() => setIsMysticOpen(true)}
+        />
       )}
       <StatusBar style="auto" />
     </NavigationContainer>

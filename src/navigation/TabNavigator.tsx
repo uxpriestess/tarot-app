@@ -15,16 +15,17 @@ const Tab = createBottomTabNavigator();
 interface TabNavigatorProps {
     onDrawCard: (subsetIds?: string[]) => void;
     onAskUniverse: (question: string) => Promise<void>;
+    onOpenMystic?: () => void;
 }
 
-export function TabNavigator({ onDrawCard, onAskUniverse }: TabNavigatorProps) {
+export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic }: TabNavigatorProps) {
     return (
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
                     backgroundColor: colors.surface,
-                    borderTopColor: colors.softLinen,
+                    borderTopColor: colors.border,
                     borderTopWidth: 1,
                     height: 70,
                     paddingBottom: 10,
@@ -50,6 +51,7 @@ export function TabNavigator({ onDrawCard, onAskUniverse }: TabNavigatorProps) {
                     <HomeScreen
                         onDrawCard={onDrawCard}
                         onAskUniverse={onAskUniverse}
+                        onOpenMystic={onOpenMystic}
                         hasReadToday={false}
                         streak={3}
                     />

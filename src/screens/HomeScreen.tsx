@@ -128,18 +128,18 @@ export function HomeScreen({
     switch (selectedContext) {
       case 'morning':
         return {
-          title: 'Začni den lehce',
-          subtitle: 'Co ti dnešek připravil? 🌅',
+          title: 'Tvoje denní karta čeká',
+          subtitle: '',
         };
       case 'evening':
         return {
-          title: 'Uklidni hlavu',
-          subtitle: 'Reflexe dne před spaním 🌙',
+          title: 'Večerníček',
+          subtitle: '',
         };
       case 'deeper':
         return {
-          title: question ? 'Tvoje otázka' : 'Na co se chceš zeptat?',
-          subtitle: question ? '' : 'Polož otázku a karty ti odpoví 🔮',
+          title: 'Ptej se na cokoliv',
+          subtitle: '',
         };
     }
   };
@@ -168,27 +168,7 @@ export function HomeScreen({
             <Text style={styles.date}>{formatDate()}</Text>
 
             {/* Mystic Entry Point */}
-            {onOpenMystic && (
-              <TouchableOpacity
-                onPress={onOpenMystic}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: colors.primary + '10',
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderRadius: borderRadius.full,
-                  marginBottom: spacing.lg,
-                  borderWidth: 1,
-                  borderColor: colors.primary + '40',
-                }}
-              >
-                <Ionicons name="sparkles" size={16} color={colors.primary} style={{ marginRight: 8 }} />
-                <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-                  Mystic Reading (New)
-                </Text>
-              </TouchableOpacity>
-            )}
+            {/* Mystic Entry Point Removed */}
 
             {/* Card Visualization */}
             <Animated.View
@@ -277,7 +257,7 @@ export function HomeScreen({
                     selectedContext === 'deeper' && styles.chipTextActive,
                   ]}
                 >
-                  🔮 Zeptej se
+                  🔮 Vlastní otázka
                 </Text>
               </TouchableOpacity>
             </View>
@@ -381,7 +361,7 @@ export function HomeScreen({
                   <Text style={styles.mainButtonText}>
                     {hasReadToday
                       ? (selectedContext === 'evening' ? 'Karta dne odhalena' : ' Hotovo na dnes')
-                      : (selectedContext === 'deeper' ? 'Vyložit karty' : (selectedContext === 'evening' ? 'Odhalit večerní tajemství' : 'Vytáhnout kartu'))
+                      : (selectedContext === 'deeper' ? 'Vyvěšti svou odpověď' : (selectedContext === 'evening' ? 'Karta na dobrou noc' : 'Vytáhnout kartu'))
                     }
                   </Text>
                 </TouchableOpacity>

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { useInsights } from '../hooks/useInsights';
 import { MYSTERY_CARD_IDS } from '../data/subsets';
+import { ImmersiveScreen } from '../components/ImmersiveScreen';
 
 interface HomeScreenProps {
   onDrawCard: (subsetIds?: string[]) => void;
@@ -56,6 +57,9 @@ export function HomeScreen({
     return 'evening';
   });
   const [question, setQuestion] = useState('');
+
+  // Design Variant State for A/B Testing
+  const [bgVariant, setBgVariant] = useState<'ritual' | 'celestial'>('ritual');
 
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -145,7 +149,11 @@ export function HomeScreen({
   };
 
   return (
-    <View style={styles.container}>
+    <ImmersiveScreen
+      screenName="home"
+      variant={bgVariant}
+      debugMode={true} // Enable debug mode to see hotspots if we add them later
+    >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -161,14 +169,11 @@ export function HomeScreen({
 
           {/* Main Content */}
           <View style={styles.mainContent}>
-            {/* Greeting */}
+            {/* Greeting - Updated text color for better contrast on images */}
             <Text style={styles.greeting}>{getGreeting()}</Text>
 
             {/* Date */}
             <Text style={styles.date}>{formatDate()}</Text>
-
-            {/* Mystic Entry Point */}
-            {/* Mystic Entry Point Removed */}
 
             {/* Card Visualization */}
             <Animated.View
@@ -299,22 +304,8 @@ export function HomeScreen({
               {selectedContext === 'evening' && hasReadToday ? (
                 <TouchableOpacity
                   onPress={() => {
-                    // This should ideally open the specific journal entry for today
-                    // For now, we reuse the onDrawCard (which handles 'today' logic in layout) or prompt
-                    // But if hasReadToday is true, onDrawCard is disabled usually.
-                    // We need a specific action to open the detail view of the daily card.
-                    // Since we don't have the entry ID here easily without store prop refactor, 
-                    // we might simulate a "View" action if available, or just disable for now.
-                    // Ideally: navigation.navigate('Journal') or open modal.
-                    // For MVP of this feature: We will rely on user navigating to Journal tab manually,
-                    // OR if onSingleCard is available we assume it shows daily card.
-                    // HOWEVER, the logic below specifically asks for "Encouraged to write notes".
-
-                    // Let's assume onDrawCard handles "View Today's Card" if already drawn, OR we add a new prop.
-                    // For this task scope, we'll direct them to the journal tab via text or simple alert if we can't nav.
-                    // Better: Use `onViewGuides` as placeholder or just keep disabled but change text.
                   }}
-                  disabled={true} // For now, until we wire up "Open Today's Entry"
+                  disabled={true}
                   style={[styles.mainButton, { backgroundColor: colors.lavender }]}
                   activeOpacity={0.8}
                 >
@@ -345,7 +336,7 @@ export function HomeScreen({
                       }
                     }
                   }}
-                  disabled={hasReadToday && selectedContext !== 'evening'} // Allow evening interaction if we had "action" but we split above
+                  disabled={hasReadToday && selectedContext !== 'evening'}
                   style={[
                     styles.mainButton,
                     hasReadToday && styles.mainButtonDisabled,
@@ -446,6 +437,18 @@ export function HomeScreen({
         </Animated.View>
       )}
 
+      {/* Design Variant Toggle - Temporary for A/B Testing */}
+      <TouchableOpacity
+        onPress={() => setBgVariant(prev => prev === 'ritual' ? 'celestial' : 'ritual')}
+        style={styles.toggleButton}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="color-palette-outline" size={20} color={colors.background} />
+        <Text style={styles.toggleButtonText}>
+          {bgVariant === 'ritual' ? 'Switch to Celestial' : 'Switch to Ritual'}
+        </Text>
+      </TouchableOpacity>
+
       {/* Dev Splash Button */}
       {onShowSplash && (
         <TouchableOpacity
@@ -454,14 +457,14 @@ export function HomeScreen({
           activeOpacity={0.5}
         />
       )}
-    </View>
+    </ImmersiveScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Background handled by ImmersiveScreen
   },
   scrollContent: {
     flexGrow: 1,
@@ -479,15 +482,14 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)', // More transparent
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    shadowColor: colors.text,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   streakText: {
     color: colors.text,
@@ -501,18 +503,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
+    fontSize: 24, // Larger greeting
+    fontWeight: '700',
+    color: '#fff', // White text for image contrast
     marginBottom: spacing.xs,
     letterSpacing: -0.3,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', // Editorial Serif
+    textShadowColor: 'rgba(0, 0, 0, 0.5)', // Drop shadow for readability
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   date: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.9)', // Lighter white
     marginBottom: spacing.xxl,
     textTransform: 'capitalize',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   cardContainer: {
     marginBottom: spacing.xxl,
@@ -523,27 +531,29 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 200,
     height: 300,
-    backgroundColor: colors.lavender,
+    backgroundColor: '#fff',
     borderRadius: borderRadius.xl,
-    opacity: 0.08,
+    opacity: 0.15, // stronger glow
     transform: [{ scale: 1.15 }],
   },
   card: {
     width: 180,
     height: 270,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassmorphism
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    shadowColor: colors.text,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
   },
   cardBorder: {
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: borderRadius.md,
     padding: spacing.md,
   },
@@ -554,7 +564,8 @@ const styles = StyleSheet.create({
   },
   cardIcon: {
     marginBottom: spacing.md,
-    opacity: 0.6,
+    opacity: 0.9,
+    color: '#fff',
   },
   cardDots: {
     flexDirection: 'row',
@@ -564,51 +575,48 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    opacity: 0.5,
+    opacity: 0.8,
     marginRight: spacing.xs,
+    backgroundColor: '#fff',
   },
   chipsContainer: {
     flexDirection: 'row',
     marginBottom: spacing.lg,
+    justifyContent: 'center',
   },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark glass
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     marginRight: spacing.sm,
   },
   chipInactive: {
-    backgroundColor: 'transparent',
-    borderColor: colors.border,
-    borderWidth: 1,
+    // defaults
   },
   chipActiveMorning: {
-    backgroundColor: colors.gemCitrine + '40', // 25% opacity
-    borderColor: colors.gemCitrine,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255, 215, 0, 0.2)', // Gold tint
+    borderColor: '#FFD700',
   },
   chipActiveEvening: {
-    backgroundColor: colors.gemAmethyst + '40',
-    borderColor: colors.gemAmethyst,
-    borderWidth: 1,
+    backgroundColor: 'rgba(138, 43, 226, 0.2)', // Violet tint
+    borderColor: '#8A2BE2',
   },
   chipActiveDeeper: {
-    backgroundColor: colors.gemMoonstone + '60',
-    borderColor: colors.gemMoonstone,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#fff',
   },
   chipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.8)',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   chipTextActive: {
-    color: colors.text,
-    fontWeight: '600',
+    color: '#fff',
+    fontWeight: '700',
   },
   messageContainer: {
     alignItems: 'center',
@@ -617,37 +625,43 @@ const styles = StyleSheet.create({
   messageTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: '#fff',
     marginBottom: spacing.xs,
-    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   messageSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   mainButton: {
     width: '100%',
     paddingVertical: spacing.md + 2,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.text,
+    backgroundColor: '#fff', // White button for contrast
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.text,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 6,
   },
   mainButtonDisabled: {
-    backgroundColor: colors.textLight,
-    opacity: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    opacity: 0.8,
   },
   buttonIcon: {
     marginRight: spacing.sm,
+    color: colors.text, // Dark icon since button is white
   },
   mainButtonText: {
-    color: colors.background,
+    color: colors.text, // Dark text
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
@@ -655,9 +669,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: '#fff',
     marginBottom: spacing.md,
     letterSpacing: -0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowRadius: 2,
   },
   readingTypesContainer: {
     marginTop: spacing.xl,
@@ -667,29 +683,24 @@ const styles = StyleSheet.create({
     // gap removed
   },
   readingCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     marginBottom: spacing.md,
   },
   readingTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: '#fff',
     marginTop: spacing.sm,
     marginBottom: 4,
   },
   readingSubtitle: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   insightsContainer: {
     marginTop: spacing.xl,
@@ -698,23 +709,23 @@ const styles = StyleSheet.create({
   insightCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     marginBottom: spacing.sm,
   },
   insightText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.9)',
     flex: 1,
   },
   insightIconWrapper: {
     width: 32,
     height: 32,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceHighlight,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
@@ -722,7 +733,7 @@ const styles = StyleSheet.create({
 
   fab: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 140, // Moved up to make room for toggle
     right: spacing.lg,
     width: 64,
     height: 64,
@@ -731,14 +742,14 @@ const styles = StyleSheet.create({
   fabButton: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.lavender,
+    backgroundColor: '#fff',
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.text,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
     elevation: 6,
   },
   fabEmoji: {
@@ -751,8 +762,28 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.text,
+    backgroundColor: '#fff',
     opacity: 0.2,
+  },
+  toggleButton: {
+    position: 'absolute',
+    bottom: 80,
+    alignSelf: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    elevation: 8,
+  },
+  toggleButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   questionInputContainer: {
     width: '100%',
@@ -760,14 +791,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   questionInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     fontSize: 16,
-    color: colors.text,
+    color: '#fff',
     minHeight: 100,
     textAlignVertical: 'top',
     borderWidth: 1,
-    borderColor: colors.lavender,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
 });

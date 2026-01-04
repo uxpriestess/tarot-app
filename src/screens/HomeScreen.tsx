@@ -363,8 +363,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   appName: {
-    fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 36,
+    color: 'rgba(255, 255, 255, 0.95)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontWeight: '600',
     letterSpacing: 0.5,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '400',
     color: '#fff',
     marginBottom: spacing.xs,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
     letterSpacing: 2,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -421,8 +421,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    width: 160,
-    height: 240,
+    width: 200,
+    height: 300,
     backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: borderRadius.lg,
     padding: spacing.sm,
@@ -486,21 +486,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: spacing.md,
-    minHeight: 100, // ensure min height
+    padding: spacing.sm,
+    minHeight: 80, // ensure min height
   },
   bottomActionIcon: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   bottomActionText: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',

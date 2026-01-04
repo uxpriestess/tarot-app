@@ -58,6 +58,7 @@ export function HomeScreen({
   });
   // View mode for Custom Question input
   const [isAskingQuestion, setIsAskingQuestion] = useState(false);
+  const [question, setQuestion] = useState('');
 
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;

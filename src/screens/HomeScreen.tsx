@@ -158,23 +158,27 @@ export function HomeScreen({
         <Animated.View style={[styles.content, { opacity: fadeIn }]}>
           {/* Header Area */}
           <View style={styles.header}>
-            {/* App Name */}
-            <Text style={styles.appName}>Tarotka</Text>
+            {/* Greeting - Left */}
+            <Text style={styles.headerGreeting}>{getGreeting()}</Text>
 
-            {/* Streak Badge */}
-            {streak > 0 && (
-              <View style={styles.streakBadge}>
-                <Ionicons name="flame" size={12} color="#fff" />
-                <Text style={styles.streakText}>{streak}</Text>
-              </View>
-            )}
+            {/* App Name - Center (absolute to ensure true center) */}
+            <View style={styles.appNameContainer}>
+              <Text style={styles.appName}>Tarotka</Text>
+            </View>
+
+            {/* Streak Badge - Right */}
+            <View style={styles.headerRight}>
+              {streak > 0 && (
+                <View style={styles.streakBadge}>
+                  <Ionicons name="flame" size={12} color="#fff" />
+                  <Text style={styles.streakText}>{streak}</Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Main Content */}
           <View style={styles.mainContent}>
-            {/* Greeting - Smaller now */}
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-
             {/* Title - "DNEŠNÍ KARTA" instead of date */}
             <Text style={styles.sectionTitle}>DNEŠNÍ KARTA</Text>
 
@@ -357,17 +361,37 @@ const styles = StyleSheet.create({
   header: {
     width: '100%',
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
     position: 'relative',
+    height: 60,
+  },
+  headerGreeting: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    fontStyle: 'italic',
+    flex: 1,
+  },
+  appNameContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none', // let touches pass through if needed
   },
   appName: {
-    fontSize: 36,
+    fontSize: 32,
     color: 'rgba(255, 255, 255, 0.95)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   streakBadge: {
     position: 'absolute',
@@ -392,28 +416,15 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignItems: 'center',
   },
-  greeting: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#fff',
-    marginBottom: spacing.xs,
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    fontStyle: 'italic',
-  },
+
   sectionTitle: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: spacing.sm,
-    letterSpacing: 2,
-    fontWeight: '600',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: spacing.md,
+    letterSpacing: 3,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     textTransform: 'uppercase',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   cardContainer: {
     marginBottom: spacing.lg,
@@ -479,32 +490,30 @@ const styles = StyleSheet.create({
   },
   bottomActionButton: {
     flex: 1,
-    aspectRatio: 1, // Square-ish
+    height: 70, // Fixed reduced height
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 24,
+    borderRadius: 20,
+    flexDirection: 'row', // Horizontal layout for compactness
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: spacing.sm,
-    minHeight: 80, // ensure min height
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   bottomActionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
   },
   bottomActionText: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
-    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    lineHeight: 18,
   },
 
   questionInputContainer: {

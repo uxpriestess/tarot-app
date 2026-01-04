@@ -36,7 +36,7 @@ export const SCREEN_LAYOUTS: Record<string, ScreenLayout> = {
   },
   // Default fallback
   home: {
-    backgroundImage: require('../../assets/screens/home_ritual.jpg'), // Defaulting to Ritual for now
-    hotspots: [],
+    backgroundImage: require('../../assets/screens/home_ritual.jpg'),
+    hotspots: [], // We are styling RN text for now, so no invisible spots yet
   }
 };

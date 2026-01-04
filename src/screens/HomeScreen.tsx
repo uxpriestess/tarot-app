@@ -58,9 +58,6 @@ export function HomeScreen({
   });
   const [question, setQuestion] = useState('');
 
-  // Design Variant State for A/B Testing
-  const [bgVariant, setBgVariant] = useState<'ritual' | 'celestial'>('ritual');
-
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.95)).current;
@@ -115,10 +112,10 @@ export function HomeScreen({
   const getGreeting = () => {
     const hour = currentTime.getHours();
     return hour < 12
-      ? 'Dobré ráno ☀️'
+      ? 'Dobré ráno'
       : hour < 18
-        ? 'Krásné odpoledne 🌤️'
-        : 'Krásný večer 🌙';
+        ? 'Krásné odpoledne'
+        : 'Krásný večer';
   };
 
   const getContextualMessage = () => {
@@ -151,31 +148,30 @@ export function HomeScreen({
   return (
     <ImmersiveScreen
       screenName="home"
-      variant={bgVariant}
-      debugMode={true} // Enable debug mode to see hotspots if we add them later
+    // Defaulting to schema config, no variant override needed as we set 'home' to Ritual
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, { opacity: fadeIn }]}>
-          {/* Streak Badge */}
+          {/* Streak Badge - Minimal Glass */}
           {streak > 0 && (
             <View style={styles.streakBadge}>
-              <Ionicons name="flame" size={16} color={colors.bronze} />
+              <Ionicons name="flame" size={12} color="#fff" />
               <Text style={styles.streakText}>{streak}</Text>
             </View>
           )}
 
           {/* Main Content */}
           <View style={styles.mainContent}>
-            {/* Greeting - Updated text color for better contrast on images */}
+            {/* Greeting - Ritual Style: Large Serif, Elegant */}
             <Text style={styles.greeting}>{getGreeting()}</Text>
 
-            {/* Date */}
-            <Text style={styles.date}>{formatDate()}</Text>
+            {/* Date - Small, Caps, Spaced */}
+            <Text style={styles.date}>{formatDate().toUpperCase()}</Text>
 
-            {/* Card Visualization */}
+            {/* Card Visualization - Transparent/Ghost */}
             <Animated.View
               style={[
                 styles.cardContainer,
@@ -184,39 +180,28 @@ export function HomeScreen({
                 },
               ]}
             >
-              {/* Subtle glow */}
-              <View style={styles.cardGlow} />
-
-              {/* Card back design */}
+              {/* Card back design - Ghostly */}
               <View style={styles.card}>
-                {/* Decorative border - "Gold Dipped" */}
-                <View style={[styles.cardBorder, { borderColor: colors.secondary }]}>
-                  {/* Center symbol */}
+                <View style={styles.cardBorder}>
                   <View style={styles.cardCenter}>
                     <Ionicons
                       name="sparkles-outline"
-                      size={48}
-                      color={colors.primary} // Amethyst
+                      size={32}
+                      color="rgba(255,255,255,0.6)"
                       style={styles.cardIcon}
                     />
-                    {/* Small decorative elements */}
-                    <View style={styles.cardDots}>
-                      <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
-                      <View style={[styles.dot, { backgroundColor: colors.tertiary }]} />
-                      <View style={[styles.dot, { backgroundColor: colors.sage }]} />
-                    </View>
                   </View>
                 </View>
               </View>
             </Animated.View>
 
-            {/* Time Context Chips - Vintage Gem Style */}
+            {/* Time Context Chips - Text Only / Minimal Underline */}
             <View style={styles.chipsContainer}>
               <TouchableOpacity
                 onPress={() => setSelectedContext('morning')}
                 style={[
                   styles.chip,
-                  selectedContext === 'morning' ? styles.chipActiveMorning : styles.chipInactive,
+                  selectedContext === 'morning' && styles.chipActive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -226,7 +211,7 @@ export function HomeScreen({
                     selectedContext === 'morning' && styles.chipTextActive,
                   ]}
                 >
-                  ☀️ Ráno
+                  Ráno
                 </Text>
               </TouchableOpacity>
 
@@ -234,7 +219,7 @@ export function HomeScreen({
                 onPress={() => setSelectedContext('evening')}
                 style={[
                   styles.chip,
-                  selectedContext === 'evening' ? styles.chipActiveEvening : styles.chipInactive,
+                  selectedContext === 'evening' && styles.chipActive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -244,7 +229,7 @@ export function HomeScreen({
                     selectedContext === 'evening' && styles.chipTextActive,
                   ]}
                 >
-                  🌙 Večer
+                  Večer
                 </Text>
               </TouchableOpacity>
 
@@ -252,7 +237,7 @@ export function HomeScreen({
                 onPress={() => setSelectedContext('deeper')}
                 style={[
                   styles.chip,
-                  selectedContext === 'deeper' ? styles.chipActiveDeeper : styles.chipInactive,
+                  selectedContext === 'deeper' && styles.chipActive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -262,7 +247,7 @@ export function HomeScreen({
                     selectedContext === 'deeper' && styles.chipTextActive,
                   ]}
                 >
-                  🔮 Vlastní otázka
+                  Otázka
                 </Text>
               </TouchableOpacity>
             </View>
@@ -273,9 +258,6 @@ export function HomeScreen({
               <Text style={styles.messageTitle}>
                 {getContextualMessage().title}
               </Text>
-              <Text style={styles.messageSubtitle}>
-                {getContextualMessage().subtitle}
-              </Text>
             </View>
 
             {/* Question Input for "Zeptej se cokoliv" */}
@@ -283,8 +265,8 @@ export function HomeScreen({
               <View style={styles.questionInputContainer}>
                 <TextInput
                   style={styles.questionInput}
-                  placeholder="Na co se chceš zeptat?"
-                  placeholderTextColor={colors.textLight}
+                  placeholder="Na co se ptáš?"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
                   value={question}
                   onChangeText={setQuestion}
                   multiline
@@ -293,124 +275,72 @@ export function HomeScreen({
               </View>
             )}
 
-            {/* Main CTA Button */}
+            {/* Main CTA Button - Elegant Text Button */}
             <Animated.View
               style={{
                 transform: [{ translateY: buttonY }],
                 width: '100%',
+                alignItems: 'center',
               }}
             >
-              {/* If Evening and Card Drawn -> Show Reflect/Journal Button */}
-              {selectedContext === 'evening' && hasReadToday ? (
-                <TouchableOpacity
-                  onPress={() => {
-                  }}
-                  disabled={true}
-                  style={[styles.mainButton, { backgroundColor: colors.lavender }]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name="book-outline"
-                    size={20}
-                    color={colors.background}
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.mainButtonText}>
-                    Zapsat večerní reflexi
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                /* Standard Draw Button (Morning or Evening Mystery) */
-                <TouchableOpacity
-                  onPress={() => {
-                    if (!hasReadToday) {
-                      if (selectedContext === 'deeper') {
-                        // Call universe service
-                        if (onAskUniverse) {
-                          onAskUniverse(question);
-                        }
-                      } else if (selectedContext === 'evening') {
-                        onDrawCard(MYSTERY_CARD_IDS);
-                      } else {
-                        onDrawCard();
-                      }
+              <TouchableOpacity
+                onPress={() => {
+                  if (!hasReadToday) {
+                    if (selectedContext === 'deeper') {
+                      if (onAskUniverse) onAskUniverse(question);
+                    } else if (selectedContext === 'evening') {
+                      onDrawCard(MYSTERY_CARD_IDS);
+                    } else {
+                      onDrawCard();
                     }
-                  }}
-                  disabled={hasReadToday && selectedContext !== 'evening'}
-                  style={[
-                    styles.mainButton,
-                    hasReadToday && styles.mainButtonDisabled,
-                  ]}
-                  activeOpacity={hasReadToday ? 1 : 0.8}
-                >
-                  <Ionicons
-                    name={selectedContext === 'evening' ? 'moon' : (selectedContext === 'deeper' ? 'chatbubbles' : 'sparkles')}
-                    size={20}
-                    color={colors.background}
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.mainButtonText}>
-                    {hasReadToday
-                      ? (selectedContext === 'evening' ? 'Karta dne odhalena' : ' Hotovo na dnes')
-                      : (selectedContext === 'deeper' ? 'Vyvěšti svou odpověď' : (selectedContext === 'evening' ? 'Karta na dobrou noc' : 'Vytáhnout kartu'))
-                    }
-                  </Text>
-                </TouchableOpacity>
-              )}
+                  }
+                }}
+                disabled={hasReadToday && selectedContext !== 'evening'}
+                style={[
+                  styles.mainButton,
+                  hasReadToday && styles.mainButtonDisabled,
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.mainButtonText}>
+                  {hasReadToday
+                    ? (selectedContext === 'evening' ? 'Odhalit kartu' : 'Vyloženo')
+                    : (selectedContext === 'deeper' ? 'Vyložit' : (selectedContext === 'evening' ? 'Dobrou noc' : 'Vyložit kartu'))
+                  }
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={18}
+                  color="#fff"
+                  style={{ opacity: 0.8 }}
+                />
+              </TouchableOpacity>
             </Animated.View>
 
-            {/* Reading Types - Placeholder */}
+            {/* Reading Types - Minimal List */}
             {onSingleCard && onThreeCards && (
               <View style={styles.readingTypesContainer}>
-                <Text style={styles.sectionTitle}>Typy výkladů</Text>
-                <View style={styles.readingGrid}>
-                  <TouchableOpacity
-                    style={styles.readingCard}
-                    onPress={onSingleCard}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="flash-outline" size={24} color={colors.bronze} />
-                    <Text style={styles.readingTitle}>Jednoduchý</Text>
-                    <Text style={styles.readingSubtitle}>1 karta</Text>
+                <View style={styles.divider} />
+                <View style={styles.readingLinks}>
+                  <TouchableOpacity onPress={onSingleCard} style={styles.textLink}>
+                    <Text style={styles.textLinkText}>Jedna karta</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.readingCard}
-                    onPress={onThreeCards}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="triangle-outline" size={24} color={colors.lavender} />
-                    <Text style={styles.readingTitle}>Tři karty</Text>
-                    <Text style={styles.readingSubtitle}>Minulost・Současnost・Budoucnost</Text>
+                  <View style={styles.verticalDivider} />
+                  <TouchableOpacity onPress={onThreeCards} style={styles.textLink}>
+                    <Text style={styles.textLinkText}>Tři karty</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
 
-            {/* Tarotka Insights */}
+            {/* Insights - Bare text */}
             {dynamicInsights.length > 0 && (
               <View style={styles.insightsContainer}>
-                <Text style={styles.sectionTitle}>Tarotka insights</Text>
                 {dynamicInsights.map((insight, index) => (
-                  <View key={`${insight.type}-${index}`} style={styles.insightCard}>
-                    <View style={styles.insightIconWrapper}>
-                      <Ionicons
-                        name={
-                          insight.type === 'Journal' ? 'book-outline' :
-                            insight.type === 'Streak' ? 'flame-outline' :
-                              insight.type === 'Favorite' ? 'heart-outline' :
-                                insight.type === 'Milestone' ? 'trophy-outline' :
-                                  'sparkles-outline'
-                        }
-                        size={20}
-                        color={colors.bronze}
-                      />
-                    </View>
-                    <Text style={styles.insightText}>{insight.text}</Text>
-                  </View>
+                  <Text key={index} style={styles.insightTextSimple}>
+                    • {insight.text}
+                  </Text>
                 ))}
-
-
               </View>
             )}
           </View>
@@ -437,18 +367,6 @@ export function HomeScreen({
         </Animated.View>
       )}
 
-      {/* Design Variant Toggle - Temporary for A/B Testing */}
-      <TouchableOpacity
-        onPress={() => setBgVariant(prev => prev === 'ritual' ? 'celestial' : 'ritual')}
-        style={styles.toggleButton}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="color-palette-outline" size={20} color={colors.background} />
-        <Text style={styles.toggleButtonText}>
-          {bgVariant === 'ritual' ? 'Switch to Celestial' : 'Switch to Ritual'}
-        </Text>
-      </TouchableOpacity>
-
       {/* Dev Splash Button */}
       {onShowSplash && (
         <TouchableOpacity
@@ -462,14 +380,10 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // Background handled by ImmersiveScreen
-  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: 60,
+    paddingTop: 80, // More top space for cleaner look
     paddingBottom: 120,
   },
   content: {
@@ -478,24 +392,22 @@ const styles = StyleSheet.create({
   },
   streakBadge: {
     position: 'absolute',
-    top: -20,
+    top: -40,
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)', // More transparent
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: 4,
     borderRadius: borderRadius.full,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   streakText: {
-    color: colors.text,
-    fontSize: 14,
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
-    marginLeft: spacing.xs,
+    marginLeft: 4,
   },
   mainContent: {
     width: '100%',
@@ -503,257 +415,192 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 24, // Larger greeting
-    fontWeight: '700',
-    color: '#fff', // White text for image contrast
+    fontSize: 32,
+    fontWeight: '400', // Lighter weight for elegance
+    color: '#fff',
     marginBottom: spacing.xs,
-    letterSpacing: -0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)', // Drop shadow for readability
-    textShadowOffset: { width: 0, height: 1 },
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', // Elegant serif
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic', // Adds that ritual vibe
   },
   date: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)', // Lighter white
-    marginBottom: spacing.xxl,
-    textTransform: 'capitalize',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: spacing.xl,
+    letterSpacing: 2, // Spaced out caps
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   cardContainer: {
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardGlow: {
-    position: 'absolute',
-    width: 200,
-    height: 300,
-    backgroundColor: '#fff',
-    borderRadius: borderRadius.xl,
-    opacity: 0.15, // stronger glow
-    transform: [{ scale: 1.15 }],
-  },
   card: {
-    width: 180,
-    height: 270,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassmorphism
+    width: 140, // Smaller, less dominant
+    height: 210,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Darker glass
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    padding: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   cardBorder: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardCenter: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardIcon: {
-    marginBottom: spacing.md,
-    opacity: 0.9,
-    color: '#fff',
-  },
-  cardDots: {
-    flexDirection: 'row',
-    marginTop: spacing.sm,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
     opacity: 0.8,
-    marginRight: spacing.xs,
-    backgroundColor: '#fff',
   },
   chipsContainer: {
     flexDirection: 'row',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
     justifyContent: 'center',
+    gap: 20,
   },
   chip: {
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark glass
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginRight: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
   },
-  chipInactive: {
-    // defaults
-  },
-  chipActiveMorning: {
-    backgroundColor: 'rgba(255, 215, 0, 0.2)', // Gold tint
-    borderColor: '#FFD700',
-  },
-  chipActiveEvening: {
-    backgroundColor: 'rgba(138, 43, 226, 0.2)', // Violet tint
-    borderColor: '#8A2BE2',
-  },
-  chipActiveDeeper: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderColor: '#fff',
+  chipActive: {
+    borderBottomColor: '#fff', // Underline style
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontSize: 14,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    letterSpacing: 0.5,
   },
   chipTextActive: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '600',
   },
   messageContainer: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+    minHeight: 30,
   },
   messageTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: spacing.xs,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  messageSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    fontStyle: 'italic',
   },
   mainButton: {
-    width: '100%',
-    paddingVertical: spacing.md + 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: '#fff', // White button for contrast
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Very subtle pill
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    gap: spacing.sm,
   },
   mainButtonDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    opacity: 0.8,
-  },
-  buttonIcon: {
-    marginRight: spacing.sm,
-    color: colors.text, // Dark icon since button is white
+    opacity: 0.5,
   },
   mainButtonText: {
-    color: colors.text, // Dark text
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+  },
+  questionInputContainer: {
+    width: '100%',
     marginBottom: spacing.md,
-    letterSpacing: -0.2,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowRadius: 2,
+  },
+  questionInput: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    fontSize: 16,
+    color: '#fff',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
   readingTypesContainer: {
     marginTop: spacing.xl,
     width: '100%',
-  },
-  readingGrid: {
-    // gap removed
-  },
-  readingCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
+  },
+  divider: {
+    width: 40,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginBottom: spacing.md,
   },
-  readingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginTop: spacing.sm,
-    marginBottom: 4,
+  readingLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
   },
-  readingSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.7)',
+  verticalDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  textLink: {
+    padding: spacing.xs,
+  },
+  textLinkText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   insightsContainer: {
     marginTop: spacing.xl,
     width: '100%',
-  },
-  insightCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    marginBottom: spacing.sm,
   },
-  insightText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    flex: 1,
+  insightTextSimple: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    marginBottom: 4,
+    fontStyle: 'italic',
   },
-  insightIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
   fab: {
     position: 'absolute',
-    bottom: 140, // Moved up to make room for toggle
+    bottom: 40,
     right: spacing.lg,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   fabButton: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   fabEmoji: {
-    fontSize: 32,
+    fontSize: 24,
   },
   devButton: {
     position: 'absolute',
@@ -763,42 +610,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#fff',
-    opacity: 0.2,
-  },
-  toggleButton: {
-    position: 'absolute',
-    bottom: 80,
-    alignSelf: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    elevation: 8,
-  },
-  toggleButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  questionInputContainer: {
-    width: '100%',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  questionInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    fontSize: 16,
-    color: '#fff',
-    minHeight: 100,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    opacity: 0.1,
   },
 });

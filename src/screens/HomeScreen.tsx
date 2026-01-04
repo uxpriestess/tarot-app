@@ -56,7 +56,8 @@ export function HomeScreen({
     if (hour < 18) return 'morning';
     return 'evening';
   });
-  const [question, setQuestion] = useState('');
+  // View mode for Custom Question input
+  const [isAskingQuestion, setIsAskingQuestion] = useState(false);
 
   // Animation values
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -148,30 +149,35 @@ export function HomeScreen({
   return (
     <ImmersiveScreen
       screenName="home"
-    // Defaulting to schema config, no variant override needed as we set 'home' to Ritual
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, { opacity: fadeIn }]}>
-          {/* Streak Badge - Minimal Glass */}
-          {streak > 0 && (
-            <View style={styles.streakBadge}>
-              <Ionicons name="flame" size={12} color="#fff" />
-              <Text style={styles.streakText}>{streak}</Text>
-            </View>
-          )}
+          {/* Header Area */}
+          <View style={styles.header}>
+            {/* App Name */}
+            <Text style={styles.appName}>Tarotka</Text>
+
+            {/* Streak Badge */}
+            {streak > 0 && (
+              <View style={styles.streakBadge}>
+                <Ionicons name="flame" size={12} color="#fff" />
+                <Text style={styles.streakText}>{streak}</Text>
+              </View>
+            )}
+          </View>
 
           {/* Main Content */}
           <View style={styles.mainContent}>
-            {/* Greeting - Ritual Style: Large Serif, Elegant */}
+            {/* Greeting - Smaller now */}
             <Text style={styles.greeting}>{getGreeting()}</Text>
 
-            {/* Date - Small, Caps, Spaced */}
-            <Text style={styles.date}>{formatDate().toUpperCase()}</Text>
+            {/* Title - "DNEŠNÍ KARTA" instead of date */}
+            <Text style={styles.sectionTitle}>DNEŠNÍ KARTA</Text>
 
-            {/* Card Visualization - Transparent/Ghost */}
+            {/* Card Visualization */}
             <Animated.View
               style={[
                 styles.cardContainer,
@@ -180,7 +186,6 @@ export function HomeScreen({
                 },
               ]}
             >
-              {/* Card back design - Ghostly */}
               <View style={styles.card}>
                 <View style={styles.cardBorder}>
                   <View style={styles.cardCenter}>
@@ -195,73 +200,41 @@ export function HomeScreen({
               </View>
             </Animated.View>
 
-            {/* Time Context Chips - Text Only / Minimal Underline */}
-            <View style={styles.chipsContainer}>
+            {/* Main CTA Button - Directly under card */}
+            {/* "Vytáhnout kartu" */}
+            <Animated.View
+              style={{
+                transform: [{ translateY: buttonY }],
+                width: '100%',
+                alignItems: 'center',
+                marginBottom: spacing.xl,
+              }}
+            >
               <TouchableOpacity
-                onPress={() => setSelectedContext('morning')}
+                onPress={() => onDrawCard()}
+                disabled={hasReadToday}
                 style={[
-                  styles.chip,
-                  selectedContext === 'morning' && styles.chipActive,
+                  styles.mainButton,
+                  hasReadToday && styles.mainButtonDisabled,
                 ]}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedContext === 'morning' && styles.chipTextActive,
-                  ]}
-                >
-                  Ráno
+                <Text style={styles.mainButtonText}>
+                  {hasReadToday ? 'Vyloženo' : 'Vytáhnout kartu'}
                 </Text>
+                {!hasReadToday && (
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color="#fff"
+                    style={{ opacity: 0.8 }}
+                  />
+                )}
               </TouchableOpacity>
+            </Animated.View>
 
-              <TouchableOpacity
-                onPress={() => setSelectedContext('evening')}
-                style={[
-                  styles.chip,
-                  selectedContext === 'evening' && styles.chipActive,
-                ]}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedContext === 'evening' && styles.chipTextActive,
-                  ]}
-                >
-                  Večer
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setSelectedContext('deeper')}
-                style={[
-                  styles.chip,
-                  selectedContext === 'deeper' && styles.chipActive,
-                ]}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedContext === 'deeper' && styles.chipTextActive,
-                  ]}
-                >
-                  Otázka
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-
-            {/* Contextual Message */}
-            <View style={styles.messageContainer}>
-              <Text style={styles.messageTitle}>
-                {getContextualMessage().title}
-              </Text>
-            </View>
-
-            {/* Question Input for "Zeptej se cokoliv" */}
-            {selectedContext === 'deeper' && !hasReadToday && (
+            {/* Custom Question Input (Conditionally rendered) */}
+            {isAskingQuestion && !hasReadToday && (
               <View style={styles.questionInputContainer}>
                 <TextInput
                   style={styles.questionInput}
@@ -271,53 +244,53 @@ export function HomeScreen({
                   onChangeText={setQuestion}
                   multiline
                   maxLength={200}
+                  autoFocus
                 />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (onAskUniverse && question.trim().length > 0) {
+                      onAskUniverse(question);
+                      setIsAskingQuestion(false); // Reset after ask
+                    }
+                  }}
+                  style={styles.askSubmitButton}
+                >
+                  <Text style={styles.askSubmitText}>Zeptat se</Text>
+                </TouchableOpacity>
               </View>
             )}
 
-            {/* Main CTA Button - Elegant Text Button */}
-            <Animated.View
-              style={{
-                transform: [{ translateY: buttonY }],
-                width: '100%',
-                alignItems: 'center',
-              }}
-            >
+            {/* Bottom Actions Row */}
+            <View style={styles.bottomActionsRow}>
+              {/* Left: Večerní reflexe */}
               <TouchableOpacity
+                style={styles.bottomActionButton}
                 onPress={() => {
-                  if (!hasReadToday) {
-                    if (selectedContext === 'deeper') {
-                      if (onAskUniverse) onAskUniverse(question);
-                    } else if (selectedContext === 'evening') {
-                      onDrawCard(MYSTERY_CARD_IDS);
-                    } else {
-                      onDrawCard();
-                    }
-                  }
+                  // For now, map to Mystery Card aka "Evening" flow
+                  onDrawCard(MYSTERY_CARD_IDS);
                 }}
-                disabled={hasReadToday && selectedContext !== 'evening'}
-                style={[
-                  styles.mainButton,
-                  hasReadToday && styles.mainButtonDisabled,
-                ]}
-                activeOpacity={0.8}
               >
-                <Text style={styles.mainButtonText}>
-                  {hasReadToday
-                    ? (selectedContext === 'evening' ? 'Odhalit kartu' : 'Vyloženo')
-                    : (selectedContext === 'deeper' ? 'Vyložit' : (selectedContext === 'evening' ? 'Dobrou noc' : 'Vyložit kartu'))
-                  }
-                </Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color="#fff"
-                  style={{ opacity: 0.8 }}
-                />
+                <View style={styles.bottomActionIcon}>
+                  <Ionicons name="moon-outline" size={24} color="#fff" />
+                </View>
+                <Text style={styles.bottomActionText}>Večerní reflexe</Text>
               </TouchableOpacity>
-            </Animated.View>
 
-            {/* Reading Types - Minimal List */}
+              {/* Right: Vlastní otázka */}
+              <TouchableOpacity
+                style={styles.bottomActionButton}
+                onPress={() => {
+                  setIsAskingQuestion(!isAskingQuestion);
+                }}
+              >
+                <View style={[styles.bottomActionIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                  <Ionicons name="chatbubble-outline" size={24} color="#fff" />
+                </View>
+                <Text style={styles.bottomActionText}>Vlastní otázka</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Reading Types - Minimal List (Optional - pushed down) */}
             {onSingleCard && onThreeCards && (
               <View style={styles.readingTypesContainer}>
                 <View style={styles.divider} />
@@ -333,16 +306,6 @@ export function HomeScreen({
               </View>
             )}
 
-            {/* Insights - Bare text */}
-            {dynamicInsights.length > 0 && (
-              <View style={styles.insightsContainer}>
-                {dynamicInsights.map((insight, index) => (
-                  <Text key={index} style={styles.insightTextSimple}>
-                    • {insight.text}
-                  </Text>
-                ))}
-              </View>
-            )}
           </View>
         </Animated.View>
       </ScrollView>
@@ -383,21 +346,35 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: 80, // More top space for cleaner look
+    paddingTop: 60,
     paddingBottom: 120,
   },
   content: {
     flex: 1,
     alignItems: 'center',
   },
+  header: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    position: 'relative',
+  },
+  appName: {
+    fontSize: 20,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
   streakBadge: {
     position: 'absolute',
-    top: -40,
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
     borderWidth: 1,
@@ -415,46 +392,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 32,
-    fontWeight: '400', // Lighter weight for elegance
+    fontSize: 24,
+    fontWeight: '400',
     color: '#fff',
     marginBottom: spacing.xs,
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', // Elegant serif
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-    fontStyle: 'italic', // Adds that ritual vibe
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    fontStyle: 'italic',
   },
-  date: {
+  sectionTitle: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: spacing.xl,
-    letterSpacing: 2, // Spaced out caps
+    letterSpacing: 2,
     fontWeight: '600',
+    textTransform: 'uppercase',
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   cardContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
-    width: 140, // Smaller, less dominant
-    height: 210,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Darker glass
+    width: 160,
+    height: 240,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: borderRadius.lg,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   cardBorder: {
     flex: 1,
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -464,71 +441,78 @@ const styles = StyleSheet.create({
   },
   cardIcon: {
     opacity: 0.8,
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    marginBottom: spacing.xl,
-    justifyContent: 'center',
-    gap: 20,
-  },
-  chip: {
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
-  },
-  chipActive: {
-    borderBottomColor: '#fff', // Underline style
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    letterSpacing: 0.5,
-  },
-  chipTextActive: {
     color: '#fff',
-    fontWeight: '600',
-  },
-  messageContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    minHeight: 30,
-  },
-  messageTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    fontStyle: 'italic',
   },
   mainButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Very subtle pill
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     gap: spacing.sm,
   },
   mainButtonDisabled: {
     opacity: 0.5,
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   mainButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
+
+  // Bottom Action Row
+  bottomActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
+  bottomActionButton: {
+    flex: 1,
+    aspectRatio: 1, // Square-ish
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: spacing.md,
+    minHeight: 100, // ensure min height
+  },
+  bottomActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  bottomActionText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    lineHeight: 18,
+  },
+
   questionInputContainer: {
     width: '100%',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.sm,
   },
   questionInput: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: 16,
@@ -536,10 +520,23 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    textAlign: 'center',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    marginBottom: spacing.sm,
   },
+  askSubmitButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: borderRadius.full,
+  },
+  askSubmitText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+
   readingTypesContainer: {
     marginTop: spacing.xl,
     width: '100%',
@@ -569,17 +566,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1,
     textTransform: 'uppercase',
-  },
-  insightsContainer: {
-    marginTop: spacing.xl,
-    width: '100%',
-    alignItems: 'center',
-  },
-  insightTextSimple: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-    marginBottom: 4,
-    fontStyle: 'italic',
   },
   fab: {
     position: 'absolute',

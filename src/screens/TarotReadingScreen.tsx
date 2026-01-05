@@ -143,13 +143,15 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                 ))}
             </ScrollView>
 
-            {/* Close Button */}
-            <TouchableOpacity
-                onPress={onClose}
-                style={styles.closeButton}
-            >
-                <Ionicons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
+            {/* Close Button only if onClose is provided */}
+            {onClose && (
+                <TouchableOpacity
+                    onPress={onClose}
+                    style={styles.closeButton}
+                >
+                    <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+            )}
         </Animated.View>
     );
 

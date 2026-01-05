@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import {
     HomeScreen,
-    ReadingScreen,
+    TarotReadingScreen, // Updated import
     JournalScreen,
     CollectionScreen,
     ProfileScreen,
@@ -66,7 +66,7 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic }: TabNav
                     ),
                 }}
             >
-                {() => <ReadingScreen onDrawCard={onDrawCard} />}
+                {() => <TarotReadingScreen />}
             </Tab.Screen>
 
             <Tab.Screen

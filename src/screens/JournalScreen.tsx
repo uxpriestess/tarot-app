@@ -27,23 +27,33 @@ const CARD_WIDTH = Math.round(width * 0.85); // Slightly smaller than reveal scr
 const IMAGE_RATIO = 1384 / 1040;
 const IMAGE_HEIGHT = Math.round(CARD_WIDTH * IMAGE_RATIO);
 
-// Simple shimmer component for the glimmer effect
+// Shimmer component for the shiny glimmer effect
 const Glimmer = () => {
-    const translateX = useRef(new Animated.Value(-width)).current;
+    const anim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
-                Animated.timing(translateX, {
-                    toValue: width,
-                    duration: 3000,
-                    easing: Easing.linear,
+                Animated.timing(anim, {
+                    toValue: 1,
+                    duration: 1800, // Faster sweep
+                    easing: Easing.out(Easing.quad),
                     useNativeDriver: true,
                 }),
-                Animated.delay(2000),
+                Animated.delay(2500), // Wait between glimmers
             ])
         ).start();
     }, []);
+
+    const translateX = anim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-width * 0.8, width * 0.8], // Relative range
+    });
+
+    const opacity = anim.interpolate({
+        inputRange: [0, 0.3, 0.7, 1],
+        outputRange: [0, 0.8, 0.8, 0], // Peak intensity
+    });
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -51,13 +61,14 @@ const Glimmer = () => {
                 style={[
                     StyleSheet.absoluteFill,
                     {
-                        transform: [{ translateX }, { skewX: '-20deg' }],
-                        width: '50%',
+                        transform: [{ translateX }, { skewX: '-30deg' }],
+                        width: '40%',
+                        opacity,
                     },
                 ]}
             >
                 <LinearGradient
-                    colors={['transparent', 'rgba(255, 255, 255, 0.1)', 'transparent']}
+                    colors={['transparent', 'rgba(255, 255, 255, 0.4)', 'transparent']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{ flex: 1 }}

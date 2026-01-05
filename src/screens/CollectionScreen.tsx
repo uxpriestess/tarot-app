@@ -213,11 +213,12 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     filters: {
-        marginBottom: spacing.lg,
+        marginBottom: spacing.md,
     },
     filtersContent: {
         paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.sm, // Add padding to prevent clipping of shadows/borders
+        paddingTop: 4, // Room for top shadow/glow
+        paddingBottom: 20, // Significantly more room for the bottom shadow
     },
     filterChip: {
         flexDirection: 'row',

@@ -326,21 +326,22 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     watercolorIcon: {
-        width: 110,
-        height: 110,
-        marginBottom: spacing.xs,
+        width: 140, // Increased from 110 for "Hero" impact
+        height: 140, // Increased from 110
+        marginBottom: -10, // Pull text slightly closer to the large icon
     },
     cardContent: {
         alignItems: 'center',
+        marginTop: 0,
     },
     spreadName: {
-        fontSize: 16,
+        fontSize: 14, // Slightly smaller to accommodate larger icon
         fontWeight: '600',
         color: '#fff',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         textAlign: 'center',
-        marginBottom: 2,
-        textShadowColor: 'rgba(0,0,0,0.9)', // Strong shadow for text
+        paddingHorizontal: 4,
+        textShadowColor: 'rgba(0,0,0,0.9)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
     },

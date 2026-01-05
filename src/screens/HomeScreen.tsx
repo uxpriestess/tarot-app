@@ -9,7 +9,6 @@ import {
   ScrollView,
   TextInput,
   Platform,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -66,27 +65,6 @@ export function HomeScreen({
   const cardScale = useRef(new Animated.Value(0.95)).current;
   const buttonY = useRef(new Animated.Value(20)).current;
   const fabScale = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  // Moon phase calculation (Mathematical approximation)
-  const getMoonPhase = () => {
-    const lp = 2551443;
-    const now = new Date();
-    const newMoon = new Date(1970, 0, 7, 20, 35, 0);
-    const phase = ((now.getTime() - newMoon.getTime()) / 1000) % lp;
-    const res = Math.floor(phase / (24 * 3600)) + 1;
-
-    // Simple mapping: 
-    // 0-3: New, 4-6: Waxing Crescent, 7-10: First Quarter, 11-14: Waxing Gibbous
-    // 15-18: Full, 19-22: Waning Gibbous, 23-25: Last Quarter, 26-29: Waning Crescent
-    if (res <= 3) return { icon: 'moon-outline', name: 'Novoluní' };
-    if (res <= 10) return { icon: 'moon-outline', name: 'Dorůstající měsíc' };
-    if (res <= 18) return { icon: 'moon', name: 'Úplněk' };
-    if (res <= 25) return { icon: 'moon-outline', name: 'Ubývající měsíc' };
-    return { icon: 'moon-outline', name: 'Novoluní' };
-  };
-
-  const moon = getMoonPhase();
 
   useEffect(() => {
     // Entrance animations - subtle and graceful
@@ -119,22 +97,6 @@ export function HomeScreen({
         }),
       ]),
     ]).start();
-
-    // Pulse animation for the daily card
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.03,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
 
     // Update time every minute
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -196,13 +158,10 @@ export function HomeScreen({
         <Animated.View style={[styles.content, { opacity: fadeIn }]}>
           {/* Header Area */}
           <View style={styles.header}>
-            {/* Greeting + Moon Phase */}
-            <View style={styles.greetingWrapper}>
-              <Ionicons name={moon.icon as any} size={18} color="rgba(249, 248, 244, 0.8)" style={{ marginRight: 8 }} />
-              <Text style={styles.headerGreeting}>{getGreeting()}</Text>
-            </View>
+            {/* Greeting - Left */}
+            <Text style={styles.headerGreeting}>{getGreeting()}</Text>
 
-            {/* App Name - Center */}
+            {/* App Name - Center (absolute to ensure true center) */}
             <View style={styles.appNameContainer}>
               <Text style={styles.appName}>Tarotka</Text>
             </View>
@@ -211,7 +170,7 @@ export function HomeScreen({
             <View style={styles.headerRight}>
               {streak > 0 && (
                 <View style={styles.streakBadge}>
-                  <Ionicons name="flame" size={12} color="#F9F8F4" />
+                  <Ionicons name="flame" size={12} color="#fff" />
                   <Text style={styles.streakText}>{streak}</Text>
                 </View>
               )}
@@ -228,38 +187,56 @@ export function HomeScreen({
               style={[
                 styles.cardContainer,
                 {
-                  transform: [{ scale: Animated.multiply(cardScale, pulseAnim) }],
+                  transform: [{ scale: cardScale }],
                 },
               ]}
             >
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => onDrawCard()}
-                disabled={hasReadToday}
-                style={styles.card}
-              >
-                <Image
-                  source={require('../../assets/cards/card_back_mystic.png')}
-                  style={styles.cardBackImage}
-                  resizeMode="cover"
-                />
-                {!hasReadToday && (
-                  <View style={styles.cardOverlay}>
-                    <Animated.View style={{ opacity: pulseAnim.interpolate({ inputRange: [1, 1.03], outputRange: [0.6, 1] }) }}>
-                      <Ionicons name="sparkles" size={32} color="#F9F8F4" />
-                    </Animated.View>
+              <View style={styles.card}>
+                <View style={styles.cardBorder}>
+                  <View style={styles.cardCenter}>
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={32}
+                      color="rgba(255,255,255,0.6)"
+                      style={styles.cardIcon}
+                    />
                   </View>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.cardCaption}>Tvá karta čeká</Text>
+                </View>
+              </View>
             </Animated.View>
 
-            {/* Main CTA moved to click on card, so we can hide or change this */}
-            {hasReadToday && (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>Dnešní moudrost odhalena ✨</Text>
-              </View>
-            )}
+            {/* Main CTA Button - Directly under card */}
+            {/* "Vytáhnout kartu" */}
+            <Animated.View
+              style={{
+                transform: [{ translateY: buttonY }],
+                width: '100%',
+                alignItems: 'center',
+                marginBottom: spacing.xl,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => onDrawCard()}
+                disabled={hasReadToday}
+                style={[
+                  styles.mainButton,
+                  hasReadToday && styles.mainButtonDisabled,
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.mainButtonText}>
+                  {hasReadToday ? 'Vyloženo' : 'Vytáhnout kartu'}
+                </Text>
+                {!hasReadToday && (
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color="#fff"
+                    style={{ opacity: 0.8 }}
+                  />
+                )}
+              </TouchableOpacity>
+            </Animated.View>
 
             {/* Custom Question Input (Conditionally rendered) */}
             {isAskingQuestion && !hasReadToday && (
@@ -288,32 +265,33 @@ export function HomeScreen({
               </View>
             )}
 
-            {/* Aesthetic Action Holders */}
-            <View style={styles.aestheticActions}>
-              {/* Holder 1: Evening Reflection */}
+            {/* Bottom Actions Row */}
+            <View style={styles.bottomActionsRow}>
+              {/* Left: Večerní reflexe */}
               <TouchableOpacity
-                style={styles.aestheticHolder}
-                onPress={() => onDrawCard(MYSTERY_CARD_IDS)}
-                activeOpacity={0.7}
+                style={styles.bottomActionButton}
+                onPress={() => {
+                  // For now, map to Mystery Card aka "Evening" flow
+                  onDrawCard(MYSTERY_CARD_IDS);
+                }}
               >
-                <View style={styles.holderIconCircle}>
-                  <Ionicons name="moon-outline" size={20} color="#F9F8F4" />
+                <View style={styles.bottomActionIcon}>
+                  <Ionicons name="moon-outline" size={24} color="#fff" />
                 </View>
-                <Text style={styles.holderText}>Karta před spaním</Text>
-                <Ionicons name="chevron-forward" size={14} color="rgba(249, 248, 244, 0.4)" />
+                <Text style={styles.bottomActionText}>Večerní reflexe</Text>
               </TouchableOpacity>
 
-              {/* Holder 2: Custom Question */}
+              {/* Right: Vlastní otázka */}
               <TouchableOpacity
-                style={styles.aestheticHolder}
-                onPress={() => setIsAskingQuestion(!isAskingQuestion)}
-                activeOpacity={0.7}
+                style={styles.bottomActionButton}
+                onPress={() => {
+                  setIsAskingQuestion(!isAskingQuestion);
+                }}
               >
-                <View style={styles.holderIconCircle}>
-                  <Ionicons name="sparkles-outline" size={20} color="#F9F8F4" />
+                <View style={[styles.bottomActionIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                  <Ionicons name="chatbubble-outline" size={24} color="#fff" />
                 </View>
-                <Text style={styles.holderText}>Zeptej se cokoliv</Text>
-                <Ionicons name="chevron-forward" size={14} color="rgba(249, 248, 244, 0.4)" />
+                <Text style={styles.bottomActionText}>Vlastní otázka</Text>
               </TouchableOpacity>
             </View>
 
@@ -389,17 +367,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 60,
   },
-  greetingWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   headerGreeting: {
-    fontSize: 15,
-    color: '#F9F8F4', // Creamy
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontStyle: 'italic',
-    opacity: 0.9,
+    flex: 1,
   },
   appNameContainer: {
     position: 'absolute',
@@ -407,32 +380,33 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    pointerEvents: 'none',
+    pointerEvents: 'none', // let touches pass through if needed
   },
   appName: {
-    fontSize: 34,
-    color: '#F9F8F4',
+    fontSize: 32,
+    color: 'rgba(255, 255, 255, 0.95)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontWeight: '600',
-    letterSpacing: 2,
-    opacity: 0.95,
+    letterSpacing: 0.5,
   },
   headerRight: {
     flex: 1,
     alignItems: 'flex-end',
   },
   streakBadge: {
+    position: 'absolute',
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(249, 248, 244, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(249, 248, 244, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   streakText: {
-    color: '#F9F8F4',
+    color: '#fff',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -441,140 +415,147 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     alignItems: 'center',
-    marginTop: spacing.md,
   },
 
   sectionTitle: {
-    fontSize: 12,
-    color: 'rgba(249, 248, 244, 0.6)',
-    marginBottom: spacing.lg,
-    letterSpacing: 4,
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: spacing.md,
+    letterSpacing: 3,
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     textTransform: 'uppercase',
   },
   cardContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
-    width: 220,
-    height: 330,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(249, 248, 244, 0.3)',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-    elevation: 10,
+    width: 200,
+    height: 300,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  cardBackImage: {
-    width: '100%',
-    height: '100%',
-  },
-  cardOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+  cardBorder: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardCaption: {
-    marginTop: spacing.md,
-    fontSize: 18,
-    color: '#F9F8F4',
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    fontStyle: 'italic',
+  cardCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardIcon: {
     opacity: 0.8,
+    color: '#fff',
   },
-  statusBadge: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(249, 248, 244, 0.1)',
-    borderRadius: borderRadius.full,
-    marginBottom: spacing.xl,
-  },
-  statusText: {
-    color: '#F9F8F4',
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-  },
-  aestheticActions: {
-    width: '100%',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  aestheticHolder: {
-    width: '100%',
-    height: 64,
-    backgroundColor: 'rgba(249, 248, 244, 0.08)',
-    borderRadius: 20,
+  mainButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(249, 248, 244, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    gap: spacing.sm,
   },
-  holderIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(249, 248, 244, 0.1)',
+  mainButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  mainButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+  },
+
+  // Bottom Action Row
+  bottomActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
+  bottomActionButton: {
+    flex: 1,
+    height: 70, // Fixed reduced height
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    flexDirection: 'row', // Horizontal layout for compactness
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
-  holderText: {
-    flex: 1,
-    color: '#F9F8F4',
-    fontSize: 16,
+  bottomActionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomActionText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
+
   questionInputContainer: {
     width: '100%',
     marginBottom: spacing.lg,
-    marginTop: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   questionInput: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: 16,
-    color: '#F9F8F4',
-    minHeight: 100,
+    color: '#fff',
+    minHeight: 80,
     textAlignVertical: 'top',
     borderWidth: 1,
-    borderColor: 'rgba(249, 248, 244, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     marginBottom: spacing.sm,
   },
   askSubmitButton: {
     alignSelf: 'flex-end',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(249, 248, 244, 0.2)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: borderRadius.full,
   },
   askSubmitText: {
-    color: '#F9F8F4',
+    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
   },
+
   readingTypesContainer: {
-    marginTop: spacing.xxl,
+    marginTop: spacing.xl,
     width: '100%',
     alignItems: 'center',
-    opacity: 0.6,
   },
   divider: {
-    width: 30,
+    width: 40,
     height: 1,
-    backgroundColor: 'rgba(249, 248, 244, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginBottom: spacing.md,
   },
   readingLinks: {
@@ -584,52 +565,47 @@ const styles = StyleSheet.create({
   },
   verticalDivider: {
     width: 1,
-    height: 10,
-    backgroundColor: 'rgba(249, 248, 244, 0.3)',
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   textLink: {
     padding: spacing.xs,
   },
   textLinkText: {
-    color: '#F9F8F4',
-    fontSize: 11,
-    letterSpacing: 2,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   fab: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 40,
     right: spacing.lg,
     width: 50,
     height: 50,
     borderRadius: 25,
   },
   fabButton: {
-    width: 56,
-    height: 56,
-    backgroundColor: 'rgba(249, 248, 244, 0.15)',
-    borderRadius: 28,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(249, 248, 244, 0.3)',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   fabEmoji: {
-    fontSize: 28,
+    fontSize: 24,
   },
   devButton: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    backgroundColor: '#F9F8F4',
-    opacity: 0.05,
+    bottom: spacing.lg,
+    left: spacing.lg,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    opacity: 0.1,
   },
 });

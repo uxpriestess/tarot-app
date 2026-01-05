@@ -184,7 +184,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     };
 
     return (
-        <ImmersiveScreen screenName="reading" variant="default">
+        <ImmersiveScreen screenName="reading">
             <SafeAreaView style={styles.safeArea}>
                 {stage === 'welcome' && renderWelcome()}
                 {stage === 'spread-select' && renderWelcome()}

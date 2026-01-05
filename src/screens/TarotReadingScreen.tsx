@@ -9,6 +9,7 @@ import {
     SafeAreaView,
     Platform,
     ScrollView,
+    Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -17,33 +18,32 @@ import { ImmersiveScreen } from '../components/ImmersiveScreen';
 const { width } = Dimensions.get('window');
 
 // Types
-type SpreadId = 'love' | 'career' | 'soul' | 'lunar' | 'week' | 'decision';
+type SpreadId = 'love' | 'finance' | 'body' | 'moon' | 'decision' | 'week';
 type Stage = 'welcome' | 'spread-select' | 'reading';
 
 interface Spread {
     id: SpreadId;
     name: string;
-    description?: string; // Optional now as we might just show title on square cards
-    icon: any; // Ionicons name
-    color: string;
+    description?: string;
+    iconImage: any; // require() path for custom watercolor icons
     cards: number;
 }
 
 const SPREADS: Spread[] = [
-    { id: 'love', name: 'Láska a vztahy', icon: 'heart', color: '#E57373', cards: 3 },
-    { id: 'career', name: 'Životní Poslání', icon: 'compass', color: '#FFB74D', cards: 3 },
-    { id: 'soul', name: 'Duše & Mysl', icon: 'moon', color: '#9575CD', cards: 3 },
-    { id: 'lunar', name: 'Lunární Cykly', icon: 'planet', color: '#4DB6AC', cards: 5 },
-    { id: 'decision', name: 'Rozhodnutí', icon: 'git-network', color: '#64B5F6', cards: 3 },
-    { id: 'week', name: '7 Dní', icon: 'hourglass', color: '#A1887F', cards: 7 },
+    { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3 },
+    { id: 'finance', name: 'Finance', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3 },
+    { id: 'body', name: 'Tělo a mysl', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3 },
+    { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 5 },
+    { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3 },
+    { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7 },
 ];
 
 // Simplified placeholder positions for now - we can refine per spread later
 const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
     love: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
-    career: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
-    soul: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
-    lunar: [
+    finance: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    body: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    moon: [
         { x: 50, y: 20 },
         { x: 20, y: 50 }, { x: 80, y: 50 },
         { x: 35, y: 80 }, { x: 65, y: 80 }
@@ -116,7 +116,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
         <Animated.View style={[styles.centerContent, { opacity: fadeAnim }]}>
             <View style={styles.titleContainer}>
                 <Text style={styles.title}>Čtení</Text>
-                <Text style={styles.subtitle}>Vyber typ výkladu</Text>
+                <Text style={styles.subtitle}>Vyber si styl výkladu</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.spreadList} showsVerticalScrollIndicator={false}>
@@ -127,14 +127,11 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                         onPress={() => startReading(spread)}
                         activeOpacity={0.7}
                     >
-                        <View style={[styles.iconWrapper, { backgroundColor: spread.color + '40' }]}>
-                            {/* Using 'any' cast for dynamic icon names to avoid TS strictness for now */}
-                            <Ionicons
-                                name={spread.icon as any}
-                                size={32}
-                                color={spread.color}
-                            />
-                        </View>
+                        <Image
+                            source={spread.iconImage}
+                            style={styles.watercolorIcon}
+                            resizeMode="contain"
+                        />
 
                         <View style={styles.cardContent}>
                             <Text style={styles.spreadName}>{spread.name}</Text>
@@ -300,6 +297,7 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0,0,0,0.5)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
+        textAlign: 'left', // Left-align as per mockup
     },
     spreadList: {
         paddingBottom: 40,
@@ -328,14 +326,10 @@ const styles = StyleSheet.create({
         shadowRadius: 4.65,
         elevation: 8,
     },
-    iconWrapper: {
-        width: 56,
-        height: 56,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
+    watercolorIcon: {
+        width: 80,
+        height: 80,
         marginBottom: spacing.sm,
-        backgroundColor: 'rgba(255,255,255,0.2)', // Slightly visible backing
     },
     cardContent: {
         alignItems: 'center',

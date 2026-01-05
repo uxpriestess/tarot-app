@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,7 +10,10 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    Animated,
+    Easing,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { useAppStore, JournalEntry } from '../store/appStore';
@@ -23,6 +26,46 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = Math.round(width * 0.85); // Slightly smaller than reveal screen
 const IMAGE_RATIO = 1384 / 1040;
 const IMAGE_HEIGHT = Math.round(CARD_WIDTH * IMAGE_RATIO);
+
+// Simple shimmer component for the glimmer effect
+const Glimmer = () => {
+    const translateX = useRef(new Animated.Value(-width)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(translateX, {
+                    toValue: width,
+                    duration: 3000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }),
+                Animated.delay(2000),
+            ])
+        ).start();
+    }, []);
+
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Animated.View
+                style={[
+                    StyleSheet.absoluteFill,
+                    {
+                        transform: [{ translateX }, { skewX: '-20deg' }],
+                        width: '50%',
+                    },
+                ]}
+            >
+                <LinearGradient
+                    colors={['transparent', 'rgba(255, 255, 255, 0.1)', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{ flex: 1 }}
+                />
+            </Animated.View>
+        </View>
+    );
+};
 
 export function JournalScreen() {
     const journalEntries = useAppStore((s) => s.journalEntries);
@@ -66,13 +109,15 @@ export function JournalScreen() {
 
                     {/* Stats Card */}
                     <View style={styles.statsCard}>
+                        <Glimmer />
                         <View style={styles.statItem}>
-                            <Ionicons name="book-outline" size={24} color="#D8DDE3" />
+                            <Ionicons name="book-outline" size={20} color="#D8DDE3" />
                             <Text style={styles.statNumber}>{journalEntries}</Text>
                             <Text style={styles.statLabel}>Záznamy</Text>
                         </View>
+                        <View style={styles.statSeparator} />
                         <View style={styles.statItem}>
-                            <Ionicons name="filter-outline" size={24} color="#C5A059" />
+                            <Ionicons name="bookmark-outline" size={20} color="#C5A059" />
                             <Text style={styles.statNumber}>{journalHistory.length}</Text>
                             <Text style={styles.statLabel}>Uloženo</Text>
                         </View>
@@ -102,8 +147,9 @@ export function JournalScreen() {
                                         activeOpacity={0.7}
                                         onPress={() => setSelectedEntry(entry)}
                                     >
+                                        <Glimmer />
                                         <View style={styles.entryIconWrapper}>
-                                            <CardImage imageName={card.imageName} width={40} height={56} />
+                                            <CardImage imageName={card.imageName} width={36} height={50} />
                                         </View>
                                         <View style={styles.entryContent}>
                                             <Text style={styles.entryTitle}>{card.nameCzech}</Text>
@@ -226,7 +272,8 @@ export function JournalScreen() {
                                             style={styles.saveNoteButton}
                                             onPress={handleSaveNote}
                                         >
-                                            <Ionicons name="save-outline" size={18} color={colors.background} />
+                                            <Glimmer />
+                                            <Ionicons name="save-outline" size={16} color="#fff" />
                                             <Text style={styles.saveNoteButtonText}>Uložit poznámku</Text>
                                         </TouchableOpacity>
                                     </View>
@@ -270,12 +317,19 @@ const styles = StyleSheet.create({
     },
     statsCard: {
         flexDirection: 'row',
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-        borderRadius: borderRadius.lg,
-        padding: spacing.lg,
-        marginBottom: spacing.xl,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 20,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        overflow: 'hidden',
+    },
+    statSeparator: {
+        width: 1,
+        height: '60%',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        alignSelf: 'center',
     },
     statItem: {
         flex: 1,
@@ -283,7 +337,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
     },
     statNumber: {
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: '700',
         color: '#fff',
         textShadowColor: 'rgba(0,0,0,0.5)',
@@ -291,21 +345,21 @@ const styles = StyleSheet.create({
         textShadowRadius: 2,
     },
     statLabel: {
-        fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: 10,
+        color: 'rgba(255, 255, 255, 0.5)',
         textTransform: 'uppercase',
-        letterSpacing: 2,
+        letterSpacing: 1.5,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     entriesContainer: {
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg,
     },
     sectionTitle: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
-        color: 'rgba(255, 255, 255, 0.6)',
+        color: 'rgba(255, 255, 255, 0.5)',
         marginBottom: spacing.md,
-        letterSpacing: 3,
+        letterSpacing: 2,
         textTransform: 'uppercase',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
@@ -328,18 +382,19 @@ const styles = StyleSheet.create({
     entryCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        padding: spacing.md,
-        borderRadius: borderRadius.md,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        padding: spacing.sm,
+        borderRadius: 16,
         marginBottom: spacing.sm,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        overflow: 'hidden',
     },
     entryIconWrapper: {
-        width: 40,
-        height: 56, // Taller to match aspect ratio slightly
-        borderRadius: borderRadius.sm,
-        backgroundColor: colors.surfaceHighlight,
+        width: 36,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
@@ -505,16 +560,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        paddingVertical: spacing.md,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.4)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        overflow: 'hidden',
     },
     saveNoteButtonText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
         color: '#fff',
         marginLeft: spacing.xs,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
 });

@@ -24,12 +24,13 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic }: TabNav
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: colors.surface,
-                    borderTopColor: colors.border,
-                    borderTopWidth: 1,
-                    height: 70,
-                    paddingBottom: 10,
-                    paddingTop: 10,
+                    backgroundColor: 'transparent',
+                    borderTopWidth: 0,
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    elevation: 0, // Remove shadow on Android
                 },
                 tabBarActiveTintColor: colors.lavender,
                 tabBarInactiveTintColor: colors.textLight,

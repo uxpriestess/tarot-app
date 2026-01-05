@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SCREEN_LAYOUTS, Hotspot } from '../config/screenLayouts';
+import { colors } from '../theme/colors';
 
 interface ImmersiveScreenProps {
   screenName: string;
@@ -51,7 +52,7 @@ export function ImmersiveScreen({
 
       <ImageBackground
         source={layoutConfig.backgroundImage}
-        style={[styles.background, { paddingBottom: insets.bottom }]}
+        style={styles.background}
         resizeMode="cover"
       >
         {/* Render Hotspots */}
@@ -114,7 +115,7 @@ export function ImmersiveScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // Fallback
+    backgroundColor: colors.background, // Fallback to theme color instead of black
   },
   background: {
     flex: 1,

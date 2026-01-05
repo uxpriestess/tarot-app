@@ -168,6 +168,10 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 
         return (
             <Animated.View style={[styles.readingContainer, { opacity: fadeAnim }]}>
+                <TouchableOpacity onPress={resetReading} style={styles.readingBackButton}>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
+
                 <View style={styles.headerContainer}>
                     <Text style={styles.heading}>{selectedSpread.name}</Text>
                     <Text style={styles.subtitle}>Dotkni se karet pro odhalení</Text>
@@ -448,5 +452,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 50,
+    },
+    readingBackButton: {
+        position: 'absolute',
+        top: 10,
+        left: 20,
+        zIndex: 50,
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
 });

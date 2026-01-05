@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { Alert, ActivityIndicator, View } from 'react-native';
@@ -79,35 +80,37 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer>
-      {isLoadingUniverse ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-          <ActivityIndicator size="large" color={colors.lavender} />
-        </View>
-      ) : universeResponse ? (
-        <UniverseResponseScreen
-          question={universeResponse.question}
-          answer={universeResponse.answer}
-          cards={universeResponse.cards}
-          onClose={handleCloseUniverse}
-        />
-      ) : isMysticOpen ? (
-        <TarotReadingScreen onClose={() => setIsMysticOpen(false)} />
-      ) : currentCard ? (
-        <CardRevealScreen
-          card={currentCard.card}
-          position={currentCard.position}
-          onClose={handleClose}
-          onSaveReading={handleSaveReading}
-        />
-      ) : (
-        <TabNavigator
-          onDrawCard={handleDrawCard}
-          onAskUniverse={handleAskUniverse}
-          onOpenMystic={() => setIsMysticOpen(true)}
-        />
-      )}
-      <StatusBar style="auto" />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        {isLoadingUniverse ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+            <ActivityIndicator size="large" color={colors.lavender} />
+          </View>
+        ) : universeResponse ? (
+          <UniverseResponseScreen
+            question={universeResponse.question}
+            answer={universeResponse.answer}
+            cards={universeResponse.cards}
+            onClose={handleCloseUniverse}
+          />
+        ) : isMysticOpen ? (
+          <TarotReadingScreen onClose={() => setIsMysticOpen(false)} />
+        ) : currentCard ? (
+          <CardRevealScreen
+            card={currentCard.card}
+            position={currentCard.position}
+            onClose={handleClose}
+            onSaveReading={handleSaveReading}
+          />
+        ) : (
+          <TabNavigator
+            onDrawCard={handleDrawCard}
+            onAskUniverse={handleAskUniverse}
+            onOpenMystic={() => setIsMysticOpen(true)}
+          />
+        )}
+        <StatusBar style="auto" />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

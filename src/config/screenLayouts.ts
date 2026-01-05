@@ -38,5 +38,10 @@ export const SCREEN_LAYOUTS: Record<string, ScreenLayout> = {
   home: {
     backgroundImage: require('../../assets/screens/home_ritual.jpg'),
     hotspots: [], // We are styling RN text for now, so no invisible spots yet
+  },
+  // Reading Screen (Book/Atmospheric)
+  reading: {
+    backgroundImage: require('../../assets/screens/reading_background.jpg'),
+    hotspots: [],
   }
 };

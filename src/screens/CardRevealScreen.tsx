@@ -1,4 +1,5 @@
 import { CardImage } from '../components/CardImage';
+import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -111,17 +112,7 @@ export function CardRevealScreen({
   const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.primary }]}>
-      {/* Background Glow Effect (Optional visual depth) */}
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 400,
-        backgroundColor: colors.primary, // Base
-        opacity: 0.5,
-      }} />
+    <ImmersiveScreen screenName="home">
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -284,7 +275,7 @@ export function CardRevealScreen({
           </View>
         </Animated.View>
       </ScrollView>
-    </View>
+    </ImmersiveScreen>
   );
 }
 
@@ -303,13 +294,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     right: spacing.lg,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface, // Pearl/White button
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Glassy
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -337,15 +329,15 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   cardBack: {
-    backgroundColor: colors.primary, // Dark back
+    backgroundColor: 'rgba(20, 10, 30, 0.95)', // Deep dark back
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.secondary, // Gold border
+    borderColor: 'rgba(255, 255, 255, 0.2)', // Subtle border
   },
   cardBackBorder: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: colors.secondary,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     opacity: 0.5,
@@ -381,15 +373,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cardName: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.surface, // White text
-    letterSpacing: -0.5,
+
+    fontWeight: '500',
+    color: '#fff',
+    letterSpacing: 0.5,
     textAlign: 'center',
     marginBottom: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     marginTop: spacing.lg,
-    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
@@ -398,17 +390,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.1)', // Glassy
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.secondary, // Gold border
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   positionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.surface,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
   contentSection: {
     width: '100%',
@@ -421,32 +413,35 @@ const styles = StyleSheet.create({
   },
   keywordBadge: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.secondary, // Gold badges
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassy badges
     borderRadius: borderRadius.full,
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   keywordText: {
     fontSize: 14,
-    color: colors.primary, // Dark text on gold
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    color: '#fff',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
   meaningContainer: {
-    backgroundColor: 'rgba(255,255,255,0.08)', // Subtle light panel
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Darker glass for readability
     padding: spacing.xl,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.15)',
     marginBottom: spacing.lg,
   },
   meaningText: {
     fontSize: 17,
     lineHeight: 28,
-    color: colors.surfaceHighlight, // Off-white
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    color: 'rgba(255, 255, 255, 0.95)', // High contrast white
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     textAlign: 'center',
+    fontWeight: '400',
   },
   actionsContainer: {
     // gap removed
@@ -456,28 +451,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.md,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.secondary, // Gold border
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     marginBottom: spacing.sm,
+
   },
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.surface,
+    color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    letterSpacing: 0.5,
   },
   doneButton: {
-    paddingVertical: spacing.md + 2,
-    backgroundColor: colors.secondary, // Gold button
+    paddingVertical: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassy
     borderRadius: borderRadius.full,
     alignItems: 'center',
     marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.primary, // Dark text
+    color: '#fff', // White text
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    letterSpacing: 1,
+
   },
   noteContainer: {
     marginBottom: spacing.lg,
@@ -486,21 +489,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.secondary, // Gold title
+    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: spacing.sm,
     marginLeft: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
   noteInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.secondary,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
     minHeight: 120,
     lineHeight: 24,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
 });

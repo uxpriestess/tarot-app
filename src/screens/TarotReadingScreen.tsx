@@ -17,32 +17,41 @@ import { ImmersiveScreen } from '../components/ImmersiveScreen';
 const { width } = Dimensions.get('window');
 
 // Types
-type SpreadId = 'single' | 'three' | 'celtic';
+type SpreadId = 'love' | 'career' | 'soul' | 'lunar' | 'week';
 type Stage = 'welcome' | 'spread-select' | 'reading';
 
 interface Spread {
     id: SpreadId;
     name: string;
+    description?: string; // Optional now as we might just show title on square cards
+    icon: any; // Ionicons name
+    color: string;
     cards: number;
-    desc: string;
 }
 
 const SPREADS: Spread[] = [
-    { id: 'single', name: 'Jednoduchý výklad', cards: 1, desc: 'Rychlá odpověď na tvou otázku' },
-    { id: 'three', name: 'Tři karty', cards: 3, desc: 'Minulost • Současnost • Budoucnost; Hlubší pohled na situaci' },
-    { id: 'celtic', name: 'Keltský kříž', cards: 10, desc: 'Kompletní analýza života' },
+    { id: 'love', name: 'Láska a vztahy', icon: 'heart', color: '#E57373', cards: 3 },
+    { id: 'career', name: 'Životní Poslání', icon: 'compass', color: '#FFB74D', cards: 3 },
+    { id: 'soul', name: 'Duše & Mysl', icon: 'moon', color: '#9575CD', cards: 3 },
+    { id: 'lunar', name: 'Lunární Cykly', icon: 'planet', color: '#4DB6AC', cards: 5 },
+    { id: 'week', name: '7 Dní', icon: 'hourglass', color: '#A1887F', cards: 7 },
 ];
 
+// Simplified placeholder positions for now - we can refine per spread later
 const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
-    single: [{ x: 50, y: 50 }],
-    three: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }], // Adjusted for mobile width
-    celtic: [
-        { x: 50, y: 50 }, { x: 50, y: 50 },
-        { x: 50, y: 20 }, { x: 50, y: 80 },
+    love: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    career: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    soul: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    lunar: [
+        { x: 50, y: 20 },
         { x: 20, y: 50 }, { x: 80, y: 50 },
-        { x: 85, y: 80 }, { x: 85, y: 65 },
-        { x: 85, y: 50 }, { x: 85, y: 35 },
+        { x: 35, y: 80 }, { x: 65, y: 80 }
     ],
+    week: [
+        { x: 15, y: 30 }, { x: 15, y: 50 }, { x: 15, y: 70 },
+        { x: 50, y: 50 },
+        { x: 85, y: 30 }, { x: 85, y: 50 }, { x: 85, y: 70 }
+    ]
 };
 
 interface TarotReadingScreenProps {
@@ -73,7 +82,8 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     };
 
     const startReading = (spread: Spread) => {
-        if (spread.id === 'celtic') return; // Temporarily disable/mark as 'soon' if logic isn't ready, or allow it. Logic exists so we allow it.
+        // No disabled spreads for now
+        // if (spread.id === 'celtic') return; 
 
         setSelectedSpread(spread);
         setFlippedCards([]);
@@ -108,51 +118,57 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.spreadList} showsVerticalScrollIndicator={false}>
-                {SPREADS.map((spread) => (
-                    <TouchableOpacity
-                        key={spread.id}
-                        style={[styles.spreadCard, spread.id === 'celtic' && { opacity: 0.8 }]}
-                        onPress={() => startReading(spread)}
-                        activeOpacity={0.7}
-                        disabled={spread.id === 'celtic' && false} // Keep enabled or disable if needed
-                    >
-                        <View style={[
-                            styles.spreadIcon,
-                            { backgroundColor: spread.id === 'single' ? 'rgba(235, 230, 220, 0.2)' : spread.id === 'three' ? 'rgba(200, 190, 230, 0.2)' : 'rgba(180, 210, 200, 0.2)' }
-                        ]}>
-                            <Ionicons
-                                name={spread.id === 'single' ? 'flash' : spread.id === 'three' ? 'triangle' : 'grid'}
-                                size={24}
-                                color={spread.id === 'single' ? '#D4AF37' : spread.id === 'three' ? '#A890D3' : '#88B0A0'}
-                            />
-                        </View>
-                        <View style={styles.spreadInfo}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text style={styles.spreadName}>{spread.name}</Text>
-                                {spread.id === 'celtic' && (
-                                    <View style={styles.soonBadge}>
-                                        <Text style={styles.soonText}>Brzy</Text>
-                                    </View>
-                                )}
+                {SPREADS.map((spread, index) => {
+                    // Check if it's the last item (for centering)
+                    const isLast = index === SPREADS.length - 1;
+
+                    return (
+                        <TouchableOpacity
+                            key={spread.id}
+                            style={[
+                                styles.spreadCard,
+                                isLast && styles.spreadCardLast // Apply special style for the last item
+                            ]}
+                            onPress={() => startReading(spread)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.iconWrapper, { backgroundColor: spread.color + '40' }]}>
+                                {/* Using 'any' cast for dynamic icon names to avoid TS strictness for now */}
+                                <Ionicons
+                                    name={spread.icon as any}
+                                    size={32}
+                                    color={spread.color}
+                                />
                             </View>
-                            <Text style={styles.spreadCardCount}>{spread.cards} {spread.cards === 1 ? 'karta' : spread.cards < 5 ? 'karty' : 'karet'}</Text>
-                            <Text style={styles.spreadDesc}>{spread.desc}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.5)" />
-                    </TouchableOpacity>
-                ))}
+
+                            <View style={styles.cardContent}>
+                                <Text style={styles.spreadName}>{spread.name}</Text>
+                                <Text style={styles.spreadCardCount}>{spread.cards} cards</Text>
+                            </View>
+
+                            <Ionicons
+                                name="arrow-forward-circle"
+                                size={24}
+                                color="rgba(255,255,255,0.3)"
+                                style={styles.cardArrow}
+                            />
+                        </TouchableOpacity>
+                    );
+                })}
             </ScrollView>
 
             {/* Close Button only if onClose is provided */}
-            {onClose && (
-                <TouchableOpacity
-                    onPress={onClose}
-                    style={styles.closeButton}
-                >
-                    <Ionicons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-            )}
-        </Animated.View>
+            {
+                onClose && (
+                    <TouchableOpacity
+                        onPress={onClose}
+                        style={styles.closeButton}
+                    >
+                        <Ionicons name="close" size={24} color="#fff" />
+                    </TouchableOpacity>
+                )
+            }
+        </Animated.View >
     );
 
     const renderReading = () => {
@@ -295,65 +311,66 @@ const styles = StyleSheet.create({
     },
     spreadList: {
         paddingBottom: 40,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.xs, // Slight adjustment for spacing
     },
     spreadCard: {
-        flexDirection: 'row',
-        backgroundColor: '#fff', // Solid white as requested by user ("I think it deserves a beautiful makeover just like homescreen"), wait, user images show Solid White cards on a background? 
-        // User images show: White cards with round corners, very clean.
-        // Let's stick to the user's inspiration: Solid White Cards with high readability.
+        width: '48%',
+        aspectRatio: 1, // Make it square
+        backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassy
         borderRadius: 24,
-        padding: spacing.lg,
+        padding: spacing.md,
         marginBottom: spacing.md,
         alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 3.84,
-        elevation: 5,
+        justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
-    spreadIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
+    spreadCardLast: {
+        width: '100%', // Full width for the last item (2-2-1 layout) if wrapped; OR centered.
+        // If we want it strictly centered and same size as others, we can use margin.
+        // But "2-2-1 layout" might imply the last one is special or just centralized.
+        // Let's stick to square size but centered.
+        // Actually, with flex-wrap space-between, if it's the 5th item, it will be on the left.
+        // To center it, we can make it wider OR use a different approach.
+        // The user said "2, 2 and 1 from up to down".
+        // Let's try making the last one full width but keeping aspect ratio? No, too huge.
+        // Let's make it sit in the center.
+        marginLeft: '26%', // Approx centering 48% width card: (100 - 48) / 2 = 26%
+    },
+    iconWrapper: {
+        width: 56,
+        height: 56,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginBottom: spacing.sm,
     },
-    spreadInfo: {
-        flex: 1,
+    cardContent: {
+        alignItems: 'center',
     },
     spreadName: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1a1a1a', // Dark text as per image
-        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', // Keep serif for elegance
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#fff',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textAlign: 'center',
         marginBottom: 2,
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     spreadCardCount: {
-        fontSize: 13,
-        color: '#666',
-        marginBottom: 4,
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.7)',
+        textAlign: 'center',
     },
-    spreadDesc: {
-        fontSize: 14,
-        color: '#888',
-        lineHeight: 20,
-    },
-    soonBadge: {
-        backgroundColor: '#f0f0f0',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    soonText: {
-        fontSize: 10,
-        color: '#999',
-        fontWeight: '600',
+    cardArrow: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
     },
 
     // Reading

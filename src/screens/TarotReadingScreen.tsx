@@ -17,7 +17,7 @@ import { ImmersiveScreen } from '../components/ImmersiveScreen';
 const { width } = Dimensions.get('window');
 
 // Types
-type SpreadId = 'love' | 'career' | 'soul' | 'lunar' | 'week';
+type SpreadId = 'love' | 'career' | 'soul' | 'lunar' | 'week' | 'decision';
 type Stage = 'welcome' | 'spread-select' | 'reading';
 
 interface Spread {
@@ -34,6 +34,7 @@ const SPREADS: Spread[] = [
     { id: 'career', name: 'Životní Poslání', icon: 'compass', color: '#FFB74D', cards: 3 },
     { id: 'soul', name: 'Duše & Mysl', icon: 'moon', color: '#9575CD', cards: 3 },
     { id: 'lunar', name: 'Lunární Cykly', icon: 'planet', color: '#4DB6AC', cards: 5 },
+    { id: 'decision', name: 'Rozhodnutí', icon: 'git-network', color: '#64B5F6', cards: 3 },
     { id: 'week', name: '7 Dní', icon: 'hourglass', color: '#A1887F', cards: 7 },
 ];
 
@@ -47,6 +48,7 @@ const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
         { x: 20, y: 50 }, { x: 80, y: 50 },
         { x: 35, y: 80 }, { x: 65, y: 80 }
     ],
+    decision: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
     week: [
         { x: 15, y: 30 }, { x: 15, y: 50 }, { x: 15, y: 70 },
         { x: 50, y: 50 },
@@ -118,57 +120,47 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.spreadList} showsVerticalScrollIndicator={false}>
-                {SPREADS.map((spread, index) => {
-                    // Check if it's the last item (for centering)
-                    const isLast = index === SPREADS.length - 1;
-
-                    return (
-                        <TouchableOpacity
-                            key={spread.id}
-                            style={[
-                                styles.spreadCard,
-                                isLast && styles.spreadCardLast // Apply special style for the last item
-                            ]}
-                            onPress={() => startReading(spread)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.iconWrapper, { backgroundColor: spread.color + '40' }]}>
-                                {/* Using 'any' cast for dynamic icon names to avoid TS strictness for now */}
-                                <Ionicons
-                                    name={spread.icon as any}
-                                    size={32}
-                                    color={spread.color}
-                                />
-                            </View>
-
-                            <View style={styles.cardContent}>
-                                <Text style={styles.spreadName}>{spread.name}</Text>
-                                <Text style={styles.spreadCardCount}>{spread.cards} cards</Text>
-                            </View>
-
+                {SPREADS.map((spread) => (
+                    <TouchableOpacity
+                        key={spread.id}
+                        style={styles.spreadCard}
+                        onPress={() => startReading(spread)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[styles.iconWrapper, { backgroundColor: spread.color + '40' }]}>
+                            {/* Using 'any' cast for dynamic icon names to avoid TS strictness for now */}
                             <Ionicons
-                                name="arrow-forward-circle"
-                                size={24}
-                                color="rgba(255,255,255,0.3)"
-                                style={styles.cardArrow}
+                                name={spread.icon as any}
+                                size={32}
+                                color={spread.color}
                             />
-                        </TouchableOpacity>
-                    );
-                })}
+                        </View>
+
+                        <View style={styles.cardContent}>
+                            <Text style={styles.spreadName}>{spread.name}</Text>
+                            <Text style={styles.spreadCardCount}>{spread.cards} cards</Text>
+                        </View>
+
+                        <Ionicons
+                            name="arrow-forward-circle"
+                            size={24}
+                            color="rgba(255,255,255,0.5)"
+                            style={styles.cardArrow}
+                        />
+                    </TouchableOpacity>
+                ))}
             </ScrollView>
 
             {/* Close Button only if onClose is provided */}
-            {
-                onClose && (
-                    <TouchableOpacity
-                        onPress={onClose}
-                        style={styles.closeButton}
-                    >
-                        <Ionicons name="close" size={24} color="#fff" />
-                    </TouchableOpacity>
-                )
-            }
-        </Animated.View >
+            {onClose && (
+                <TouchableOpacity
+                    onPress={onClose}
+                    style={styles.closeButton}
+                >
+                    <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+            )}
+        </Animated.View>
     );
 
     const renderReading = () => {
@@ -299,15 +291,18 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         fontWeight: '700',
         marginBottom: 4,
-        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowColor: 'rgba(0,0,0,0.8)', // Stronger shadow
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
     },
     subtitle: {
         fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.8)',
+        color: 'rgba(255, 255, 255, 0.9)',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         fontWeight: '400',
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
     spreadList: {
         paddingBottom: 40,
@@ -319,26 +314,22 @@ const styles = StyleSheet.create({
     spreadCard: {
         width: '48%',
         aspectRatio: 1, // Make it square
-        backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassy
+        backgroundColor: 'rgba(255, 255, 255, 0.25)', // Increased opacity for contrast (was 0.15)
         borderRadius: 24,
         padding: spacing.md,
         marginBottom: spacing.md,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-    },
-    spreadCardLast: {
-        width: '100%', // Full width for the last item (2-2-1 layout) if wrapped; OR centered.
-        // If we want it strictly centered and same size as others, we can use margin.
-        // But "2-2-1 layout" might imply the last one is special or just centralized.
-        // Let's stick to square size but centered.
-        // Actually, with flex-wrap space-between, if it's the 5th item, it will be on the left.
-        // To center it, we can make it wider OR use a different approach.
-        // The user said "2, 2 and 1 from up to down".
-        // Let's try making the last one full width but keeping aspect ratio? No, too huge.
-        // Let's make it sit in the center.
-        marginLeft: '26%', // Approx centering 48% width card: (100 - 48) / 2 = 26%
+        borderColor: 'rgba(255, 255, 255, 0.4)', // Stronger border
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3, // Visible shadow
+        shadowRadius: 4.65,
+        elevation: 8,
     },
     iconWrapper: {
         width: 56,
@@ -347,6 +338,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.sm,
+        backgroundColor: 'rgba(255,255,255,0.2)', // Slightly visible backing
     },
     cardContent: {
         alignItems: 'center',
@@ -358,14 +350,15 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         textAlign: 'center',
         marginBottom: 2,
-        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowColor: 'rgba(0,0,0,0.9)', // Strong shadow for text
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        textShadowRadius: 3,
     },
     spreadCardCount: {
         fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
+        fontWeight: '500',
     },
     cardArrow: {
         position: 'absolute',

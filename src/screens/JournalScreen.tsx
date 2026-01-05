@@ -16,6 +16,7 @@ import { colors, spacing, borderRadius } from '../theme/colors';
 import { useAppStore, JournalEntry } from '../store/appStore';
 import { getCardById } from '../data';
 import { CardImage } from '../components/CardImage';
+import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -49,92 +50,94 @@ export function JournalScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.title}>Deník</Text>
-                    <Text style={styles.subtitle}>
-                        {journalEntries} {journalEntries === 1 ? 'záznam' : 'záznamy'}
-                    </Text>
-                </View>
-
-                {/* Stats Card */}
-                <View style={styles.statsCard}>
-                    <View style={styles.statItem}>
-                        <Ionicons name="book-outline" size={24} color={colors.lavender} />
-                        <Text style={styles.statNumber}>{journalEntries}</Text>
-                        <Text style={styles.statLabel}>Záznamy</Text>
+        <>
+            <ImmersiveScreen screenName="journal">
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <Text style={styles.title}>Deník</Text>
+                        <Text style={styles.subtitle}>
+                            {journalEntries} {journalEntries === 1 ? 'záznam' : 'záznamy'}
+                        </Text>
                     </View>
-                    <View style={styles.statItem}>
-                        <Ionicons name="filter-outline" size={24} color={colors.bronze} />
-                        <Text style={styles.statNumber}>{journalHistory.length}</Text>
-                        <Text style={styles.statLabel}>Uloženo</Text>
-                    </View>
-                </View>
 
-                {/* Journal Entries */}
-                <View style={styles.entriesContainer}>
-                    <Text style={styles.sectionTitle}>Poslední výklady</Text>
-
-                    {journalHistory.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="calendar-outline" size={48} color={colors.textLight} />
-                            <Text style={styles.emptyText}>Zatím nemáš žádné výklady</Text>
-                            <Text style={styles.emptySubtext}>
-                                Vytáhni první kartu a ulož si ji sem
-                            </Text>
+                    {/* Stats Card */}
+                    <View style={styles.statsCard}>
+                        <View style={styles.statItem}>
+                            <Ionicons name="book-outline" size={24} color="#D8DDE3" />
+                            <Text style={styles.statNumber}>{journalEntries}</Text>
+                            <Text style={styles.statLabel}>Záznamy</Text>
                         </View>
-                    ) : (
-                        journalHistory.map((entry) => {
-                            const card = getCardForEntry(entry.cardId);
-                            if (!card) return null;
+                        <View style={styles.statItem}>
+                            <Ionicons name="filter-outline" size={24} color="#C5A059" />
+                            <Text style={styles.statNumber}>{journalHistory.length}</Text>
+                            <Text style={styles.statLabel}>Uloženo</Text>
+                        </View>
+                    </View>
 
-                            return (
-                                <TouchableOpacity
-                                    key={entry.id}
-                                    style={styles.entryCard}
-                                    activeOpacity={0.7}
-                                    onPress={() => setSelectedEntry(entry)}
-                                >
-                                    <View style={styles.entryIconWrapper}>
-                                        <CardImage imageName={card.imageName} width={40} height={56} />
-                                    </View>
-                                    <View style={styles.entryContent}>
-                                        <Text style={styles.entryTitle}>{card.nameCzech}</Text>
-                                        <Text style={styles.entryDate}>
-                                            {new Date(entry.date).toLocaleDateString('cs-CZ', {
-                                                day: 'numeric',
-                                                month: 'numeric',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </Text>
-                                        <Text style={styles.entryPosition}>
-                                            {entry.position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
-                                        </Text>
-                                        {/* Note Preview */}
-                                        {entry.note ? (
-                                            <Text style={styles.entryNotePreview} numberOfLines={2}>
-                                                {entry.note}
+                    {/* Journal Entries */}
+                    <View style={styles.entriesContainer}>
+                        <Text style={styles.sectionTitle}>Poslední výklady</Text>
+
+                        {journalHistory.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="calendar-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
+                                <Text style={styles.emptyText}>Zatím nemáš žádné výklady</Text>
+                                <Text style={styles.emptySubtext}>
+                                    Vytáhni první kartu a ulož si ji sem
+                                </Text>
+                            </View>
+                        ) : (
+                            journalHistory.map((entry) => {
+                                const card = getCardForEntry(entry.cardId);
+                                if (!card) return null;
+
+                                return (
+                                    <TouchableOpacity
+                                        key={entry.id}
+                                        style={styles.entryCard}
+                                        activeOpacity={0.7}
+                                        onPress={() => setSelectedEntry(entry)}
+                                    >
+                                        <View style={styles.entryIconWrapper}>
+                                            <CardImage imageName={card.imageName} width={40} height={56} />
+                                        </View>
+                                        <View style={styles.entryContent}>
+                                            <Text style={styles.entryTitle}>{card.nameCzech}</Text>
+                                            <Text style={styles.entryDate}>
+                                                {new Date(entry.date).toLocaleDateString('cs-CZ', {
+                                                    day: 'numeric',
+                                                    month: 'numeric',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
                                             </Text>
-                                        ) : null}
-                                    </View>
-                                    <Ionicons
-                                        name="chevron-forward"
-                                        size={20}
-                                        color={colors.textLight}
-                                    />
-                                </TouchableOpacity>
-                            );
-                        })
-                    )}
-                </View>
-            </ScrollView>
+                                            <Text style={styles.entryPosition}>
+                                                {entry.position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
+                                            </Text>
+                                            {/* Note Preview */}
+                                            {entry.note ? (
+                                                <Text style={styles.entryNotePreview} numberOfLines={2}>
+                                                    {entry.note}
+                                                </Text>
+                                            ) : null}
+                                        </View>
+                                        <Ionicons
+                                            name="chevron-forward"
+                                            size={20}
+                                            color="rgba(255, 255, 255, 0.4)"
+                                        />
+                                    </TouchableOpacity>
+                                );
+                            })
+                        )}
+                    </View>
+                </ScrollView>
+            </ImmersiveScreen>
 
             <Modal
                 visible={!!selectedEntry}
@@ -163,7 +166,7 @@ export function JournalScreen() {
                                     style={styles.closeButton}
                                     onPress={() => setSelectedEntry(null)}
                                 >
-                                    <Ionicons name="close" size={28} color={colors.text} />
+                                    <Ionicons name="close" size={28} color="#fff" />
                                 </TouchableOpacity>
 
                                 {/* Card Image Section */}
@@ -233,46 +236,46 @@ export function JournalScreen() {
                     );
                 })()}
             </Modal>
-
-        </View >
+        </>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
     },
     scrollContent: {
         paddingHorizontal: spacing.lg,
         paddingTop: 60,
-        paddingBottom: 100,
+        paddingBottom: 120, // Enough for the tab bar
     },
     header: {
         marginBottom: spacing.xl,
+        paddingHorizontal: spacing.sm,
     },
     title: {
         fontSize: 32,
         fontWeight: '700',
-        color: colors.text,
-        marginBottom: spacing.xs,
-        letterSpacing: -0.5,
+        color: '#fff',
+        marginBottom: 4,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textShadowColor: 'rgba(0,0,0,0.8)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     subtitle: {
         fontSize: 16,
-        color: colors.textSecondary,
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     statsCard: {
         flexDirection: 'row',
-        backgroundColor: colors.surface,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         marginBottom: spacing.xl,
-        shadowColor: colors.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     statItem: {
         flex: 1,
@@ -282,23 +285,29 @@ const styles = StyleSheet.create({
     statNumber: {
         fontSize: 24,
         fontWeight: '700',
-        color: colors.text,
+        color: '#fff',
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     statLabel: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: 'rgba(255, 255, 255, 0.7)',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 2,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     entriesContainer: {
         marginBottom: spacing.xl,
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: 14,
         fontWeight: '600',
-        color: colors.text,
+        color: 'rgba(255, 255, 255, 0.6)',
         marginBottom: spacing.md,
-        letterSpacing: -0.3,
+        letterSpacing: 3,
+        textTransform: 'uppercase',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     emptyState: {
         alignItems: 'center',
@@ -307,24 +316,24 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '600',
-        color: colors.text,
+        color: '#fff',
         marginTop: spacing.lg,
         marginBottom: spacing.xs,
     },
     emptySubtext: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
     },
     entryCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surface,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         padding: spacing.md,
         borderRadius: borderRadius.md,
         marginBottom: spacing.sm,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     entryIconWrapper: {
         width: 40,
@@ -342,29 +351,30 @@ const styles = StyleSheet.create({
     entryTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: '#fff',
         marginBottom: 2,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     entryDate: {
         fontSize: 13,
-        color: colors.textSecondary,
+        color: 'rgba(255, 255, 255, 0.6)',
     },
     entryPosition: {
         fontSize: 11,
         color: colors.lavender,
         marginTop: 2,
+        opacity: 0.9,
     },
     entryNotePreview: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: 'rgba(255, 255, 255, 0.5)',
         marginTop: 4,
         fontStyle: 'italic',
-        opacity: 0.8,
     },
     // Detail View Styles
     detailContainer: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: '#1a1425', // Dark mystical purple-black
     },
     detailContent: {
         paddingTop: 60,
@@ -373,20 +383,17 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         position: 'absolute',
-        top: 20, // Inside modal, 20 is enough usually if pageSheet
+        top: 20,
         right: 0,
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: colors.surface,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 10,
-        shadowColor: colors.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     detailCardSection: {
         alignItems: 'center',
@@ -395,18 +402,18 @@ const styles = StyleSheet.create({
     },
     detailCardImageWrapper: {
         borderRadius: borderRadius.lg,
-        shadowColor: colors.text,
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
+        shadowOpacity: 0.5,
         shadowRadius: 16,
         elevation: 8,
-        backgroundColor: colors.surface,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
     },
     detailCardName: {
         fontSize: 28,
         fontWeight: '700',
-        color: colors.text,
-        letterSpacing: -0.5,
+        color: '#fff',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         textAlign: 'center',
         marginTop: spacing.lg,
         marginBottom: 4,
@@ -416,16 +423,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs,
-        backgroundColor: colors.surface,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderRadius: borderRadius.full,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
         marginTop: spacing.sm,
     },
     detailPositionText: {
         fontSize: 14,
         fontWeight: '600',
-        color: colors.text,
+        color: 'rgba(255, 255, 255, 0.9)',
     },
     detailInfoSection: {
         width: '100%',
@@ -439,28 +446,28 @@ const styles = StyleSheet.create({
     detailKeywordBadge: {
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs,
-        backgroundColor: colors.surfaceHighlight,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderRadius: borderRadius.full,
         marginRight: spacing.xs,
         marginBottom: spacing.xs,
     },
     detailKeywordText: {
         fontSize: 13,
-        color: colors.textSecondary,
+        color: 'rgba(255, 255, 255, 0.7)',
         fontWeight: '500',
     },
     detailMeaningBox: {
-        backgroundColor: colors.surface,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
         padding: spacing.lg,
         borderRadius: borderRadius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
         marginBottom: spacing.lg,
     },
     detailMeaningText: {
         fontSize: 16,
         lineHeight: 24,
-        color: colors.text,
+        color: 'rgba(255, 255, 255, 0.9)',
     },
     detailNoteSection: {
         marginTop: spacing.sm,
@@ -485,27 +492,29 @@ const styles = StyleSheet.create({
     detailNoteInput: {
         fontSize: 15,
         lineHeight: 22,
-        color: colors.text,
-        backgroundColor: colors.surface,
+        color: '#fff',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
         padding: spacing.md,
         borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: colors.border,
-        minHeight: 100,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        minHeight: 120,
         marginBottom: spacing.md,
     },
     saveNoteButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: colors.text,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         paddingVertical: spacing.md,
         borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
     },
     saveNoteButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: colors.background,
+        color: '#fff',
         marginLeft: spacing.xs,
     },
 });

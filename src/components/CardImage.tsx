@@ -1,10 +1,13 @@
 import React from 'react';
 import { Image, StyleSheet, View, Text, ImageSourcePropType } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface CardImageProps {
   imageName: string;
   width?: number;
   height?: number;
+  resizeMode?: 'contain' | 'cover' | 'stretch' | 'center';
+  isDiscovered?: boolean;
 }
 
 // Static mapping of image names to require statements
@@ -98,7 +101,13 @@ const cardImages: { [key: string]: ImageSourcePropType } = {
   'kral-mecu.png': require('../../assets/cards/swords/kral-mecu.png'),
 };
 
-export function CardImage({ imageName, width = 200, height = 300 }: CardImageProps) {
+export function CardImage({
+  imageName,
+  width = 200,
+  height = 300,
+  resizeMode = 'cover',
+  isDiscovered = true
+}: CardImageProps) {
   const imageSource = cardImages[imageName];
 
   if (!imageSource) {
@@ -112,11 +121,22 @@ export function CardImage({ imageName, width = 200, height = 300 }: CardImagePro
   }
 
   return (
-    <Image
-      source={imageSource}
-      style={[styles.cardImage, { width, height }]}
-      resizeMode="contain"
-    />
+    <View style={{ width, height, borderRadius: 20, overflow: 'hidden' }}>
+      <Image
+        source={imageSource}
+        style={[
+          styles.cardImage,
+          { width, height },
+          !isDiscovered && { opacity: 0.15, tintColor: '#000' } // Silhouette effect
+        ]}
+        resizeMode={resizeMode}
+      />
+      {!isDiscovered && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name="lock-closed-outline" size={Math.min(width, height) * 0.3} color="rgba(255,255,255,0.3)" />
+        </View>
+      )}
+    </View>
   );
 }
 

@@ -48,5 +48,10 @@ export const SCREEN_LAYOUTS: Record<string, ScreenLayout> = {
   journal: {
     backgroundImage: require('../../assets/screens/journal_background.jpg'),
     hotspots: [],
+  },
+  // Collection Screen (Minimal Gradient)
+  collection: {
+    backgroundImage: require('../../assets/screens/collection_background.png'),
+    hotspots: [],
   }
 };

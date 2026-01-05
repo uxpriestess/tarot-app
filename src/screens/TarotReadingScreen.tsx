@@ -135,7 +135,6 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 
                         <View style={styles.cardContent}>
                             <Text style={styles.spreadName}>{spread.name}</Text>
-                            <Text style={styles.spreadCardCount}>{spread.cards} cards</Text>
                         </View>
                     </TouchableOpacity>
                 ))}
@@ -189,11 +188,11 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 
     return (
         <ImmersiveScreen screenName="reading">
-            <SafeAreaView style={styles.safeArea}>
+            <View style={styles.safeArea}>
                 {stage === 'welcome' && renderWelcome()}
                 {stage === 'spread-select' && renderWelcome()}
                 {stage === 'reading' && renderReading()}
-            </SafeAreaView>
+            </View>
         </ImmersiveScreen>
     );
 };
@@ -327,9 +326,9 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     watercolorIcon: {
-        width: 80,
-        height: 80,
-        marginBottom: spacing.sm,
+        width: 110,
+        height: 110,
+        marginBottom: spacing.xs,
     },
     cardContent: {
         alignItems: 'center',
@@ -344,12 +343,6 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0,0,0,0.9)', // Strong shadow for text
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
-    },
-    spreadCardCount: {
-        fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.9)',
-        textAlign: 'center',
-        fontWeight: '500',
     },
 
     // Reading

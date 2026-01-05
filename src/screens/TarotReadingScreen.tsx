@@ -10,12 +10,65 @@ import {
     Platform,
     ScrollView,
     Image,
+    Easing,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
 
 const { width } = Dimensions.get('window');
+
+// Simple shimmer component for the shiny glimmer effect
+const Glimmer = () => {
+    const anim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, {
+                    toValue: 1,
+                    duration: 3500, // Very slow, gentle sweep
+                    easing: Easing.inOut(Easing.quad),
+                    useNativeDriver: true,
+                }),
+                Animated.delay(8000), // Long magical pause
+            ])
+        ).start();
+    }, []);
+
+    const translateX = anim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-width * 0.8, width * 0.8],
+    });
+
+    const opacity = anim.interpolate({
+        inputRange: [0, 0.3, 0.7, 1],
+        outputRange: [0, 0.3, 0.3, 0], // Very soft visibility
+    });
+
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Animated.View
+                style={[
+                    StyleSheet.absoluteFill,
+                    {
+                        transform: [{ translateX }, { skewX: '-30deg' }],
+                        width: '40%',
+                        opacity,
+                    },
+                ]}
+            >
+                <LinearGradient
+                    colors={['transparent', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{ flex: 1 }}
+                />
+            </Animated.View>
+        </View>
+    );
+};
 
 // Types
 type SpreadId = 'love' | 'finance' | 'body' | 'moon' | 'decision' | 'week';
@@ -125,14 +178,15 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                         key={spread.id}
                         style={styles.spreadCard}
                         onPress={() => startReading(spread)}
-                        activeOpacity={0.7}
                     >
-                        <Image
-                            source={spread.iconImage}
-                            style={styles.watercolorIcon}
-                            resizeMode="contain"
-                        />
-
+                        <Glimmer />
+                        <View style={styles.iconWrapper}>
+                            <Image
+                                source={spread.iconImage}
+                                style={styles.watercolorIcon}
+                                resizeMode="contain"
+                            />
+                        </View>
                         <View style={styles.cardContent}>
                             <Text style={styles.spreadName}>{spread.name}</Text>
                         </View>
@@ -308,14 +362,15 @@ const styles = StyleSheet.create({
     spreadCard: {
         width: '48%',
         aspectRatio: 1, // Make it square
-        backgroundColor: 'rgba(255, 255, 255, 0.25)', // Increased opacity for contrast (was 0.15)
+        backgroundColor: 'rgba(255, 255, 255, 0.15)', // Glassy
         borderRadius: 24,
         padding: spacing.md,
         marginBottom: spacing.md,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.4)', // Stronger border
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        overflow: 'hidden', // Required for glimmer
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -325,10 +380,16 @@ const styles = StyleSheet.create({
         shadowRadius: 4.65,
         elevation: 8,
     },
+    iconWrapper: {
+        width: 140,
+        height: 140,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: -10,
+    },
     watercolorIcon: {
-        width: 140, // Increased from 110 for "Hero" impact
-        height: 140, // Increased from 110
-        marginBottom: -10, // Pull text slightly closer to the large icon
+        width: 140,
+        height: 140,
     },
     cardContent: {
         alignItems: 'center',

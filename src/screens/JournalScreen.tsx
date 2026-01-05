@@ -36,23 +36,23 @@ const Glimmer = () => {
             Animated.sequence([
                 Animated.timing(anim, {
                     toValue: 1,
-                    duration: 1800, // Faster sweep
-                    easing: Easing.out(Easing.quad),
+                    duration: 3500, // Very slow, gentle sweep
+                    easing: Easing.inOut(Easing.quad),
                     useNativeDriver: true,
                 }),
-                Animated.delay(2500), // Wait between glimmers
+                Animated.delay(8000), // Long magical pause
             ])
         ).start();
     }, []);
 
     const translateX = anim.interpolate({
         inputRange: [0, 1],
-        outputRange: [-width * 0.8, width * 0.8], // Relative range
+        outputRange: [-width * 0.8, width * 0.8],
     });
 
     const opacity = anim.interpolate({
         inputRange: [0, 0.3, 0.7, 1],
-        outputRange: [0, 0.8, 0.8, 0], // Peak intensity
+        outputRange: [0, 0.3, 0.3, 0], // Very soft visibility
     });
 
     return (
@@ -68,7 +68,7 @@ const Glimmer = () => {
                 ]}
             >
                 <LinearGradient
-                    colors={['transparent', 'rgba(255, 255, 255, 0.4)', 'transparent']}
+                    colors={['transparent', 'rgba(255, 255, 255, 0.15)', 'transparent']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{ flex: 1 }}

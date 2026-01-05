@@ -87,6 +87,8 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic }: TabNav
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="grid" size={size} color={color} />
                     ),
+                    tabBarActiveTintColor: colors.text,
+                    tabBarInactiveTintColor: 'rgba(44, 36, 59, 0.4)', // Faded version of colors.text
                 }}
             />
 

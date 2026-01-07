@@ -18,6 +18,7 @@ import { colors, spacing, borderRadius } from '../theme/colors';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { drawCard } from '../data';
 import { CardImage } from '../components/CardImage';
+import { performReading } from '../services/universe';
 
 const { width } = Dimensions.get('window');
 
@@ -121,6 +122,8 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
     const [drawnCards, setDrawnCards] = useState<any[]>([]); // New state for real cards
     const [stage, setStage] = useState<Stage>('welcome');
+    const [isReadingAI, setIsReadingAI] = useState(false);
+    const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
 
     // Animation Refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -136,7 +139,38 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 
     const flipCard = (idx: number) => {
         if (!flippedCards.includes(idx)) {
-            setFlippedCards([...flippedCards, idx]);
+            const newFlipped = [...flippedCards, idx];
+            setFlippedCards(newFlipped);
+
+            // Trigger AI reading when all cards are flipped
+            if (selectedSpread && newFlipped.length === selectedSpread.cards) {
+                generateAIReading();
+            }
+        }
+    };
+
+    const generateAIReading = async () => {
+        if (!selectedSpread || drawnCards.length === 0) return;
+
+        setIsReadingAI(true);
+        setAiInterpretation(null);
+
+        try {
+            const reading = await performReading({
+                spreadName: selectedSpread.name,
+                cards: drawnCards.map((dc, idx) => ({
+                    name: dc.card.name,
+                    nameCzech: dc.card.nameCzech,
+                    position: dc.position,
+                    label: selectedSpread.labels ? selectedSpread.labels[idx] : undefined
+                })),
+                question: 'Celkový výhled' // Optional: could add input later
+            });
+            setAiInterpretation(reading);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsReadingAI(false);
         }
     };
 
@@ -150,6 +184,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
         setDrawnCards(cards);
         setSelectedSpread(spread);
         setFlippedCards([]);
+        setAiInterpretation(null);
         setStage('reading');
         fadeAnim.setValue(0);
         Animated.timing(fadeAnim, {
@@ -225,6 +260,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 
                 <View style={styles.headerContainer}>
                     <Text style={styles.heading}>{selectedSpread.name}</Text>
+                    <Text style={styles.instructionText}>Ponoř se do své otázky...</Text>
                     <Text style={styles.subtitle}>Dotkni se karet pro odhalení</Text>
                 </View>
 
@@ -241,6 +277,21 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                         />
                     ))}
                 </View>
+
+                {/* AI Result Section */}
+                <ScrollView style={styles.resultScrollView} contentContainerStyle={styles.resultContent}>
+                    {isReadingAI && (
+                        <View style={styles.loadingContainer}>
+                            <Text style={styles.loadingText}>Vesmír skládá tvůj příběh...</Text>
+                        </View>
+                    )}
+                    {aiInterpretation && (
+                        <Animated.View style={styles.interpretationContainer}>
+                            <Text style={styles.interpretationTitle}>Výklad osudu</Text>
+                            <Text style={styles.interpretationText}>{aiInterpretation}</Text>
+                        </Animated.View>
+                    )}
+                </ScrollView>
 
                 <TouchableOpacity onPress={resetReading} style={styles.backButton}>
                     <Text style={styles.backButtonText}>Nový výklad</Text>
@@ -446,13 +497,20 @@ const styles = StyleSheet.create({
         fontSize: 28,
         color: '#fff',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        marginBottom: spacing.xs,
+        marginBottom: 4,
         textShadowColor: 'rgba(0,0,0,0.5)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
     },
+    instructionText: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.6)',
+        fontStyle: 'italic',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        marginBottom: 8,
+    },
     boardContainer: {
-        flex: 1,
+        minHeight: 300,
         width: '100%',
         position: 'relative',
     },
@@ -503,6 +561,46 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#333',
+    },
+    resultScrollView: {
+        flex: 1,
+        width: '100%',
+        marginTop: 20,
+    },
+    resultContent: {
+        paddingBottom: 40,
+        alignItems: 'center',
+    },
+    loadingContainer: {
+        padding: 20,
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: 'rgba(255,255,255,0.7)',
+        fontStyle: 'italic',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    },
+    interpretationContainer: {
+        padding: 20,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 20,
+        width: '90%',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    interpretationTitle: {
+        color: colors.textCream,
+        fontSize: 20,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    interpretationText: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 16,
+        lineHeight: 26,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textAlign: 'center',
     },
     backButton: {
         marginBottom: 20, // Reduced as container now has bottom padding

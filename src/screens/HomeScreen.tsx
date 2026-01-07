@@ -9,6 +9,7 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -65,6 +66,7 @@ export function HomeScreen({
   const cardScale = useRef(new Animated.Value(0.95)).current;
   const buttonY = useRef(new Animated.Value(20)).current;
   const fabScale = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     // Entrance animations - subtle and graceful
@@ -97,6 +99,22 @@ export function HomeScreen({
         }),
       ]),
     ]).start();
+
+    // Subtle slow pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
     // Update time every minute
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -187,22 +205,35 @@ export function HomeScreen({
               style={[
                 styles.cardContainer,
                 {
-                  transform: [{ scale: cardScale }],
+                  transform: [{ scale: Animated.multiply(cardScale, pulseAnim) }],
                 },
               ]}
             >
-              <View style={styles.card}>
-                <View style={styles.cardBorder}>
-                  <View style={styles.cardCenter}>
+              <TouchableOpacity
+                onPress={() => onDrawCard()}
+                disabled={hasReadToday}
+                activeOpacity={0.9}
+                style={styles.card}
+              >
+                <Image
+                  source={require('../../assets/cards/card_back_glassy.png')}
+                  style={[
+                    styles.cardBackImage,
+                    { opacity: pulseAnim.interpolate({ inputRange: [1, 1.02], outputRange: [0.75, 0.9] }) }
+                  ]}
+                  resizeMode="cover"
+                />
+                {!hasReadToday && (
+                  <View style={styles.cardOverlay}>
                     <Ionicons
                       name="sparkles-outline"
-                      size={32}
-                      color="rgba(255,255,255,0.6)"
-                      style={styles.cardIcon}
+                      size={28}
+                      color="rgba(255,255,255,0.4)"
                     />
                   </View>
-                </View>
-              </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.cardCaption}>Tvá karta čeká</Text>
             </Animated.View>
 
             {/* Main CTA Button - Directly under card */}
@@ -434,22 +465,34 @@ const styles = StyleSheet.create({
   card: {
     width: 200,
     height: 300,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: borderRadius.lg,
-    padding: spacing.sm,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  cardBorder: {
-    flex: 1,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+  cardBackImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
-  cardCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  cardCaption: {
+    marginTop: spacing.md,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
   },
   cardIcon: {
     opacity: 0.8,

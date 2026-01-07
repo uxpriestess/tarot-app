@@ -215,7 +215,7 @@ export function HomeScreen({
                 activeOpacity={0.9}
                 style={styles.card}
               >
-                <Image
+                <Animated.Image
                   source={require('../../assets/cards/card_back_glassy.png')}
                   style={[
                     styles.cardBackImage,

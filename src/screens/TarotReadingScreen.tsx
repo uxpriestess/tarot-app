@@ -16,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
+import { drawCard } from '../data';
+import { CardImage } from '../components/CardImage';
 
 const { width } = Dimensions.get('window');
 
@@ -80,15 +82,16 @@ interface Spread {
     description?: string;
     iconImage: any; // require() path for custom watercolor icons
     cards: number;
+    labels?: string[];
 }
 
 const SPREADS: Spread[] = [
-    { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3 },
-    { id: 'finance', name: 'Finance', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3 },
-    { id: 'body', name: 'Tělo a mysl', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3 },
-    { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 5 },
-    { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3 },
-    { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7 },
+    { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3, labels: ['Ty', 'Partner', 'Vztah'] },
+    { id: 'finance', name: 'Finance', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnes', 'Výzva', 'Výsledek'] },
+    { id: 'body', name: 'Tělo a mysl', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3, labels: ['Tělo', 'Mysl', 'Duch'] },
+    { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 5, labels: ['Nov', 'Dorůstání', 'Úplněk', 'Ubývání', 'Poučení'] },
+    { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3, labels: ['Cesta A', 'Cesta B', 'Rada'] },
+    { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7, labels: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'] },
 ];
 
 // Simplified placeholder positions for now - we can refine per spread later
@@ -116,6 +119,7 @@ interface TarotReadingScreenProps {
 export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     const [selectedSpread, setSelectedSpread] = useState<Spread | null>(null);
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
+    const [drawnCards, setDrawnCards] = useState<any[]>([]); // New state for real cards
     const [stage, setStage] = useState<Stage>('welcome');
 
     // Animation Refs
@@ -137,9 +141,13 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     };
 
     const startReading = (spread: Spread) => {
-        // No disabled spreads for now
-        // if (spread.id === 'celtic') return; 
-
+        // Draw real cards based on spread
+        const cards = [];
+        for (let i = 0; i < spread.cards; i++) {
+            const drawn = drawCard(); // Import drawCard
+            cards.push(drawn);
+        }
+        setDrawnCards(cards);
         setSelectedSpread(spread);
         setFlippedCards([]);
         setStage('reading');
@@ -226,9 +234,10 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                             key={idx}
                             index={idx}
                             position={pos}
+                            cardData={drawnCards[idx]}
                             isFlipped={flippedCards.includes(idx)}
                             onFlip={() => flipCard(idx)}
-                            totalCards={selectedSpread.cards}
+                            label={selectedSpread.labels ? selectedSpread.labels[idx] : undefined} // Pass label
                         />
                     ))}
                 </View>
@@ -252,13 +261,13 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 };
 
 // Sub-component for individual card animation
-const CardComponent = ({ index, position, isFlipped, onFlip, totalCards }: any) => {
+const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label }: any) => {
     const rotateAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         Animated.timing(rotateAnim, {
             toValue: isFlipped ? 180 : 0,
-            duration: 600,
+            duration: 700,
             useNativeDriver: true,
         }).start();
     }, [isFlipped]);
@@ -273,49 +282,63 @@ const CardComponent = ({ index, position, isFlipped, onFlip, totalCards }: any) 
         outputRange: ['180deg', '360deg'],
     });
 
-    const cardWidth = width * 0.22;
+    const cardWidth = width * 0.28;
     const cardHeight = cardWidth * 1.5;
 
     return (
-        <TouchableOpacity
-            activeOpacity={1}
-            onPress={onFlip}
+        <View
             style={[
                 styles.cardWrapper,
                 {
                     left: `${position.x}%`,
                     top: `${position.y}%`,
                     width: cardWidth,
-                    height: cardHeight,
+                    height: cardHeight + 30, // Extra space for label
                     marginLeft: -cardWidth / 2,
-                    marginTop: -cardHeight / 2,
+                    marginTop: -(cardHeight + 30) / 2,
                     zIndex: isFlipped ? 100 + index : index,
                 }
             ]}
         >
-            {/* Back of Card (Face Down) */}
-            <Animated.View
-                style={[
-                    styles.cardFace,
-                    styles.cardBack,
-                    { transform: [{ rotateY: frontInterpolate }] }
-                ]}
+            {label && (
+                <Text style={styles.positionLabel}>{label}</Text>
+            )}
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={onFlip}
+                style={{ width: cardWidth, height: cardHeight }}
             >
-                <Ionicons name="sparkles" size={16} color="rgba(255, 215, 0, 0.4)" />
-            </Animated.View>
+                {/* Back of Card */}
+                <Animated.View
+                    style={[
+                        styles.cardFace,
+                        styles.cardBack,
+                        { transform: [{ rotateY: frontInterpolate }] }
+                    ]}
+                >
+                    <View style={styles.cardBackInner}>
+                        <Ionicons name="sunny-outline" size={24} color="rgba(255,255,255,0.4)" />
+                    </View>
+                </Animated.View>
 
-            {/* Front of Card (Face Up) - Placeholder for now, simplified */}
-            <Animated.View
-                style={[
-                    styles.cardFace,
-                    styles.cardFront,
-                    { transform: [{ rotateY: backInterpolate }] }
-                ]}
-            >
-                {/* Real card image logic would go here, skipping for simple reading view or needs integrating */}
-                <Text style={styles.cardLabel}>{index + 1}</Text>
-            </Animated.View>
-        </TouchableOpacity>
+                {/* Front of Card */}
+                <Animated.View
+                    style={[
+                        styles.cardFace,
+                        styles.cardFront,
+                        { transform: [{ rotateY: backInterpolate }] }
+                    ]}
+                >
+                    {cardData && (
+                        <CardImage
+                            imageName={cardData.card.imageName}
+                            width={cardWidth - 4}
+                            height={cardHeight - 4}
+                        />
+                    )}
+                </Animated.View>
+            </TouchableOpacity>
+        </View>
     );
 };
 
@@ -413,6 +436,7 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
         paddingTop: 60,
+        paddingBottom: 100, // Added more bottom padding for TabBar clearance
     },
     headerContainer: {
         alignItems: 'center',
@@ -434,6 +458,15 @@ const styles = StyleSheet.create({
     },
     cardWrapper: {
         position: 'absolute',
+        alignItems: 'center',
+    },
+    positionLabel: {
+        color: 'rgba(255, 255, 255, 0.6)',
+        fontSize: 10,
+        letterSpacing: 1,
+        marginBottom: 8,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textTransform: 'uppercase',
     },
     cardFace: {
         position: 'absolute',
@@ -446,18 +479,25 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     cardBack: {
-        backgroundColor: '#1a1a1a', // Dark back
-        borderColor: 'rgba(255, 215, 0, 0.3)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        padding: 4,
+    },
+    cardBackInner: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        borderRadius: borderRadius.sm - 2,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     cardFront: {
-        backgroundColor: '#fff',
-        borderColor: '#ddd',
+        backgroundColor: 'transparent',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
         transform: [{ rotateY: '180deg' }],
+        overflow: 'hidden',
     },
     cardLabel: {
         fontSize: 20,
@@ -465,7 +505,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     backButton: {
-        marginBottom: 40,
+        marginBottom: 20, // Reduced as container now has bottom padding
         paddingVertical: 12,
         paddingHorizontal: 24,
         backgroundColor: 'rgba(255,255,255,0.2)',

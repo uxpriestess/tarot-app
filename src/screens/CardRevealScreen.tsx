@@ -62,35 +62,40 @@ export function CardRevealScreen({
   const flipAnim = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(50)).current;
+  const liftAnim = useRef(new Animated.Value(0)).current; // 0 to 1
 
   useEffect(() => {
-    // Start flip animation after a short delay
-    setTimeout(() => {
-      Animated.sequence([
-        // Flip the card
-        Animated.timing(flipAnim, {
+    // Start lift and flip animation quickly
+    Animated.sequence([
+      // 1. Lift the card slightly
+      Animated.timing(liftAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      // 2. Flip the card
+      Animated.timing(flipAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      // 3. Fade in content
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
           toValue: 1,
-          duration: 800,
+          duration: 500,
           useNativeDriver: true,
         }),
-        // Fade in content
-        Animated.parallel([
-          Animated.timing(contentOpacity, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-          Animated.spring(slideUp, {
-            toValue: 0,
-            tension: 40,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start(() => {
-        setIsRevealed(true);
-      });
-    }, 500);
+        Animated.spring(slideUp, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      setIsRevealed(true);
+    });
   }, []);
 
   // Interpolate flip animation
@@ -112,7 +117,7 @@ export function CardRevealScreen({
   const meaning = position === 'upright' ? card.meaningUpright : (card.meaningReversed || card.meaningUpright);
 
   return (
-    <ImmersiveScreen screenName="home">
+    <View style={styles.modalOverlay}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -132,7 +137,11 @@ export function CardRevealScreen({
             style={[
               styles.cardContainer,
               {
-                transform: [{ rotateY: flipRotation }],
+                transform: [
+                  { rotateY: flipRotation },
+                  { scale: liftAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) },
+                  { translateY: liftAnim.interpolate({ inputRange: [0, 1], outputRange: [100, 0] }) }
+                ],
               },
             ]}
           >
@@ -144,20 +153,12 @@ export function CardRevealScreen({
                 { opacity: frontOpacity },
               ]}
             >
-              <View style={styles.cardBackBorder}>
-                <View style={styles.cardBackCenter}>
-                  <Ionicons
-                    name="sparkles-outline"
-                    size={60}
-                    color={colors.lavender}
-                    style={{ opacity: 0.6 }}
-                  />
-                  <View style={styles.cardDots}>
-                    <View style={[styles.dot, { backgroundColor: colors.bronze }]} />
-                    <View style={[styles.dot, { backgroundColor: colors.sage }]} />
-                    <View style={[styles.dot, { backgroundColor: colors.rose }]} />
-                  </View>
-                </View>
+              <View style={styles.cardBackInner}>
+                <Ionicons
+                  name="sunny-outline"
+                  size={80}
+                  color="rgba(255,255,255,0.4)"
+                />
               </View>
             </Animated.View>
 
@@ -275,42 +276,38 @@ export function CardRevealScreen({
           </View>
         </Animated.View>
       </ScrollView>
-    </ImmersiveScreen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: colors.primary, // Ensure dark bg
+    backgroundColor: 'rgba(0,0,0,0.7)', // Semi-transparent overlay
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: 40,
     paddingHorizontal: spacing.lg,
   },
   closeButton: {
     position: 'absolute',
-    top: 60,
+    top: 50,
     right: spacing.lg,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Glassy
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     zIndex: 10,
   },
   cardSection: {
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 20,
     marginBottom: spacing.xl,
   },
   cardContainer: {
@@ -321,31 +318,30 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
-    borderRadius: borderRadius.lg,
-    shadowColor: colors.secondary, // Gold glow
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 30,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
     elevation: 10,
   },
   cardBack: {
-    backgroundColor: 'rgba(20, 10, 30, 0.95)', // Deep dark back
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)', // Subtle border
-  },
-  cardBackBorder: {
-    flex: 1,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    opacity: 0.5,
-  },
-  cardBackCenter: {
-    flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 6,
+  },
+  cardBackInner: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   cardDots: {
     flexDirection: 'row',

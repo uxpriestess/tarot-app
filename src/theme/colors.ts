@@ -30,6 +30,11 @@ export const colors = {
   // Functional
   border: '#EAE2D6', // Soft beige border
   softLinen: '#EAE2D6', // Soft beige for consistent borders
+
+  // Mystic Accents
+  textCream: '#FDFCF8', // Soft vintage cream
+  glassBg: 'rgba(255, 255, 255, 0.12)',
+  glassBorder: 'rgba(255, 255, 255, 0.25)',
 };
 
 export const spacing = {

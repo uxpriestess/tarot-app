@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
-import { Alert, ActivityIndicator, View } from 'react-native';
+import { Alert, ActivityIndicator, View, Modal } from 'react-native';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { CardRevealScreen } from './src/screens';
 import { UniverseResponseScreen } from './src/screens/UniverseResponseScreen';
@@ -95,19 +95,30 @@ export default function App() {
           />
         ) : isMysticOpen ? (
           <TarotReadingScreen onClose={() => setIsMysticOpen(false)} />
-        ) : currentCard ? (
-          <CardRevealScreen
-            card={currentCard.card}
-            position={currentCard.position}
-            onClose={handleClose}
-            onSaveReading={handleSaveReading}
-          />
         ) : (
-          <TabNavigator
-            onDrawCard={handleDrawCard}
-            onAskUniverse={handleAskUniverse}
-            onOpenMystic={() => setIsMysticOpen(true)}
-          />
+          <>
+            <TabNavigator
+              onDrawCard={handleDrawCard}
+              onAskUniverse={handleAskUniverse}
+              onOpenMystic={() => setIsMysticOpen(true)}
+            />
+
+            <Modal
+              visible={!!currentCard}
+              animationType="fade"
+              transparent={true}
+              onRequestClose={handleClose}
+            >
+              {currentCard && (
+                <CardRevealScreen
+                  card={currentCard.card}
+                  position={currentCard.position}
+                  onClose={handleClose}
+                  onSaveReading={handleSaveReading}
+                />
+              )}
+            </Modal>
+          </>
         )}
         <StatusBar style="auto" />
       </NavigationContainer>

@@ -29,6 +29,7 @@ export const colors = {
 
   // Functional
   border: '#EAE2D6', // Soft beige border
+  softLinen: '#EAE2D6', // Soft beige for consistent borders
 };
 
 export const spacing = {

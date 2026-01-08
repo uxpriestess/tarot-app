@@ -264,8 +264,8 @@ export function HomeScreen({
                 transform: [{ translateY: buttonY }],
                 width: '100%',
                 alignItems: 'center',
-                marginTop: 32, // More space above button
-                marginBottom: 20, // Add explicit margin bottom
+                marginTop: 16, // Reduced from 32
+                marginBottom: 20,
               }}
             >
               <TouchableOpacity
@@ -364,8 +364,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20, // Reduced to pull content up
-    marginBottom: 40,
+    marginTop: 10, // Reduced from 20
+    marginBottom: 20, // Reduced from 40
     position: 'relative',
   },
   headerTopCenter: {
@@ -379,8 +379,8 @@ const styles = StyleSheet.create({
   },
   streakBadgeContainer: {
     position: 'absolute',
-    right: 0,
-    top: 10,
+    right: -10, // Moved further right (into padding area)
+    top: -5, // Moved up
   },
   streakBadgeSmall: {
     flexDirection: 'row',
@@ -403,12 +403,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardContainer: {
-    marginBottom: 40, // Slightly reduced
+    marginBottom: 24, // Reduced from 40
     alignItems: 'center',
   },
   mysticCard: {
-    width: width * 0.52, // Slightly narrower
-    height: width * 0.8, // Reduced height to fix layout overlap
+    width: width * 0.48, // Reduced from 0.52
+    height: width * 0.72, // Reduced from 0.8
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   tabSelector: {
     flexDirection: 'row',
     gap: 20,
-    marginBottom: 24, // Tightened
+    marginBottom: 16, // Reduced from 24
     alignItems: 'center',
     justifyContent: 'center',
   },

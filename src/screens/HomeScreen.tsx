@@ -364,7 +364,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    justifyContent: 'center',
     marginTop: 20, // Reduced to pull content up
     marginBottom: 40,
     position: 'relative',

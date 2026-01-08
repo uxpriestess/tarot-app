@@ -41,15 +41,10 @@ export async function performReading(request: ReadingRequest): Promise<string> {
             }),
         });
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
-
         const data = await response.json();
 
-        // Check if response contains error
         if (!response.ok) {
-            throw new Error(data.answer || 'API error');
+            throw new Error(data.answer || `API error: ${response.status}`);
         }
 
         return data.answer;

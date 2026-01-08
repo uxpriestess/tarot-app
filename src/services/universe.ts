@@ -36,7 +36,7 @@ export async function performReading(request: ReadingRequest): Promise<string> {
             body: JSON.stringify({
                 spreadName: request.spreadName,
                 cards: request.cards,
-                question: request.question || 'Obecný výklad',
+                question: request.question || 'Celkový výhled',
                 mode: 'reading-screen' // Hint for backend to use a more poetic/detailed template
             }),
         });
@@ -46,10 +46,22 @@ export async function performReading(request: ReadingRequest): Promise<string> {
         }
 
         const data = await response.json();
+
+        // Check if response contains error
+        if (!response.ok) {
+            throw new Error(data.answer || 'API error');
+        }
+
         return data.answer;
     } catch (error) {
         console.error('Reading service error:', error);
-        throw new Error('Nepodařilo se spojit s osudem. Zkus to znovu za chvíli.');
+
+        // Return Tarotka-voice error to user
+        if (error instanceof Error && error.message) {
+            return error.message;
+        }
+
+        return 'Nepodařilo se spojit s osudem. Zkus to znovu za chvíli.';
     }
 }
 

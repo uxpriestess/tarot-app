@@ -264,7 +264,8 @@ export function HomeScreen({
                 transform: [{ translateY: buttonY }],
                 width: '100%',
                 alignItems: 'center',
-                marginTop: spacing.md,
+                marginTop: 32, // More space above button
+                marginBottom: 20, // Add explicit margin bottom
               }}
             >
               <TouchableOpacity
@@ -351,7 +352,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: 60,
-    paddingBottom: 120,
+    paddingBottom: 180, // Substantially increased to prevent nav bar overlap
   },
   content: {
     flex: 1,
@@ -363,8 +364,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40, // More room at top
-    marginBottom: 50, // More room below greeting
+    justifyContent: 'center',
+    marginTop: 20, // Reduced to pull content up
+    marginBottom: 40,
     position: 'relative',
   },
   headerTopCenter: {
@@ -407,7 +409,7 @@ const styles = StyleSheet.create({
   },
   mysticCard: {
     width: width * 0.52, // Slightly narrower
-    height: width * 0.85, // Slightly shorter to pull everything up
+    height: width * 0.8, // Reduced height to fix layout overlap
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',

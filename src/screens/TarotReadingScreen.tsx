@@ -97,19 +97,35 @@ const SPREADS: Spread[] = [
 
 // Simplified placeholder positions for now - we can refine per spread later
 const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
-    love: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
-    finance: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
-    body: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    love: [
+        { x: 25, y: 25 }, // Ty
+        { x: 75, y: 25 }, // Partner
+        { x: 50, y: 70 }  // Vztah
+    ],
+    finance: [
+        { x: 25, y: 25 }, // Dnes
+        { x: 75, y: 25 }, // Výzva
+        { x: 50, y: 70 }  // Výsledek
+    ],
+    body: [
+        { x: 25, y: 25 }, // Tělo
+        { x: 75, y: 25 }, // Mysl
+        { x: 50, y: 70 }  // Duch
+    ],
     moon: [
-        { x: 50, y: 20 },
-        { x: 20, y: 50 }, { x: 80, y: 50 },
+        { x: 50, y: 15 },
+        { x: 20, y: 45 }, { x: 80, y: 45 },
         { x: 35, y: 80 }, { x: 65, y: 80 }
     ],
-    decision: [{ x: 20, y: 50 }, { x: 50, y: 50 }, { x: 80, y: 50 }],
+    decision: [
+        { x: 25, y: 25 }, // Cesta A
+        { x: 75, y: 25 }, // Cesta B
+        { x: 50, y: 70 }  // Rada
+    ],
     week: [
-        { x: 15, y: 30 }, { x: 15, y: 50 }, { x: 15, y: 70 },
-        { x: 50, y: 50 },
-        { x: 85, y: 30 }, { x: 85, y: 50 }, { x: 85, y: 70 }
+        { x: 20, y: 15 }, { x: 50, y: 15 }, { x: 80, y: 15 },
+        { x: 50, y: 45 },
+        { x: 20, y: 75 }, { x: 50, y: 75 }, { x: 80, y: 75 }
     ]
 };
 
@@ -124,9 +140,11 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     const [stage, setStage] = useState<Stage>('welcome');
     const [isReadingAI, setIsReadingAI] = useState(false);
     const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
+    const [individualMeaning, setIndividualMeaning] = useState<{ title: string, text: string } | null>(null);
 
     // Animation Refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const minimizeAnim = useRef(new Animated.Value(0)).current; // New animation for results
 
     useEffect(() => {
         // Entrance Fade
@@ -142,8 +160,16 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
             const newFlipped = [...flippedCards, idx];
             setFlippedCards(newFlipped);
 
-            // Trigger AI reading when all cards are flipped
-            if (selectedSpread && newFlipped.length === selectedSpread.cards) {
+            const cardObj = drawnCards[idx];
+            const meaning = cardObj.position === 'upright' ? cardObj.card.meaningUpright : cardObj.card.meaningReversed;
+            const label = selectedSpread?.labels ? selectedSpread.labels[idx] : 'Karta';
+
+            // If not the last card, show individual meaning
+            if (selectedSpread && newFlipped.length < selectedSpread.cards) {
+                setIndividualMeaning({ title: label, text: meaning });
+            } else if (selectedSpread && newFlipped.length === selectedSpread.cards) {
+                // Last card: clear individual and trigger AI
+                setIndividualMeaning(null);
                 generateAIReading();
             }
         }
@@ -155,6 +181,14 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
         setIsReadingAI(true);
         setAiInterpretation(null);
 
+        // Animate cards up and smaller
+        Animated.spring(minimizeAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 20,
+            friction: 7,
+        }).start();
+
         try {
             const reading = await performReading({
                 spreadName: selectedSpread.name,
@@ -164,7 +198,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                     position: dc.position,
                     label: selectedSpread.labels ? selectedSpread.labels[idx] : undefined
                 })),
-                question: 'Celkový výhled' // Optional: could add input later
+                question: 'Celkový výhled'
             });
             setAiInterpretation(reading);
         } catch (error) {
@@ -185,6 +219,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
         setSelectedSpread(spread);
         setFlippedCards([]);
         setAiInterpretation(null);
+        setIndividualMeaning(null);
         setStage('reading');
         fadeAnim.setValue(0);
         Animated.timing(fadeAnim, {
@@ -260,11 +295,25 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 
                 <View style={styles.headerContainer}>
                     <Text style={styles.heading}>{selectedSpread.name}</Text>
-                    <Text style={styles.instructionText}>Ponoř se do své otázky...</Text>
-                    <Text style={styles.subtitle}>Dotkni se karet pro odhalení</Text>
+                    {!aiInterpretation && !isReadingAI && (
+                        <>
+                            <Text style={styles.instructionText}>Ponoř se do své otázky...</Text>
+                            <Text style={styles.subtitle}>Dotkni se karet pro odhalení</Text>
+                        </>
+                    )}
                 </View>
 
-                <View style={styles.boardContainer}>
+                <Animated.View
+                    style={[
+                        styles.boardContainer,
+                        {
+                            transform: [
+                                { translateY: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -140] }) },
+                                { scale: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }) }
+                            ]
+                        }
+                    ]}
+                >
                     {CARD_POSITIONS[selectedSpread.id].map((pos, idx) => (
                         <CardComponent
                             key={idx}
@@ -273,29 +322,35 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                             cardData={drawnCards[idx]}
                             isFlipped={flippedCards.includes(idx)}
                             onFlip={() => flipCard(idx)}
-                            label={selectedSpread.labels ? selectedSpread.labels[idx] : undefined} // Pass label
+                            label={selectedSpread.labels ? selectedSpread.labels[idx] : undefined}
                         />
                     ))}
-                </View>
+                </Animated.View>
 
                 {/* AI Result Section */}
-                <ScrollView style={styles.resultScrollView} contentContainerStyle={styles.resultContent}>
+                <ScrollView
+                    style={styles.resultScrollView}
+                    contentContainerStyle={styles.resultContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {individualMeaning && !isReadingAI && (
+                        <View style={styles.interpretationContainer}>
+                            <Text style={styles.interpretationTitle}>{individualMeaning.title}</Text>
+                            <Text style={styles.interpretationText}>{individualMeaning.text}</Text>
+                        </View>
+                    )}
                     {isReadingAI && (
                         <View style={styles.loadingContainer}>
                             <Text style={styles.loadingText}>Vesmír skládá tvůj příběh...</Text>
                         </View>
                     )}
                     {aiInterpretation && (
-                        <Animated.View style={styles.interpretationContainer}>
+                        <View style={styles.interpretationContainer}>
                             <Text style={styles.interpretationTitle}>Výklad osudu</Text>
                             <Text style={styles.interpretationText}>{aiInterpretation}</Text>
-                        </Animated.View>
+                        </View>
                     )}
                 </ScrollView>
-
-                <TouchableOpacity onPress={resetReading} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>Nový výklad</Text>
-                </TouchableOpacity>
             </Animated.View>
         );
     };
@@ -333,7 +388,7 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label }: 
         outputRange: ['180deg', '360deg'],
     });
 
-    const cardWidth = width * 0.28;
+    const cardWidth = width * 0.4; // Big, high-impact cards
     const cardHeight = cardWidth * 1.5;
 
     return (
@@ -510,7 +565,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     boardContainer: {
-        minHeight: 300,
+        minHeight: 450, // Increased to accommodate triangle layout
         width: '100%',
         position: 'relative',
     },
@@ -537,8 +592,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     cardBack: {
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        backgroundColor: '#1a1a1a', // Restored dark background
+        borderColor: 'rgba(255, 255, 255, 0.2)',
         padding: 4,
     },
     cardBackInner: {
@@ -565,40 +620,48 @@ const styles = StyleSheet.create({
     resultScrollView: {
         flex: 1,
         width: '100%',
-        marginTop: 20,
+        marginTop: -80, // More aggressive pull up to utilize gap from hidden subtitles
     },
     resultContent: {
-        paddingBottom: 40,
+        paddingTop: 10,
+        paddingBottom: 80, // Generous bottom space
         alignItems: 'center',
     },
     loadingContainer: {
-        padding: 20,
+        padding: 40,
         alignItems: 'center',
     },
     loadingText: {
         color: 'rgba(255,255,255,0.7)',
         fontStyle: 'italic',
+        fontSize: 16,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     interpretationContainer: {
-        padding: 20,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderRadius: 20,
-        width: '90%',
+        padding: 30, // Increased padding
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 24,
+        width: '92%',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.15)',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 15,
+        elevation: 10,
     },
     interpretationTitle: {
         color: colors.textCream,
-        fontSize: 20,
+        fontSize: 24,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        marginBottom: 15,
+        marginBottom: 20,
         textAlign: 'center',
+        letterSpacing: 2,
     },
     interpretationText: {
-        color: 'rgba(255,255,255,0.9)',
-        fontSize: 16,
-        lineHeight: 26,
+        color: 'rgba(255,255,255,0.95)',
+        fontSize: 18,
+        lineHeight: 28,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         textAlign: 'center',
     },

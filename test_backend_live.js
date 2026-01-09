@@ -25,10 +25,8 @@ async function testBackend() {
         }
 
         const data = await response.json();
-        console.log('\n✅ SUCCESS! Received answer from Tarotka AI:');
-        console.log('------------------------------------------------');
-        console.log(data.answer);
-        console.log('------------------------------------------------');
+        console.log('\n✅ SUCCESS! Full Response Object:');
+        console.log(JSON.stringify(data, null, 2));
 
     } catch (error) {
         console.error('❌ Connection failed:', error.message);

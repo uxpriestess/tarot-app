@@ -44,7 +44,7 @@ export default async function handler(req, res) {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            model: "llama-3.3-70b-versatile", // Updated to latest stable model
+            model: "llama-3.1-8b-instant", // Faster, higher rate limits
             temperature: 0.8,
             max_tokens: 600,
             top_p: 0.9,

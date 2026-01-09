@@ -164,9 +164,11 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
             const meaning = cardObj.position === 'upright' ? cardObj.card.meaningUpright : cardObj.card.meaningReversed;
             const label = selectedSpread?.labels ? selectedSpread.labels[idx] : 'Karta';
 
-            // If not the last card, show individual meaning
+            // If not the last card, show individual meaning (KEYWORDS ONLY for safety)
             if (selectedSpread && newFlipped.length < selectedSpread.cards) {
-                setIndividualMeaning({ title: label, text: meaning });
+                // Use keywords for a more mystic, open-ended "hint" rather than generic text that might clash
+                const keywords = cardObj.card.keywords.map((k: string) => k.toUpperCase()).join('  •  ');
+                setIndividualMeaning({ title: label, text: keywords });
             } else if (selectedSpread && newFlipped.length === selectedSpread.cards) {
                 // Last card: clear individual and trigger AI
                 setIndividualMeaning(null);
@@ -298,7 +300,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
                     {!aiInterpretation && !isReadingAI && (
                         <>
                             <Text style={styles.instructionText}>Ponoř se do své otázky...</Text>
-                            <Text style={styles.subtitle}>Dotkni se karet pro odhalení</Text>
+                            <Text style={styles.readingSubtitle}>Dotkni se karet pro odhalení</Text>
                         </>
                     )}
                 </View>
@@ -549,20 +551,30 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
     },
     heading: {
-        fontSize: 28,
-        color: '#fff',
+        fontSize: 32,
+        color: colors.textCream,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        marginBottom: 4,
+        fontWeight: '600',
+        marginBottom: 12,
         textShadowColor: 'rgba(0,0,0,0.5)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
+        textAlign: 'center',
     },
     instructionText: {
-        fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.6)',
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.8)',
         fontStyle: 'italic',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         marginBottom: 8,
+        textAlign: 'center',
+    },
+    readingSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.6)',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        textAlign: 'center',
     },
     boardContainer: {
         minHeight: 450, // Increased to accommodate triangle layout
@@ -592,19 +604,21 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     cardBack: {
-        backgroundColor: '#1a1a1a', // Restored dark background
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        padding: 4,
+        backgroundColor: '#0F0F0F', // Deep rich black
+        borderColor: '#C0A080', // Gold border
+        borderWidth: 1,
+        padding: 6,
     },
     cardBackInner: {
         flex: 1,
         width: '100%',
         height: '100%',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
+        borderColor: 'rgba(192, 160, 128, 0.3)', // Faint gold inner border
         borderRadius: borderRadius.sm - 2,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#161616', // Subtle contrast
     },
     cardFront: {
         backgroundColor: 'transparent',
@@ -638,17 +652,18 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
     interpretationContainer: {
-        padding: 30, // Increased padding
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 24,
-        width: '92%',
+        paddingVertical: 25,
+        paddingHorizontal: 20,
+        backgroundColor: 'rgba(20, 20, 20, 0.75)', // Dark glass
+        borderRadius: 20,
+        width: '90%',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
+        borderColor: 'rgba(255,255,255,0.08)',
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 15,
-        elevation: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 6,
     },
     interpretationTitle: {
         color: colors.textCream,

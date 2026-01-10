@@ -56,7 +56,7 @@ export async function performReading(request: ReadingRequest): Promise<string> {
             return error.message;
         }
 
-        return 'Nepodařilo se spojit s osudem. Zkus to znovu za chvíli.';
+        return 'Obraz neprošel úplně jasně. Zkusíme to za chvíli znovu?';
     }
 }
 
@@ -99,6 +99,6 @@ export async function askUniverse(question: string): Promise<UniverseResponse> {
         };
     } catch (error) {
         console.error('Universe service error:', error);
-        throw new Error('Nepodařilo se spojit s vesmírem. Zkus to znovu.');
+        throw new Error('Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?');
     }
 }

@@ -18,6 +18,7 @@ export default function App() {
   const [currentCard, setCurrentCard] = useState<{
     card: TarotCard;
     position: 'upright' | 'reversed';
+    aiMeaning?: string;
   } | null>(null);
 
   const [universeResponse, setUniverseResponse] = useState<{
@@ -30,9 +31,18 @@ export default function App() {
 
   const addJournalEntry = useAppStore((state) => state.addJournalEntry);
 
-  const handleDrawCard = (subsetIds?: string[]) => {
+  const handleDrawCard = async (subsetIds?: string[]) => {
     const drawn = drawCard(subsetIds);
-    setCurrentCard(drawn);
+    setCurrentCard({ ...drawn, aiMeaning: undefined }); // Reset AI meaning for new draw
+
+    // Fetch AI meaning in the background
+    try {
+      const response = await askUniverse(`Výklad pro kartu: ${drawn.card.nameCzech || drawn.card.name} (${drawn.position === 'upright' ? 'vzpřímená' : 'obrácená'})`, 'daily');
+      setCurrentCard(prev => prev ? { ...prev, aiMeaning: response.answer } : null);
+    } catch (error) {
+      console.error('Failed to fetch AI meaning:', error);
+      // Fallback is handled by the component or it just stays undefined
+    }
   };
 
   const handleClose = () => {
@@ -113,6 +123,7 @@ export default function App() {
                 <CardRevealScreen
                   card={currentCard.card}
                   position={currentCard.position}
+                  aiMeaning={currentCard.aiMeaning}
                   onClose={handleClose}
                   onSaveReading={handleSaveReading}
                 />

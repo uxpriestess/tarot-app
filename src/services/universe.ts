@@ -21,6 +21,7 @@ export interface ReadingRequest {
     spreadName: string;
     cards: UniverseCard[];
     question?: string;
+    mode?: string;
 }
 
 /**
@@ -37,7 +38,7 @@ export async function performReading(request: ReadingRequest): Promise<string> {
                 spreadName: request.spreadName,
                 cards: request.cards,
                 question: request.question || 'Celkový výhled',
-                mode: 'reading-screen' // Hint for backend to use a more poetic/detailed template
+                mode: request.mode || 'reading-screen' // Use provided mode or default
             }),
         });
 
@@ -63,7 +64,7 @@ export async function performReading(request: ReadingRequest): Promise<string> {
 /**
  * Ask the Universe (AI) a question with tarot cards (Single card legacy)
  */
-export async function askUniverse(question: string): Promise<UniverseResponse> {
+export async function askUniverse(question: string, mode: string = 'daily'): Promise<UniverseResponse> {
     // ... (rest of the file remains for legacy/homescreen use)
     // Draw exactly 1 card for the reading
     const { card } = drawCard();
@@ -84,6 +85,7 @@ export async function askUniverse(question: string): Promise<UniverseResponse> {
             body: JSON.stringify({
                 question,
                 cards: cardData,
+                mode,
             }),
         });
 

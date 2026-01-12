@@ -11,6 +11,7 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
@@ -19,6 +20,7 @@ import { TarotCard } from '../types/tarot';
 interface CardRevealScreenProps {
   card: TarotCard;
   position: 'upright' | 'reversed';
+  aiMeaning?: string;
   onClose: () => void;
   onSaveReading?: () => void;
   note?: string;
@@ -39,6 +41,7 @@ const CARD_HEIGHT = IMAGE_HEIGHT + (CARD_PADDING * 2);
 export function CardRevealScreen({
   card,
   position,
+  aiMeaning,
   onClose,
   onSaveReading,
   note,
@@ -63,6 +66,7 @@ export function CardRevealScreen({
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(50)).current;
   const liftAnim = useRef(new Animated.Value(0)).current; // 0 to 1
+  const aiOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Start lift and flip animation quickly
@@ -97,6 +101,17 @@ export function CardRevealScreen({
       setIsRevealed(true);
     });
   }, []);
+
+  // Fade in AI meaning when it arrives
+  useEffect(() => {
+    if (aiMeaning) {
+      Animated.timing(aiOpacity, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [aiMeaning]);
 
   // Interpolate flip animation
   const flipRotation = flipAnim.interpolate({
@@ -234,7 +249,16 @@ export function CardRevealScreen({
 
           {/* Meaning */}
           <View style={styles.meaningContainer}>
-            <Text style={styles.meaningText}>{meaning}</Text>
+            {!aiMeaning && !isJournalMode ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={colors.lavender} size="small" />
+                <Text style={styles.loadingText}>Vesmír skládá tvůj příběh...</Text>
+              </View>
+            ) : (
+              <Animated.Text style={[styles.meaningText, { opacity: isJournalMode ? 1 : aiOpacity }]}>
+                {aiMeaning || meaning}
+              </Animated.Text>
+            )}
           </View>
 
           {/* Notes Section (Journal Mode) */}
@@ -369,7 +393,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cardName: {
-
     fontWeight: '500',
     color: '#fff',
     letterSpacing: 0.5,
@@ -452,7 +475,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     marginBottom: spacing.sm,
-
   },
   saveButtonText: {
     fontSize: 15,
@@ -476,7 +498,6 @@ const styles = StyleSheet.create({
     color: '#fff', // White text
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     letterSpacing: 1,
-
   },
   noteContainer: {
     marginBottom: spacing.lg,
@@ -500,6 +521,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 120,
     lineHeight: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
   },
 });

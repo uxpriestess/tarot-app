@@ -1,7 +1,7 @@
-import Groq from "groq-sdk";
+import Anthropic from '@anthropic-ai/sdk';
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
+const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 // Reading type definitions for v5 prompts
@@ -39,8 +39,8 @@ export default async function handler(req, res) {
 
     try {
         // DEBUG: Explicit check
-        if (!process.env.GROQ_API_KEY) {
-            throw new Error("Configuration Error: GROQ_API_KEY is missing from Vercel Environment Variables.");
+        if (!process.env.ANTHROPIC_API_KEY) {
+            throw new Error("Configuration Error: ANTHROPIC_API_KEY is missing from Vercel Environment Variables.");
         }
 
         const { spreadName, cards, question, mode } = req.body;
@@ -57,25 +57,24 @@ export default async function handler(req, res) {
         const systemPrompt = buildSystemPrompt(mode);
         const userPrompt = buildUserPrompt(spreadName, cards, question, mode);
 
-        // Call Groq API
-        const completion = await groq.chat.completions.create({
+        // Call Claude API
+        const completion = await client.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 600,
+            temperature: 0.8,
+            system: systemPrompt,
             messages: [
-                { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            model: "llama-3.1-8b-instant", // Faster, higher rate limits
-            temperature: 0.8,
-            max_tokens: 600,
-            top_p: 0.9,
         });
 
-        const answer = completion.choices[0]?.message?.content ||
+        const answer = completion.content[0]?.text ||
             "Obraz se trochu zamlžil a výklad neprošel jasně. Zkusíte to znovu?";
 
         return res.status(200).json({ answer });
 
     } catch (error) {
-        console.error('Groq API Error:', error);
+        console.error('Claude API Error:', error);
         // DEBUG RESPONSE: Returning actual error to client
         return res.status(500).json({
             error: 'API_CRASH',

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide shows you how to implement the Tarotka AI prompt in your **Groq API backend** (or any LLM API like OpenAI, Anthropic, etc.).
+This guide shows you how to implement the Tarotka AI prompt in your **Anthropic Claude API backend** (or any LLM API like OpenAI, Groq, etc.).
 
 ---
 
@@ -15,7 +15,7 @@ React Native (Expo)
 Vercel/Node Backend
     ↓ [Parse & Validate]
     ↓ [Build Prompt]
-Groq API
+Anthropic API (Claude)
     ↓ [LLM Response]
     ↓ Response: { answer: "..." }
 React Native
@@ -28,11 +28,11 @@ React Native
 ### File: `/api/chat.js` (or `.ts`)
 
 ```javascript
-// Example for Vercel serverless function
-import Groq from "groq-sdk";
+// Example for Vercel serverless function using Anthropic SDK
+import Anthropic from '@anthropic-ai/sdk';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 export default async function handler(req, res) {
@@ -61,31 +61,30 @@ export default async function handler(req, res) {
     }
 
     // Build the prompt
-    const systemPrompt = buildSystemPrompt();
+    const systemPrompt = buildSystemPrompt(mode);
     const userPrompt = buildUserPrompt(spreadName, cards, question, mode);
 
-    // Call Groq API
-    const completion = await groq.chat.completions.create({
+    // Call Claude API
+    const completion = await client.messages.create({
+      model: "claude-3-5-sonnet-20240620",
+      max_tokens: 600,
+      temperature: 0.8,
+      system: systemPrompt,
       messages: [
-        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      model: "mixtral-8x7b-32768", // or "llama-3.1-70b-versatile"
-      temperature: 0.8, // Keep responses varied but coherent
-      max_tokens: 500, // Keep responses concise
-      top_p: 0.9,
     });
 
-    const answer = completion.choices[0]?.message?.content || 
+    const answer = completion.content[0]?.text || 
       "Real talk: něco se pokazilo with generating reading. Zkus to znovu?";
 
     return res.status(200).json({ answer });
 
   } catch (error) {
-    console.error('Groq API Error:', error);
+    console.error('Claude API Error:', error);
     return res.status(500).json({ 
       error: 'API error',
-      answer: 'Nepodařilo se spojit s osudem. Zkus to znovu za chvíli.'
+      answer: `Nepodařilo se spojit s osudem. (Error: ${error.message})`
     });
   }
 }
@@ -98,20 +97,15 @@ export default async function handler(req, res) {
 **CRITICAL:** The system prompt is your entire Tarotka AI instructions document.
 
 ```javascript
-function buildSystemPrompt() {
+function buildSystemPrompt(mode) {
+  // Get reading type config, default to daily
+  const readingType = READING_TYPES[mode] || READING_TYPES.daily;
+  
   return `
-🎯 TAROTKA AI - COMPLETE RUNTIME PROMPT v2.0
+🔮 TAROTKA — CORE SYSTEM PROMPT (v5)
 
-[PASTE ENTIRE ENHANCED PROMPT HERE]
-
-WHO YOU ARE
-You are Tarotka AI - a grounded, honest tarot assistant for Czech Gen Z and Millennials.
+[INSTRUCTIONS HERE]
 ...
-
-[Include all sections from TAROTKA_AI_COMPLETE_V2.md]
-...
-
-END OF PROMPT
   `.trim();
 }
 ```
@@ -227,11 +221,10 @@ function buildUserPrompt(spreadName, cards, question, mode) {
 
 | Provider | Model | Pros | Cons |
 |----------|-------|------|------|
-| **Groq** | `mixtral-8x7b-32768` | Fast, good Czech, affordable | Sometimes verbose |
-| **Groq** | `llama-3.1-70b-versatile` | Better reasoning, good Czech | Slower than Mixtral |
+| **Anthropic** | `claude-3-5-sonnet-20240620` | Balanced, excellent Czech | Slightly slower than Haiku |
+| **Anthropic** | `claude-3-5-haiku-20241022` | Faster, cheaper | Less nuanced |
 | **OpenAI** | `gpt-4o` | Excellent quality | More expensive |
-| **OpenAI** | `gpt-3.5-turbo` | Fast, cheap | Less nuanced readings |
-| **Anthropic** | `claude-sonnet-4` | Excellent at following complex prompts | API access needed |
+| **Groq** | `llama-3.1-70b-versatile` | Extremely fast | Variable quality |
 
 ### Optimal Parameters:
 
@@ -306,27 +299,19 @@ export default async function handler(req, res) {
     const systemPrompt = buildSystemPrompt();
     const userPrompt = buildUserPrompt(spreadName, cards, question, mode);
 
-    // 7. Call API with timeout
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Timeout')), 25000) // 25s timeout
-    );
-
-    const completion = await Promise.race([
-      groq.chat.completions.create({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        model: "mixtral-8x7b-32768",
-        temperature: 0.8,
-        max_tokens: 500,
-        top_p: 0.9,
-      }),
-      timeoutPromise
-    ]);
+    // 7. Call API
+    const completion = await client.messages.create({
+      model: "claude-3-5-sonnet-20240620",
+      max_tokens: 600,
+      temperature: 0.8,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: userPrompt }
+      ],
+    });
 
     // 8. Extract answer
-    const answer = completion.choices[0]?.message?.content;
+    const answer = completion.content[0]?.text;
 
     if (!answer || answer.trim().length === 0) {
       return res.status(500).json({
@@ -513,12 +498,12 @@ app.use('/api/chat', limiter);
 ### Required `.env` file:
 
 ```bash
-# Groq API
-GROQ_API_KEY=your_groq_api_key_here
+# Anthropic API
+ANTHROPIC_API_KEY=your_anthropic_key_here
 
 # Optional: Other providers
 OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
+GROQ_API_KEY=your_groq_key
 
 # App Config
 NODE_ENV=production
@@ -672,14 +657,10 @@ Use text-to-speech to read interpretations aloud.
 
 ```bash
 # 1. Install dependencies
-npm install groq-sdk
+npm install @anthropic-ai/sdk
 
 # 2. Create .env file
-echo "GROQ_API_KEY=your_key" > .env
-
-# 3. Create prompts directory
-mkdir prompts
-cp TAROTKA_AI_COMPLETE_V2.md prompts/tarotka-v2.md
+echo "ANTHROPIC_API_KEY=your_key" > .env
 
 # 4. Deploy to Vercel
 vercel --prod

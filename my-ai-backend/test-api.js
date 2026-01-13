@@ -1,5 +1,5 @@
-// Test the deployed API
-const API_URL = 'https://my-ai-backend-dun.vercel.app/api/chat';
+// Test the API (defaults to production, but can be overridden)
+const API_URL = process.env.TEST_API_URL || 'https://my-ai-backend-dun.vercel.app/api/chat';
 
 async function testAPI() {
     console.log('Testing API at:', API_URL);

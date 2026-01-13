@@ -1,8 +1,8 @@
 # Backend Strategy: Firebase vs Supabase
 
-## Current Status: AsyncStorage Only ✅
+## Current Status: Vercel AI Backend + AsyncStorage ✅
 
-Your app currently uses local-only storage. This is perfect for the current stage.
+Your app now has a fully functional AI backend hosted on Vercel using Anthropic Claude 3.5 Sonnet. Local readings and data are still managed via AsyncStorage.
 
 ## When to Add a Backend
 

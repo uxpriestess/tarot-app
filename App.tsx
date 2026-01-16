@@ -37,7 +37,15 @@ export default function App() {
 
     // Fetch AI meaning in the background
     try {
-      const response = await askUniverse(`Výklad pro kartu: ${drawn.card.nameCzech || drawn.card.name} (${drawn.position === 'upright' ? 'vzpřímená' : 'obrácená'})`, 'daily');
+      const response = await askUniverse(
+        `Výklad pro kartu: ${drawn.card.nameCzech || drawn.card.name} (${drawn.position === 'upright' ? 'vzpřímená' : 'obrácená'})`,
+        'daily',
+        [{
+          name: drawn.card.name,
+          nameCzech: drawn.card.nameCzech || drawn.card.name,
+          position: drawn.position
+        }]
+      );
       setCurrentCard(prev => prev ? { ...prev, aiMeaning: response.answer } : null);
     } catch (error) {
       console.error('Failed to fetch AI meaning:', error);

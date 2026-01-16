@@ -64,17 +64,23 @@ export async function performReading(request: ReadingRequest): Promise<string> {
 /**
  * Ask the Universe (AI) a question with tarot cards (Single card legacy)
  */
-export async function askUniverse(question: string, mode: string = 'daily'): Promise<UniverseResponse> {
-    // ... (rest of the file remains for legacy/homescreen use)
-    // Draw exactly 1 card for the reading
-    const { card } = drawCard();
-    const drawnCards = [card];
+export async function askUniverse(question: string, mode: string = 'daily', cards?: UniverseCard[]): Promise<UniverseResponse> {
+    // Use provided cards or draw a new one if none provided
+    let finalCards: UniverseCard[];
+    let sourceCards: any[];
 
-    // Prepare card context for AI
-    const cardData = drawnCards.map(card => ({
-        nameCzech: card.nameCzech || card.name,
-        name: card.name,
-    }));
+    if (cards && cards.length > 0) {
+        finalCards = cards;
+        sourceCards = cards;
+    } else {
+        const { card, position } = drawCard();
+        sourceCards = [card];
+        finalCards = [{
+            name: card.name,
+            nameCzech: card.nameCzech || card.name,
+            position: position
+        }];
+    }
 
     try {
         const response = await fetch(API_URL, {
@@ -84,7 +90,7 @@ export async function askUniverse(question: string, mode: string = 'daily'): Pro
             },
             body: JSON.stringify({
                 question,
-                cards: cardData,
+                cards: finalCards,
                 mode,
             }),
         });
@@ -97,7 +103,7 @@ export async function askUniverse(question: string, mode: string = 'daily'): Pro
 
         return {
             answer: data.answer,
-            cards: drawnCards,
+            cards: sourceCards,
         };
     } catch (error) {
         console.error('Universe service error:', error);

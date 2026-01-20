@@ -1,6 +1,4 @@
-const { Anthropic } = require('@anthropic-ai/sdk');
-
-// Configuration for different reading types
+import Anthropic from '@anthropic-ai/sdk';
 const READING_TYPES = {
     daily: {
         name: 'daily',
@@ -8,14 +6,14 @@ const READING_TYPES = {
         paragraphs: '4 short'
     },
     'reading-screen': {
-        name: 'custom_question',
+        name: 'reading-screen',
         maxWords: 180,
         paragraphs: '4-5'
     },
     love_3_card: {
         name: 'love_3_card',
-        maxWords: 180,
-        paragraphs: '4-5 short'
+        maxWords: 180, // 60 words × 3 cards
+        paragraphs: '3 separate' // ← CHANGE THIS
     },
     moon_phase: {
         name: 'moon_phase',
@@ -149,8 +147,18 @@ LENGTH: 110–130 words MAX. 4 short paragraphs.
 TONE: Empathetic, direct, human — like a friend who gets it.
 `;
 
+    const readingScreenShaper = `
+## READING SCREEN STRUCTURE:
+
+Return 4-5 paragraphs of interpretation.
+Plain Czech text, no markdown.
+Connect all cards into one cohesive reading.
+
+LENGTH: 160-180 words MAX.
+    `;
+
     const customQuestionShaper = `
-## 2️⃣ CUSTOM QUESTION STRUCTURE:
+## CUSTOM QUESTION STRUCTURE:
 
 A. DIRECT ANSWER (1-2 sentences)
 Address the essence of the user's question immediately through the card.
@@ -175,71 +183,51 @@ TONE: Empathetic, direct, human — like a friend who gets it.
 `;
 
     const love3CardShaper = `
-## 3️⃣ LOVE 3-CARD STRUCTURE (PLAIN TEXT WITH DELIMITERS):
+## 3️⃣ LOVE 3-CARD STRUCTURE (PLAIN TEXT):
 
-⚠️ CRITICAL FORMAT REQUIREMENT ⚠️
-Return exactly 3 paragraphs separated by "---" (three hyphens).
-NO JSON. NO markdown formatting (no **, no #, no lists).
-Just plain Czech text.
+Return exactly 3 paragraphs separated by "---" delimiter.
+NO JSON. NO markdown formatting (no *** or \`\`\` or **). Just plain Czech text.
 
-FORMAT:
+Format:
 [Paragraph 1 about "Ty" - 50-60 words]
 ---
 [Paragraph 2 about "Partner" - 50-60 words]
 ---
 [Paragraph 3 about "Tvůj vztah" - 50-60 words]
 
-CONTENT RULES:
-Each paragraph must stand alone and NOT reference other cards.
-
-1. TY (First paragraph):
-   Describe how the user shows up in the relationship and how this affects the partnership.
-
-2. PARTNER (Second paragraph):
-   Describe the partner's role as perceived by the user and its impact on the relationship.
-
-3. TVŮJ VZTAH (Third paragraph):
-   Describe the overall relationship dynamic and its current characteristics.
-
-STYLE:
-- Natural, modern Czech
+CRITICAL RULES:
+- Each paragraph stands alone
+- Do NOT reference other cards within a paragraph
+- Natural, modern Czech (ty-forma)
 - Brief, reflective, non-judgmental
-- Each paragraph is complete on its own
+- NO markdown symbols anywhere (no *, no \`, no #)
+- Plain text ONLY
 
-EXAMPLE OUTPUT:
+CONTENT:
+1. Ty: How user shows up in relationship
+2. Partner: Partner's role/energy in the relationship
+3. Tvůj vztah: Overall relationship dynamic
+
+Example output:
 Do vztahu jdeš s otevřeným srdcem a snahou mít věci v klidu vyjasněné. Když něco cítíš, chceš to řešit, ne schovávat pod koberec. Díky tomu je mezi vámi jasno, i když to někdy může působit trochu intenzivně.
 ---
 Tvůj partner to bere víc v klidu a emoce si nechává projít hlavou, než je pustí ven. Může působit rezervovaně, ale často jen potřebuje víc času a prostoru. Jeho přístup do vztahu vnáší lehkost, i když vás občas rozhodí rozdílné tempo.
 ---
 Mezi vámi je vidět snaha se potkat někde uprostřed. Jeden jde víc na přímo, druhý opatrněji, ale když si tohle uvědomíte, může vztah fungovat přirozeně a bez zbytečného tlaku.
-
-CRITICAL: Use exactly "---" as delimiter. No extra spaces or formatting.
-`;
+ `;
 
     const moonPhaseShaper = `
-## 4️⃣ MOON PHASE READING STRUCTURE (1-CARD):
+## 4️⃣ MOON PHASE STRUCTURE:
 
-A. LUNAR CONTEXT (1-2 sentences)
-Acknowledge the current moon phase.
-Connect the energy of the moon to the act of drawing a card.
-
-B. CARD & LUNAR SYNERGY (2-3 sentences)
-Interpret the card specifically through the lens of the current moon phase.
-
-C. PRACTICAL GUIDANCE (1-2 sentences)
-What should the user focus on or do during this lunar phase?
-
-D. CLOSING REFLECTION (1 sentence)
-A short, poetic summary or a question for contemplation.
-
-LENGTH: 140–160 words MAX. 4 paragraphs.
-TONE: Ethereal, insightful, grounded.
+LENGTH: 140–160 words MAX.
 `;
 
     // Select appropriate shaper based on mode
     let responseShaper;
     if (mode === 'daily') {
         responseShaper = dailyShaper;
+    } else if (mode === 'reading-screen') {
+        responseShaper = readingScreenShaper;
     } else if (mode === 'custom_question') {
         responseShaper = customQuestionShaper;
     } else if (mode === 'love_3_card') {
@@ -247,7 +235,7 @@ TONE: Ethereal, insightful, grounded.
     } else if (mode === 'moon_phase') {
         responseShaper = moonPhaseShaper;
     } else {
-        responseShaper = dailyShaper; // Default to daily
+        responseShaper = dailyShaper; // Default fallback
     }
 
     return `

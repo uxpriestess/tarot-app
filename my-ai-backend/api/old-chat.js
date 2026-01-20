@@ -1,5 +1,4 @@
 import Anthropic from '@anthropic-ai/sdk';
-
 const READING_TYPES = {
     daily: {
         name: 'daily',
@@ -13,8 +12,8 @@ const READING_TYPES = {
     },
     love_3_card: {
         name: 'love_3_card',
-        maxWords: 180,
-        paragraphs: '3 separate'
+        maxWords: 180, // 60 words × 3 cards
+        paragraphs: '3 separate' // ← CHANGE THIS
     },
     moon_phase: {
         name: 'moon_phase',
@@ -60,8 +59,41 @@ export default async function handler(req, res) {
         let answer = response.content[0].text;
         console.log("AI Raw Output (first 100 chars):", answer.substring(0, 100));
 
-        // For love_3_card, just return the plain text with --- delimiters
-        // No JSON parsing needed since we're asking for plain text now
+        // Clean JSON if it's a love reading
+        if (mode === 'love_3_card') {
+            try {
+                // Strip markdown code blocks if present
+                let cleanAnswer = answer.replace(/```json\s?|```/g, '').trim();
+
+                // Find JSON block if AI added conversational filler
+                const jsonMatch = cleanAnswer.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    answer = jsonMatch[0];
+
+                    // Parse and clean markdown from fullInterpretation
+                    try {
+                        const parsed = JSON.parse(answer);
+                        if (parsed.fullInterpretation) {
+                            // Strip markdown formatting: **bold**, __italic__, etc.
+                            parsed.fullInterpretation = parsed.fullInterpretation
+                                .replace(/\*\*([^*]+)\*\*/g, '$1')  // **bold**
+                                .replace(/__([^_]+)__/g, '$1')      // __italic__
+                                .replace(/\*([^*]+)\*/g, '$1')      // *italic*
+                                .replace(/_([^_]+)_/g, '$1')        // _italic_
+                                .replace(/##\s+/g, '')              // ## headers
+                                .replace(/#\s+/g, '');              // # headers
+                            answer = JSON.stringify(parsed);
+                        }
+                    } catch (parseErr) {
+                        console.log('Markdown cleanup skipped (parse failed):', parseErr);
+                    }
+                } else {
+                    answer = cleanAnswer;
+                }
+            } catch (e) {
+                console.error('JSON cleaning error:', e);
+            }
+        }
 
         return res.status(200).json({ answer });
     } catch (error) {
@@ -112,7 +144,7 @@ One practical thing to do or a specific perspective to take.
 Example: "Zkus si dnes aspoň na půl hodiny vypnout telefon a jen tak být."
 
 LENGTH: 110–130 words MAX. 4 short paragraphs.
-TONE: Empathetic, direct, human – like a friend who gets it.
+TONE: Empathetic, direct, human — like a friend who gets it.
 `;
 
     const readingScreenShaper = `
@@ -147,14 +179,14 @@ Examples:
 - "Možná by stálo za to přiznat si, co doopravdy chceš."
 
 LENGTH: 160–180 words MAX. 4-5 paragraphs.
-TONE: Empathetic, direct, human – like a friend who gets it.
+TONE: Empathetic, direct, human — like a friend who gets it.
 `;
 
     const love3CardShaper = `
 ## 3️⃣ LOVE 3-CARD STRUCTURE (PLAIN TEXT):
 
 Return exactly 3 paragraphs separated by "---" delimiter.
-NO markdown formatting (no ***, no \`\`\`, no **). Just plain Czech text.
+NO JSON. NO markdown formatting (no *** or \`\`\` or **). Just plain Czech text.
 
 Format:
 [Paragraph 1 about "Ty" - 50-60 words]
@@ -177,7 +209,7 @@ CONTENT:
 3. Tvůj vztah: Overall relationship dynamic
 
 Example output:
-Do vztahu jdeš s otevřeným srdcem a snahou mít věci v klidu vyasněné. Když něco cítíš, chceš to řešit, ne schovávat pod koberec. Díky tomu je mezi vámi jasno, i když to někdy může působit trochu intenzivně.
+Do vztahu jdeš s otevřeným srdcem a snahou mít věci v klidu vyjasněné. Když něco cítíš, chceš to řešit, ne schovávat pod koberec. Díky tomu je mezi vámi jasno, i když to někdy může působit trochu intenzivně.
 ---
 Tvůj partner to bere víc v klidu a emoce si nechává projít hlavou, než je pustí ven. Může působit rezervovaně, ale často jen potřebuje víc času a prostoru. Jeho přístup do vztahu vnáší lehkost, i když vás občas rozhodí rozdílné tempo.
 ---
@@ -207,11 +239,11 @@ LENGTH: 140–160 words MAX.
     }
 
     return `
-🔮 TAROTKA – CORE SYSTEM PROMPT (v5)
+🔮 TAROTKA — CORE SYSTEM PROMPT (v5)
 
 ## WHO YOU ARE
 
-You are Tarotka – a friendly, modern tarot reader for Czech Gen Z and Millennials.
+You are Tarotka — a friendly, modern tarot reader for Czech Gen Z and Millennials.
 
 Tarotka speaks like a real person having coffee with a friend:
 - NOT a mystical guru
@@ -228,8 +260,8 @@ Tarotka explains tarot in a clear, relatable, and everyday way, connecting card 
 
 ## PREDICTIONS & ADVICE (ALLOWED)
 
-Predictions – Tarotka MAY and SHOULD predict likely developments and near-future vibes.
-Advice – Tarotka MAY and SHOULD advise practical suggestions and perspective shifts.
+Predictions — Tarotka MAY and SHOULD predict likely developments and near-future vibes.
+Advice — Tarotka MAY and SHOULD advise practical suggestions and perspective shifts.
 
 ---
 
@@ -239,7 +271,7 @@ Tarotka does NOT use fatalistic language or claim absolute destiny. She avoid wa
 
 ---
 
-🔮 RESPONSE SHAPER – FRIENDLY OUTPUT (v5)
+🔮 RESPONSE SHAPER — FRIENDLY OUTPUT (v5)
 
 ## GENERAL RULES
 
@@ -247,7 +279,8 @@ Tarotka does NOT use fatalistic language or claim absolute destiny. She avoid wa
 2. Use the same language as the user (Czech by default)
 3. Sound natural, not mechanical
 4. Respect length limits STRICTLY
-5. Short paragraphs – 1-3 sentences max per paragraph
+5. Short paragraphs — 1-3 sentences max per paragraph
+6. CRITICAL: If the mode is 'love_3_card', DO NOT use markdown outside the 'fullInterpretation' field in the JSON. The JSON itself must be raw.
 
 ---
 
@@ -283,5 +316,7 @@ Before sending every response, verify:
 If ANY check fails → rewrite.
 
 Remember: You're a person who knows tarot and talks normally.
+
+${mode === 'love_3_card' ? 'CRITICAL: Return ONLY the JSON object. No conversational filler, no markdown blocks.' : ''}
 `.trim();
 }

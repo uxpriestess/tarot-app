@@ -19,6 +19,7 @@ import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { drawCard } from '../data';
 import { CardImage } from '../components/CardImage';
 import { performReading } from '../services/universe';
+import { getMoonPhase } from '../utils/moonPhase';
 
 const { width } = Dimensions.get('window');
 
@@ -87,10 +88,10 @@ interface Spread {
 }
 
 const SPREADS: Spread[] = [
-    { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3, labels: ['Ty', 'Partner', 'Vztah'] },
+    { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3, labels: ['Ty', 'Partner', 'Tvůj vztah'] },
     { id: 'finance', name: 'Finance', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnes', 'Výzva', 'Výsledek'] },
     { id: 'body', name: 'Tělo a mysl', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3, labels: ['Tělo', 'Mysl', 'Duch'] },
-    { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 5, labels: ['Nov', 'Dorůstání', 'Úplněk', 'Ubývání', 'Poučení'] },
+    { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 1, labels: ['Vzkaz luny'] },
     { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3, labels: ['Cesta A', 'Cesta B', 'Rada'] },
     { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7, labels: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'] },
 ];
@@ -98,9 +99,9 @@ const SPREADS: Spread[] = [
 // Simplified placeholder positions for now - we can refine per spread later
 const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
     love: [
-        { x: 25, y: 25 }, // Ty
-        { x: 75, y: 25 }, // Partner
-        { x: 50, y: 70 }  // Vztah
+        { x: 30, y: 35 }, // Ty (top-left)
+        { x: 70, y: 35 }, // Partner (top-right)
+        { x: 50, y: 72 }  // Tvůj vztah (bottom-center)
     ],
     finance: [
         { x: 25, y: 25 }, // Dnes
@@ -113,9 +114,7 @@ const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
         { x: 50, y: 70 }  // Duch
     ],
     moon: [
-        { x: 50, y: 15 },
-        { x: 20, y: 45 }, { x: 80, y: 45 },
-        { x: 35, y: 80 }, { x: 65, y: 80 }
+        { x: 50, y: 50 }
     ],
     decision: [
         { x: 25, y: 25 }, // Cesta A
@@ -138,13 +137,16 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
     const [drawnCards, setDrawnCards] = useState<any[]>([]); // New state for real cards
     const [stage, setStage] = useState<Stage>('welcome');
+    const [revealedCount, setRevealedCount] = useState(0);
+    const [aiInterpretation, setAiInterpretation] = useState<any>(null);
+    const [individualMeaning, setIndividualMeaning] = useState<{ title: string; text: string } | null>(null);
     const [isReadingAI, setIsReadingAI] = useState(false);
-    const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
-    const [individualMeaning, setIndividualMeaning] = useState<{ title: string, text: string } | null>(null);
+    const [cardMeanings, setCardMeanings] = useState<string[]>([]); // Stores 3 paragraphs from split
 
     // Animation Refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const minimizeAnim = useRef(new Animated.Value(0)).current; // New animation for results
+    const rotateAnim = useRef(new Animated.Value(0)).current; // For loading spinner
 
     useEffect(() => {
         // Entrance Fade
@@ -155,62 +157,126 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
         }).start();
     }, []);
 
+    useEffect(() => {
+        if (isReadingAI) {
+            Animated.loop(
+                Animated.timing(rotateAnim, {
+                    toValue: 1,
+                    duration: 1500,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            ).start();
+        } else {
+            rotateAnim.stopAnimation();
+            rotateAnim.setValue(0);
+        }
+    }, [isReadingAI]);
+
     const flipCard = (idx: number) => {
+        // Enforce sequential reveal
+        if (idx !== revealedCount) return;
+
         if (!flippedCards.includes(idx)) {
             const newFlipped = [...flippedCards, idx];
             setFlippedCards(newFlipped);
+            setRevealedCount(idx + 1);
 
-            const cardObj = drawnCards[idx];
-            const meaning = cardObj.position === 'upright' ? cardObj.card.meaningUpright : cardObj.card.meaningReversed;
             const label = selectedSpread?.labels ? selectedSpread.labels[idx] : 'Karta';
+            const cardObj = drawnCards[idx];
 
-            // If not the last card, show individual meaning (KEYWORDS ONLY for safety)
-            if (selectedSpread && newFlipped.length < selectedSpread.cards) {
-                // Use keywords for a more mystic, open-ended "hint" rather than generic text that might clash
+            // Content logic: Show cardMeanings paragraph if available, otherwise keywords
+            if (cardMeanings[idx]) {
+                setIndividualMeaning({ title: label, text: cardMeanings[idx] });
+            } else {
+                // Fallback to keywords while loading
                 const keywords = cardObj.card.keywords.map((k: string) => k.toUpperCase()).join('  •  ');
                 setIndividualMeaning({ title: label, text: keywords });
-            } else if (selectedSpread && newFlipped.length === selectedSpread.cards) {
-                // Last card: clear individual and trigger AI
-                setIndividualMeaning(null);
+            }
+
+            // If it was the last card and not a love spread, trigger AI interpretation
+            if (selectedSpread && newFlipped.length === selectedSpread.cards && selectedSpread.id !== 'love') {
                 generateAIReading();
             }
         }
     };
 
-    const generateAIReading = async () => {
-        if (!selectedSpread || drawnCards.length === 0) return;
+    const generateAIReading = async (isPreFetch = false, cardsToUse?: any[], spreadToUse?: Spread) => {
+        const cards = cardsToUse || drawnCards;
+        const spread = spreadToUse || selectedSpread;
 
-        setIsReadingAI(true);
-        setAiInterpretation(null);
+        if (!spread || cards.length === 0) {
+            console.log("Reading blocked: No spread or empty cards", { hasSpread: !!spread, cardsLen: cards.length });
+            return;
+        }
 
-        // Animate cards up and smaller
-        Animated.spring(minimizeAnim, {
-            toValue: 1,
-            useNativeDriver: true,
-            tension: 20,
-            friction: 7,
-        }).start();
+        console.log(`Starting ${isPreFetch ? 'pre-fetch' : 'final'} AI reading for mode: ${spread.id}`);
+
+        if (!isPreFetch) {
+            setIsReadingAI(true);
+            setAiInterpretation(null);
+            setIndividualMeaning(null);
+        }
+
+        // Only minimize if it's the final reading trigger
+        if (!isPreFetch) {
+            Animated.spring(minimizeAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                tension: 20,
+                friction: 7,
+            }).start();
+        }
 
         try {
+            const moonInfo = getMoonPhase(new Date());
+            const contextQuestion = spread.id === 'moon'
+                ? `Měsíční fáze: ${moonInfo.name} ${moonInfo.icon}`
+                : 'Celkový výhled';
+
+            const mode = spread.id === 'love' ? 'love_3_card' :
+                spread.id === 'moon' ? 'moon_phase' : 'reading-screen';
+
             const reading = await performReading({
-                spreadName: selectedSpread.name,
-                cards: drawnCards.map((dc, idx) => ({
+                spreadName: spread.name,
+                cards: cards.map((dc, idx) => ({
                     name: dc.card.name,
                     nameCzech: dc.card.nameCzech,
                     position: dc.position,
-                    label: selectedSpread.labels ? selectedSpread.labels[idx] : undefined
+                    label: spread.labels ? spread.labels[idx] : undefined
                 })),
-                question: 'Celkový výhled'
+                question: contextQuestion,
+                mode: mode
             });
-            setAiInterpretation(reading);
+
+            console.log("AI Response received, length:", reading ? reading.length : 0);
+
+            if (mode === 'love_3_card') {
+                // Split by delimiter and store paragraphs
+                const paragraphs = reading.split('---').map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+                console.log("Split into paragraphs:", paragraphs.length);
+                setCardMeanings(paragraphs);
+
+                // If a card is already flipped, update its meaning immediately
+                if (revealedCount > 0) {
+                    const lastIdx = revealedCount - 1;
+                    const label = selectedSpread?.labels ? selectedSpread.labels[lastIdx] : 'Karta';
+                    if (paragraphs[lastIdx]) {
+                        setIndividualMeaning({ title: label, text: paragraphs[lastIdx] });
+                    }
+                }
+            } else {
+                setAiInterpretation(reading);
+            }
         } catch (error) {
             console.error(error);
         } finally {
-            setIsReadingAI(false);
+            if (!isPreFetch) setIsReadingAI(false);
         }
     };
 
     const startReading = (spread: Spread) => {
+        console.log("Starting reading for spread:", spread.id);
         // Draw real cards based on spread
         const cards = [];
         for (let i = 0; i < spread.cards; i++) {
@@ -220,8 +286,11 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
         setDrawnCards(cards);
         setSelectedSpread(spread);
         setFlippedCards([]);
+        setRevealedCount(0);
         setAiInterpretation(null);
         setIndividualMeaning(null);
+        setCardMeanings([]);
+        minimizeAnim.setValue(0);
         setStage('reading');
         fadeAnim.setValue(0);
         Animated.timing(fadeAnim, {
@@ -229,6 +298,12 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
             duration: 600,
             useNativeDriver: true,
         }).start();
+
+        // Pre-fetch AI reading for Love spread to get card meanings early
+        if (spread.id === 'love') {
+            console.log("Triggering pre-fetch for Love spread immediately with drawn cards.");
+            generateAIReading(true, cards, spread);
+        }
     };
 
     const resetReading = () => {
@@ -289,70 +364,101 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
     const renderReading = () => {
         if (!selectedSpread) return null;
 
+        const introText = selectedSpread.id === 'love' ? 'Co teď ve vztazích řešíš?' : 'Ponoř se do své otázky...';
+
         return (
             <Animated.View style={[styles.readingContainer, { opacity: fadeAnim }]}>
                 <TouchableOpacity onPress={resetReading} style={styles.readingBackButton}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                <View style={styles.headerContainer}>
-                    <Text style={styles.heading}>{selectedSpread.name}</Text>
-                    {!aiInterpretation && !isReadingAI && (
-                        <>
-                            <Text style={styles.instructionText}>Ponoř se do své otázky...</Text>
-                            <Text style={styles.readingSubtitle}>Dotkni se karet pro odhalení</Text>
-                        </>
-                    )}
-                </View>
-
                 <Animated.View
                     style={[
-                        styles.boardContainer,
+                        styles.readingHeader,
                         {
                             transform: [
-                                { translateY: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -140] }) },
-                                { scale: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] }) }
+                                { translateY: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -40] }) },
+                                { scale: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] }) }
                             ]
                         }
                     ]}
                 >
-                    {CARD_POSITIONS[selectedSpread.id].map((pos, idx) => (
+                    <Text style={styles.readingTitle}>{selectedSpread.name}</Text>
+                    <Text style={styles.readingSubtitle}>{introText}</Text>
+                    {flippedCards.length < (selectedSpread?.cards || 0) && (
+                        <Text style={styles.instructionLine}>Dotkni se karet a uvidíš</Text>
+                    )}
+                </Animated.View>
+
+                <Animated.View
+                    style={[
+                        styles.spreadArea,
+                        {
+                            transform: [
+                                { translateY: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -60] }) },
+                                { scale: minimizeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] }) }
+                            ]
+                        }
+                    ]}
+                >
+                    {drawnCards.map((dc, idx) => (
                         <CardComponent
                             key={idx}
                             index={idx}
-                            position={pos}
-                            cardData={drawnCards[idx]}
+                            position={CARD_POSITIONS[selectedSpread.id][idx]}
                             isFlipped={flippedCards.includes(idx)}
                             onFlip={() => flipCard(idx)}
+                            cardData={dc}
                             label={selectedSpread.labels ? selectedSpread.labels[idx] : undefined}
+                            isLocked={idx !== revealedCount}
                         />
                     ))}
                 </Animated.View>
 
-                {/* AI Result Section */}
-                <ScrollView
-                    style={styles.resultScrollView}
-                    contentContainerStyle={styles.resultContent}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {individualMeaning && !isReadingAI && (
-                        <View style={styles.interpretationContainer}>
-                            <Text style={styles.interpretationTitle}>{individualMeaning.title}</Text>
-                            <Text style={styles.interpretationText}>{individualMeaning.text}</Text>
-                        </View>
-                    )}
-                    {isReadingAI && (
+                {/* Individual Whisper or AI loading */}
+                <View style={styles.interpretationArea}>
+                    {isReadingAI && !aiInterpretation && (
                         <View style={styles.loadingContainer}>
-                            <Text style={styles.loadingText}>Vesmír skládá tvůj příběh...</Text>
+                            <Animated.View style={{ transform: [{ rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
+                                <Ionicons name="sparkles" size={32} color={colors.lavender} />
+                            </Animated.View>
+                            <Text style={styles.loadingText}>Vnímám energii karet...</Text>
                         </View>
                     )}
-                    {aiInterpretation && (
-                        <View style={styles.interpretationContainer}>
-                            <Text style={styles.interpretationTitle}>Výklad osudu</Text>
-                            <Text style={styles.interpretationText}>{aiInterpretation}</Text>
+
+                    {individualMeaning && (
+                        <Animated.View style={styles.whisperContainer}>
+                            <Text style={styles.whisperTitle}>{individualMeaning.title}</Text>
+                            <Text style={styles.whisperText}>„{individualMeaning.text}"</Text>
+                        </Animated.View>
+                    )}
+
+                    {/* For Love spread: Show "Do deníčku" button after all cards flipped */}
+                    {selectedSpread?.id === 'love' && flippedCards.length === selectedSpread.cards && cardMeanings.length === 3 && (
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                style={styles.saveToJournalButton}
+                                onPress={() => {
+                                    // TODO: Implement save to journal functionality
+                                    console.log("Save to journal:", cardMeanings);
+                                    resetReading();
+                                }}
+                            >
+                                <Ionicons name="book-outline" size={20} color={colors.lavender} />
+                                <Text style={styles.saveToJournalButtonText}>Do deníčku</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
-                </ScrollView>
+
+                    {/* For other spreads: Show full interpretation button */}
+                    {selectedSpread?.id !== 'love' && aiInterpretation && flippedCards.length === selectedSpread.cards && (
+                        <View style={styles.buttonContainer}>
+                            <ScrollView style={styles.interpretationScroll}>
+                                <Text style={styles.interpretationText}>{aiInterpretation}</Text>
+                            </ScrollView>
+                        </View>
+                    )}
+                </View>
             </Animated.View>
         );
     };
@@ -369,7 +475,7 @@ export const TarotReadingScreen = ({ onClose }: TarotReadingScreenProps) => {
 };
 
 // Sub-component for individual card animation
-const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label }: any) => {
+const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, isLocked }: any) => {
     const rotateAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -401,20 +507,17 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label }: 
                     left: `${position.x}%`,
                     top: `${position.y}%`,
                     width: cardWidth,
-                    height: cardHeight + 30, // Extra space for label
+                    height: cardHeight + 40,
                     marginLeft: -cardWidth / 2,
-                    marginTop: -(cardHeight + 30) / 2,
+                    marginTop: -(cardHeight + 40) / 2,
                     zIndex: isFlipped ? 100 + index : index,
                 }
             ]}
         >
-            {label && (
-                <Text style={styles.positionLabel}>{label}</Text>
-            )}
             <TouchableOpacity
-                activeOpacity={1}
+                activeOpacity={isLocked ? 1 : 0.8}
                 onPress={onFlip}
-                style={{ width: cardWidth, height: cardHeight }}
+                style={{ width: cardWidth, height: cardHeight, opacity: isLocked ? 0.4 : 1 }}
             >
                 {/* Back of Card */}
                 <Animated.View
@@ -446,6 +549,13 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label }: 
                     )}
                 </Animated.View>
             </TouchableOpacity>
+
+            {/* Label ONLY after flip, and placed below */}
+            {isFlipped && label && (
+                <View style={styles.bottomLabelContainer}>
+                    <Text style={styles.positionLabelBelow}>{label}</Text>
+                </View>
+            )}
         </View>
     );
 };
@@ -543,55 +653,46 @@ const styles = StyleSheet.create({
         flex: 1,
         width: '100%',
         alignItems: 'center',
-        paddingTop: 60,
-        paddingBottom: 100, // Added more bottom padding for TabBar clearance
     },
-    headerContainer: {
+    readingHeader: {
         alignItems: 'center',
+        marginTop: 60,
         marginBottom: spacing.xl,
+        zIndex: 10,
     },
-    heading: {
+    readingTitle: {
         fontSize: 32,
         color: colors.textCream,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         fontWeight: '600',
-        marginBottom: 12,
+        marginBottom: 8,
         textShadowColor: 'rgba(0,0,0,0.5)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
         textAlign: 'center',
     },
-    instructionText: {
-        fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.8)',
-        fontStyle: 'italic',
-        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
     readingSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.6)',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.5)',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         textAlign: 'center',
+        marginBottom: 12,
     },
-    boardContainer: {
-        minHeight: 450, // Increased to accommodate triangle layout
+    instructionLine: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.4)',
+        textAlign: 'center',
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+    },
+    spreadArea: {
+        minHeight: 460, // Reduced to prevent pushing content off-screen on mobile
         width: '100%',
         position: 'relative',
     },
     cardWrapper: {
         position: 'absolute',
         alignItems: 'center',
-    },
-    positionLabel: {
-        color: 'rgba(255, 255, 255, 0.6)',
-        fontSize: 10,
-        letterSpacing: 1,
-        marginBottom: 8,
-        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        textTransform: 'uppercase',
     },
     cardFace: {
         position: 'absolute',
@@ -604,8 +705,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     cardBack: {
-        backgroundColor: '#0F0F0F', // Deep rich black
-        borderColor: '#C0A080', // Gold border
+        backgroundColor: '#0F0F0F',
+        borderColor: '#C0A080',
         borderWidth: 1,
         padding: 6,
     },
@@ -614,11 +715,11 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
         borderWidth: 1,
-        borderColor: 'rgba(192, 160, 128, 0.3)', // Faint gold inner border
+        borderColor: 'rgba(192, 160, 128, 0.3)',
         borderRadius: borderRadius.sm - 2,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#161616', // Subtle contrast
+        backgroundColor: '#161616',
     },
     cardFront: {
         backgroundColor: 'transparent',
@@ -626,85 +727,157 @@ const styles = StyleSheet.create({
         transform: [{ rotateY: '180deg' }],
         overflow: 'hidden',
     },
-    cardLabel: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    resultScrollView: {
-        flex: 1,
-        width: '100%',
-        marginTop: -80, // More aggressive pull up to utilize gap from hidden subtitles
-    },
-    resultContent: {
-        paddingTop: 10,
-        paddingBottom: 80, // Generous bottom space
+    bottomLabelContainer: {
+        marginTop: 6,
         alignItems: 'center',
     },
+    positionLabelBelow: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        letterSpacing: 1.5,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textShadowColor: 'rgba(0,0,0,0.8)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+    },
+    interpretationArea: {
+        flex: 1,
+        width: '100%',
+        alignItems: 'center',
+        paddingTop: 20,
+    },
     loadingContainer: {
-        padding: 40,
+        padding: 20,
         alignItems: 'center',
     },
     loadingText: {
-        color: 'rgba(255,255,255,0.7)',
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 14,
+        marginTop: 12,
         fontStyle: 'italic',
-        fontSize: 16,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     },
-    interpretationContainer: {
-        paddingVertical: 25,
-        paddingHorizontal: 20,
-        backgroundColor: 'rgba(20, 20, 20, 0.75)', // Dark glass
+    whisperContainer: {
+        width: '85%',
+        padding: 24,
+        backgroundColor: 'rgba(30,30,30,0.4)',
         borderRadius: 20,
-        width: '90%',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 6,
+        alignItems: 'center',
     },
-    interpretationTitle: {
-        color: colors.textCream,
-        fontSize: 24,
-        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        marginBottom: 20,
-        textAlign: 'center',
+    whisperTitle: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 10,
+        textTransform: 'uppercase',
         letterSpacing: 2,
+        marginBottom: 12,
     },
-    interpretationText: {
-        color: 'rgba(255,255,255,0.95)',
+    whisperText: {
+        color: colors.textCream,
         fontSize: 18,
-        lineHeight: 28,
-        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        lineHeight: 26,
         textAlign: 'center',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        fontStyle: 'italic',
     },
-    backButton: {
-        marginBottom: 20, // Reduced as container now has bottom padding
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+    fullInterpretationButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 30,
+        backgroundColor: 'rgba(100, 80, 120, 0.3)', // Slightly more visible lavender tint
         borderRadius: 30,
+        marginTop: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
+        borderColor: colors.lavender + '50',
     },
-    backButtonText: {
-        color: '#fff',
+    buttonContainer: {
+        width: '100%',
+        alignItems: 'center',
+    },
+    fullInterpretationButtonText: {
+        color: colors.textCream,
+        marginRight: 8,
         fontSize: 16,
         fontWeight: '600',
     },
-    closeButton: {
-        position: 'absolute',
-        top: Platform.OS === 'ios' ? 60 : 40,
-        right: 20,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+    saveToJournalButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 30,
+        backgroundColor: 'rgba(100, 80, 120, 0.4)',
+        borderRadius: 30,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: colors.lavender + '60',
+    },
+    saveToJournalButtonText: {
+        color: colors.textCream,
+        marginLeft: 8,
+        fontSize: 16,
+        fontWeight: '600',
+        letterSpacing: 0.5,
+    },
+    interpretationScroll: {
+        marginTop: 20,
+        maxHeight: 200,
+        width: '90%',
         backgroundColor: 'rgba(0,0,0,0.3)',
+        borderRadius: 15,
+        padding: 15,
+    },
+    overlayContainer: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: '#0a0a0a',
+        zIndex: 1000,
+    },
+    overlayHeader: {
+        paddingTop: 20,
+        paddingHorizontal: 20,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 50,
+        height: 100,
+    },
+    closeOverlayButton: {
+        position: 'absolute',
+        left: 20,
+        top: 30,
+    },
+    overlayTitle: {
+        fontSize: 18,
+        color: 'rgba(255,255,255,0.5)',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    },
+    overlayContent: {
+        padding: 30,
+        paddingTop: 10,
+        paddingBottom: 100,
+    },
+    interpretationText: {
+        color: colors.textCream,
+        fontSize: 18,
+        lineHeight: 30,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textAlign: 'left',
+    },
+    closeFullButton: {
+        marginTop: 60,
+        alignSelf: 'center',
+        paddingVertical: 18,
+        paddingHorizontal: 40,
+        backgroundColor: colors.lavender + '20',
+        borderRadius: 35,
+        borderWidth: 1,
+        borderColor: colors.lavender + '40',
+    },
+    closeFullButtonText: {
+        color: colors.lavender,
+        fontSize: 16,
+        fontWeight: '600',
     },
     readingBackButton: {
         position: 'absolute',
@@ -719,5 +892,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 60 : 40,
+        right: 20,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 50,
     },
 });

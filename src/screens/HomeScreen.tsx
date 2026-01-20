@@ -7,15 +7,17 @@ import {
   Animated,
   Dimensions,
   ScrollView,
-  TextInput,
   Platform,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../theme/colors';
-import { useInsights } from '../hooks/useInsights';
+import { colors, spacing } from '../theme/colors';
 import { MYSTERY_CARD_IDS } from '../data/subsets';
-import { ImmersiveScreen } from '../components/ImmersiveScreen';
+import { CelestialBackground } from '../components/CelestialBackground';
+import { HomeCarousel, CarouselItem } from '../components/HomeCarousel';
+import { ActionBottomSheet } from '../components/ActionBottomSheet';
+import { getMoonPhase } from '../utils/moonPhase';
+
+const { width } = Dimensions.get('window');
 
 interface HomeScreenProps {
   onDrawCard: (subsetIds?: string[]) => void;
@@ -23,16 +25,37 @@ interface HomeScreenProps {
   hasReadToday: boolean;
   streak: number;
   onViewGuides?: () => void;
-  onShowSplash?: () => void;
-  insights?: any[];
+  onOpenMystic?: () => void;
   onSingleCard?: () => void;
   onThreeCards?: () => void;
-  onOpenMystic?: () => void;
 }
 
-type TimeContext = 'morning' | 'evening' | 'deeper';
-
-const { width } = Dimensions.get('window');
+const carouselItems: CarouselItem[] = [
+  {
+    id: 'daily',
+    title: 'Karta dne',
+    subtitle: '',
+    greeting: 'Vyložíme karty na stůl?',
+    icon: require('../../assets/home_icons/sun_icon.png'),
+    action: 'daily',
+  },
+  {
+    id: 'custom',
+    title: 'Tvoje otázka',
+    subtitle: '',
+    greeting: 'Zeptej se cokoliv',
+    icon: require('../../assets/home_icons/crystal_ball_icon.png'),
+    action: 'custom',
+  },
+  {
+    id: 'night',
+    title: 'Na dobrou noc',
+    subtitle: '',
+    greeting: 'Chvilka jen pro tebe.',
+    icon: require('../../assets/home_icons/moon_icon.png'),
+    action: 'night',
+  },
+];
 
 export function HomeScreen({
   onDrawCard,
@@ -40,518 +63,159 @@ export function HomeScreen({
   hasReadToday,
   streak,
   onViewGuides,
-  onShowSplash,
-  insights = [],
+  onOpenMystic,
   onSingleCard,
   onThreeCards,
-  onOpenMystic,
 }: HomeScreenProps) {
-  // Get insights from Zustand store
-  const { insights: dynamicInsights } = useInsights();
-
-
+  const [currentIndex, setCurrentIndex] = useState(1);
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedContext, setSelectedContext] = useState<TimeContext>(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'morning';
-    if (hour < 18) return 'morning';
-    return 'evening';
-  });
-  // View mode for Custom Question input
-  const [isAskingQuestion, setIsAskingQuestion] = useState(false);
-  const [question, setQuestion] = useState('');
 
-  // Animation values
+  // Animations
   const fadeIn = useRef(new Animated.Value(0)).current;
-  const cardScale = useRef(new Animated.Value(0.95)).current;
   const buttonY = useRef(new Animated.Value(20)).current;
-  const fabScale = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Entrance animations - subtle and graceful
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(fadeIn, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.spring(cardScale, {
-          toValue: 1,
-          tension: 40,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.spring(buttonY, {
-          toValue: 0,
-          tension: 40,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.spring(fabScale, {
-          toValue: 1,
-          tension: 40,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
+    Animated.parallel([
+      Animated.timing(fadeIn, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonY, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        useNativeDriver: true,
+      }),
     ]).start();
 
-    // Subtle slow pulse animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.02,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Update time every minute
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const formatDate = () => {
-    return currentTime.toLocaleDateString('cs-CZ', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  };
-
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour < 12) return { text: 'Dobré ráno', icon: 'sunny-outline' };
-    if (hour < 18) return { text: 'Krásné odpoledne', icon: 'sunny' };
-    return { text: 'Krásný večer', icon: 'moon-outline' };
-  };
-
-  const getContextualMessage = () => {
-    if (hasReadToday) {
-      return {
-        title: 'Už máš dnešní kartu',
-        subtitle: 'Zítra tě čeká nová ✨',
-      };
-    }
-
-    switch (selectedContext) {
-      case 'morning':
-        return {
-          title: 'Tvoje denní karta čeká',
-          subtitle: '',
-        };
-      case 'evening':
-        return {
-          title: 'Večerníček',
-          subtitle: '',
-        };
-      case 'deeper':
-        return {
-          title: 'Ptej se na cokoliv',
-          subtitle: '',
-        };
-    }
+    if (hour < 12) return { text: 'Dobré ráno', icon: '☀️' };
+    if (hour < 18) return { text: 'Dobré odpoledne', icon: '🌤️' };
+    return { text: 'Dobrý večer', icon: '✨' };
   };
 
   const greeting = getGreeting();
+  const moon = getMoonPhase(currentTime);
+
+  const handleMainDrawPress = () => {
+    const item = carouselItems[currentIndex];
+    if (item.action === 'custom') {
+      setIsModalVisible(true);
+    } else if (item.action === 'daily') {
+      onDrawCard();
+    } else {
+      onDrawCard(MYSTERY_CARD_IDS);
+    }
+  };
+
+  const currentItem = carouselItems[currentIndex];
 
   return (
-    <ImmersiveScreen
-      screenName="home"
-    >
+    <CelestialBackground>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={[styles.content, { opacity: fadeIn }]}>
-          {/* Header Area */}
+        <Animated.View style={[styles.container, { opacity: fadeIn }]}>
+          {/* Header */}
           <View style={styles.header}>
-            <View style={styles.headerTopCenter}>
-              <Text style={styles.headerGreeting}>{greeting.text}</Text>
-            </View>
-            <View style={styles.streakBadgeContainer}>
-              {streak > 0 && (
-                <View style={styles.streakBadgeSmall}>
-                  <Ionicons name="flame" size={12} color={colors.textCream} />
-                  <Text style={styles.streakBadgeText}>{streak}</Text>
-                </View>
-              )}
+            <Text style={styles.appName}>Tarotka</Text>
+            <View style={styles.statusBar}>
+              <View style={styles.moonInfo}>
+                <Text style={styles.statusIcon}>{moon.icon}</Text>
+                <Text style={styles.statusText}>{moon.name}</Text>
+              </View>
             </View>
           </View>
 
-          {/* Main Content */}
-          <View style={styles.mainContent}>
-            {/* Card Visualization */}
-            <Animated.View
-              style={[
-                styles.cardContainer,
-                {
-                  transform: [{ scale: Animated.multiply(cardScale, pulseAnim) }],
-                },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => onDrawCard()}
-                disabled={hasReadToday}
-                activeOpacity={0.9}
-                style={styles.mysticCard}
-              >
-                <View style={styles.mysticCardInner}>
-                  <Ionicons
-                    name="sunny-outline"
-                    size={80}
-                    color="rgba(255,255,255,0.4)"
-                  />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* NEW Tab-like selector */}
-            <View style={styles.tabSelector}>
-              {(['morning', 'evening', 'deeper'] as const).map((ctx) => (
-                <TouchableOpacity
-                  key={ctx}
-                  onPress={() => setSelectedContext(ctx)}
-                  style={styles.tabItem}
-                >
-                  <Text style={[
-                    styles.tabText,
-                    selectedContext === ctx && styles.tabTextActive
-                  ]}>
-                    {ctx === 'morning' ? 'Ráno' : ctx === 'evening' ? 'Večer' : 'Otázka'}
-                  </Text>
-                  {selectedContext === ctx && <View style={styles.tabUnderline} />}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Context Caption */}
-            <Text style={styles.contextItalicCaption}>
-              {hasReadToday ? 'Dnešní karta vyložena' :
-                selectedContext === 'morning' ? 'Tvoje dnešní karta čeká' :
-                  selectedContext === 'evening' ? 'Reflexe před spaním' :
-                    'Zeptej se na cokoliv'}
+          {/* Carousel Section */}
+          <View style={styles.carouselSection}>
+            <Text style={styles.dynamicGreeting}>
+              {currentItem.greeting || greeting.text}
             </Text>
-
-            {/* Custom Question Input (Integrated into the flow) */}
-            {selectedContext === 'deeper' && !hasReadToday && (
-              <View style={styles.questionInputContainer}>
-                <TextInput
-                  style={styles.questionInput}
-                  placeholder="Karty ti naslouchají!"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
-                  value={question}
-                  onChangeText={setQuestion}
-                  multiline
-                  maxLength={150}
-                />
-              </View>
-            )}
-
-            {/* Main CTA Button - "Vyložit kartu" */}
-            <Animated.View
-              style={{
-                transform: [{ translateY: buttonY }],
-                width: '100%',
-                alignItems: 'center',
-                marginTop: 16, // Reduced from 32
-                marginBottom: 20,
+            <HomeCarousel
+              items={carouselItems}
+              onIndexChange={setCurrentIndex}
+              currentIndex={currentIndex}
+              onItemPress={(id) => {
+                if (id === 'daily') onDrawCard();
+                if (id === 'custom') setIsModalVisible(true);
+                if (id === 'night') onOpenMystic?.();
               }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  if (selectedContext === 'deeper' && question.trim()) {
-                    onAskUniverse?.(question);
-                    setQuestion('');
-                  } else {
-                    onDrawCard(selectedContext === 'evening' ? MYSTERY_CARD_IDS : undefined);
-                  }
-                }}
-                disabled={hasReadToday || (selectedContext === 'deeper' && !question.trim())}
-                style={[
-                  styles.mysticButton,
-                  hasReadToday && styles.mysticButtonDisabled,
-                ]}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.mysticButtonText}>
-                  {hasReadToday ? 'Vyloženo' : 'Vyložit kartu'}
-                </Text>
-                {!hasReadToday && (
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color={colors.textCream}
-                    style={{ marginLeft: 12 }}
-                  />
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-            {/* Reading Types - Minimal List */}
-            {onSingleCard && onThreeCards && (
-              <View style={styles.readingTypesContainer}>
-                <View style={styles.readingLinks}>
-                  <TouchableOpacity onPress={onSingleCard} style={styles.textLink}>
-                    <Text style={styles.textLinkText}>Jedna karta</Text>
-                  </TouchableOpacity>
-                  <View style={styles.verticalDivider} />
-                  <TouchableOpacity onPress={onThreeCards} style={styles.textLink}>
-                    <Text style={styles.textLinkText}>Tři karty</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+            />
           </View>
         </Animated.View>
       </ScrollView>
 
-      {/* Floating Action Button - Cat Guides */}
-      {onViewGuides && (
-        <Animated.View
-          style={[
-            styles.fab,
-            {
-              transform: [{ scale: fabScale }],
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={onViewGuides}
-            activeOpacity={0.8}
-            style={styles.fabButton}
-          >
-            <Text style={styles.fabEmoji}>🐱</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
-
-      {/* Dev Splash Button */}
-      {onShowSplash && (
-        <TouchableOpacity
-          onPress={onShowSplash}
-          style={styles.devButton}
-          activeOpacity={0.5}
-        />
-      )}
-    </ImmersiveScreen>
+      <ActionBottomSheet
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        onSubmit={(q) => onAskUniverse?.(q)}
+        title="Vaše otázka"
+        subtitle="Soustřeďte se na to, co vás zajímá"
+      />
+    </CelestialBackground>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 60,
-    paddingBottom: 180, // Substantially increased to prevent nav bar overlap
+    paddingBottom: 100,
   },
-  content: {
+  container: {
     flex: 1,
-    alignItems: 'center',
   },
   header: {
-    width: '100%',
-    height: 80,
-    flexDirection: 'row',
+    paddingTop: 60,
+    paddingBottom: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10, // Reduced from 20
-    marginBottom: 20, // Reduced from 40
-    position: 'relative',
+    paddingHorizontal: 24,
   },
-  headerTopCenter: {
-    alignItems: 'center',
-  },
-  headerGreeting: {
-    fontSize: 32,
-    color: colors.textCream,
+  appName: {
+    fontSize: 40,
+    color: '#f5f0f6',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    fontWeight: '400',
-  },
-  streakBadgeContainer: {
-    position: 'absolute',
-    right: -10, // Moved further right (into padding area)
-    top: -5, // Moved up
-  },
-  streakBadgeSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  streakBadgeText: {
-    color: colors.textCream,
-    fontSize: 11,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  mainContent: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  cardContainer: {
-    marginBottom: 24, // Reduced from 40
-    alignItems: 'center',
-  },
-  mysticCard: {
-    width: width * 0.48, // Reduced from 0.52
-    height: width * 0.72, // Reduced from 0.8
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 4,
-  },
-  mysticCardInner: {
-    width: '100%',
-    height: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tabSelector: {
-    flexDirection: 'row',
-    gap: 20,
-    marginBottom: 16, // Reduced from 24
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabItem: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  tabText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-  },
-  tabTextActive: {
-    color: colors.textCream,
-    fontWeight: '600',
-  },
-  tabUnderline: {
-    position: 'absolute',
-    bottom: 0,
-    width: 24,
-    height: 1.5,
-    backgroundColor: '#fff',
-  },
-  contextItalicCaption: {
-    fontSize: 16,
-    color: colors.textCream,
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    fontStyle: 'italic',
-    marginBottom: 20, // Tightened
+    letterSpacing: 4,
+    marginBottom: 15,
     textAlign: 'center',
-    opacity: 0.9,
   },
-  mysticButton: {
-    width: width * 0.7,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  statusBar: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  moonInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
-  mysticButtonText: {
-    color: colors.textCream,
-    fontSize: 19,
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    fontWeight: '400',
+  statusText: {
+    color: '#c9b8d4',
+    fontSize: 13,
+    letterSpacing: 1,
   },
-  mysticButtonDisabled: {
-    opacity: 0.3,
-  },
-  questionInputContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  questionInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 16,
+  statusIcon: {
     fontSize: 16,
-    color: colors.textCream,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  carouselSection: {
+    flex: 1,
+    paddingVertical: 20,
+  },
+  dynamicGreeting: {
+    textAlign: 'center',
+    fontSize: 20,
+    color: '#f5f0f6',
+    marginBottom: 30,
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-  },
-  readingTypesContainer: {
-    marginTop: 40,
-    width: '100%',
-    alignItems: 'center',
-    opacity: 0.5,
-  },
-  readingLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 32,
-  },
-  verticalDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  textLink: {
-    padding: 8,
-  },
-  textLinkText: {
-    color: colors.textCream,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    fontWeight: '400',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 24,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  fabButton: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  fabEmoji: {
-    fontSize: 24,
-  },
-  devButton: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    opacity: 0.05,
+    letterSpacing: 2,
   },
 });

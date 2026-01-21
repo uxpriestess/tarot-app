@@ -29,23 +29,23 @@ const READING_TYPES = {
 export default async function handler(req, res) {
     // DEBUG: Log request method
     console.log('Request method:', req.method);
-    
+
     // DEBUG endpoint - remove this after testing!
     if (req.method === 'GET') {
-        return res.status(200).json({ 
+        return res.status(200).json({
             status: 'Backend is alive!',
             hasApiKey: !!process.env.ANTHROPIC_API_KEY,
             keyStart: process.env.ANTHROPIC_API_KEY?.substring(0, 20) || 'MISSING'
         });
     }
-    
+
     if (req.method !== 'POST') {
         return res.status(405).json({ answer: 'Method not allowed' });
     }
 
     try {
         const { question, cards, mode = 'daily', spreadName } = req.body;
-        
+
         // DEBUG: Log what we received
         console.log('=== REQUEST DATA ===');
         console.log('Mode:', mode);
@@ -55,8 +55,8 @@ export default async function handler(req, res) {
 
         if (!cards || !Array.isArray(cards)) {
             console.log('ERROR: Invalid cards data');
-            return res.status(400).json({ 
-                answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' 
+            return res.status(400).json({
+                answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?'
             });
         }
 
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
                 answer: 'Chyba konfigurace serveru. Zkuste to prosím později.'
             });
         }
-        
+
         console.log('API Key exists:', !!process.env.ANTHROPIC_API_KEY);
         console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY.substring(0, 20));
 
@@ -80,13 +80,13 @@ export default async function handler(req, res) {
 
         const systemPrompt = buildSystemPrompt(mode);
         const userPrompt = buildUserPrompt(question, cards, spreadName, mode);
-        
+
         console.log('System prompt length:', systemPrompt.length);
         console.log('User prompt length:', userPrompt.length);
 
         console.log('Calling Claude API...');
         const response = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20240620',
+            model: 'claude-sonnet-4-20250514',  // ✅ Use the newest!
             max_tokens: 1024,
             system: systemPrompt,
             messages: [
@@ -101,19 +101,19 @@ export default async function handler(req, res) {
         console.log('First 100 chars:', answer.substring(0, 100));
 
         return res.status(200).json({ answer });
-        
+
     } catch (error) {
         // DETAILED ERROR LOGGING
         console.error('=== ERROR DETAILS ===');
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
-        
+
         if (error.response) {
             console.error('API Response status:', error.response.status);
             console.error('API Response data:', error.response.data);
         }
-        
+
         // Return error to client for debugging
         return res.status(500).json({
             answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?',

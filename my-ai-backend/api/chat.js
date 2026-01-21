@@ -24,29 +24,67 @@ const READING_TYPES = {
 };
 
 /**
- * Main API Handler for ChatGPT/Claude integration
+ * Main API Handler - WITH DEBUG LOGGING
  */
 export default async function handler(req, res) {
+    // DEBUG: Log request method
+    console.log('Request method:', req.method);
+    
+    // DEBUG endpoint - remove this after testing!
+    if (req.method === 'GET') {
+        return res.status(200).json({ 
+            status: 'Backend is alive!',
+            hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+            keyStart: process.env.ANTHROPIC_API_KEY?.substring(0, 20) || 'MISSING'
+        });
+    }
+    
     if (req.method !== 'POST') {
         return res.status(405).json({ answer: 'Method not allowed' });
     }
 
     try {
         const { question, cards, mode = 'daily', spreadName } = req.body;
-        console.log(`--- API Request: ${mode} ---`);
-        console.log("Cards:", JSON.stringify(cards));
+        
+        // DEBUG: Log what we received
+        console.log('=== REQUEST DATA ===');
+        console.log('Mode:', mode);
+        console.log('Question:', question);
+        console.log('Cards:', JSON.stringify(cards, null, 2));
+        console.log('SpreadName:', spreadName);
 
         if (!cards || !Array.isArray(cards)) {
-            return res.status(400).json({ answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' });
+            console.log('ERROR: Invalid cards data');
+            return res.status(400).json({ 
+                answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' 
+            });
         }
 
+        // DEBUG: Check API key
+        if (!process.env.ANTHROPIC_API_KEY) {
+            console.error('FATAL: ANTHROPIC_API_KEY is not set!');
+            return res.status(500).json({
+                answer: 'Chyba konfigurace serveru. Zkuste to prosím později.'
+            });
+        }
+        
+        console.log('API Key exists:', !!process.env.ANTHROPIC_API_KEY);
+        console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY.substring(0, 20));
+
+        // Initialize Anthropic
+        console.log('Initializing Anthropic client...');
         const anthropic = new Anthropic({
             apiKey: process.env.ANTHROPIC_API_KEY,
         });
+        console.log('Anthropic client created successfully');
 
         const systemPrompt = buildSystemPrompt(mode);
         const userPrompt = buildUserPrompt(question, cards, spreadName, mode);
+        
+        console.log('System prompt length:', systemPrompt.length);
+        console.log('User prompt length:', userPrompt.length);
 
+        console.log('Calling Claude API...');
         const response = await anthropic.messages.create({
             model: 'claude-3-5-sonnet-20240620',
             max_tokens: 1024,
@@ -56,18 +94,37 @@ export default async function handler(req, res) {
             ],
             temperature: 0.7,
         });
+        console.log('Claude API responded successfully');
 
         let answer = response.content[0].text;
-        console.log("AI Raw Output (first 100 chars):", answer.substring(0, 100));
-
-        // For love_3_card, just return the plain text with --- delimiters
-        // No JSON parsing needed since we're asking for plain text now
+        console.log('Answer received, length:', answer.length);
+        console.log('First 100 chars:', answer.substring(0, 100));
 
         return res.status(200).json({ answer });
+        
     } catch (error) {
-        console.error('Claude API Error:', error);
+        // DETAILED ERROR LOGGING
+        console.error('=== ERROR DETAILS ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        if (error.response) {
+            console.error('API Response status:', error.response.status);
+            console.error('API Response data:', error.response.data);
+        }
+        
+        // Return error to client for debugging
         return res.status(500).json({
-            answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?'
+            answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?',
+            debug: {
+                error: error.message,
+                name: error.name,
+                // Only include in development
+                ...(process.env.NODE_ENV !== 'production' && {
+                    stack: error.stack
+                })
+            }
         });
     }
 }
@@ -81,7 +138,7 @@ function buildUserPrompt(question, cards, spreadName, mode) {
         return `Karta ${idx + 1}${labelStr}: ${c.nameCzech || c.name} (${c.position === 'reversed' ? 'Obrácená' : 'Vzpřímená'})`;
     }).join('\n');
 
-    let prompt = `OTÁZKA UŽIVATELE: "${question}"\n\nVYTAŽENÉ KARTY:\n${cardsInfo}`;
+    let prompt = `OTÁZKA UŽIVATELE: "${question || 'Obecný výklad'}"\n\nVYTAŽENÉ KARTY:\n${cardsInfo}`;
 
     if (spreadName) {
         prompt += `\n\nTYP VÝKLADU: ${spreadName}`;
@@ -142,9 +199,6 @@ Include emotional validation if appropriate.
 
 D. NEAR-FUTURE / PERSPECTIVE / TIP (1-2 sentences)
 Practical takeaway, likely development, or perspective shift.
-Examples:
-- "Dává smysl počkat pár týdnů a sledovat, jak se to vyvíjí."
-- "Možná by stálo za to přiznat si, co doopravdy chceš."
 
 LENGTH: 160–180 words MAX. 4-5 paragraphs.
 TONE: Empathetic, direct, human – like a friend who gets it.
@@ -154,7 +208,7 @@ TONE: Empathetic, direct, human – like a friend who gets it.
 ## 3️⃣ LOVE 3-CARD STRUCTURE (PLAIN TEXT):
 
 Return exactly 3 paragraphs separated by "---" delimiter.
-NO markdown formatting (no ***, no \`\`\`, no **). Just plain Czech text.
+NO markdown formatting. Just plain Czech text.
 
 Format:
 [Paragraph 1 about "Ty" - 50-60 words]
@@ -165,23 +219,10 @@ Format:
 
 CRITICAL RULES:
 - Each paragraph stands alone
-- Do NOT reference other cards within a paragraph
 - Natural, modern Czech (ty-forma)
 - Brief, reflective, non-judgmental
-- NO markdown symbols anywhere (no *, no \`, no #)
+- NO markdown symbols
 - Plain text ONLY
-
-CONTENT:
-1. Ty: How user shows up in relationship
-2. Partner: Partner's role/energy in the relationship
-3. Tvůj vztah: Overall relationship dynamic
-
-Example output:
-Do vztahu jdeš s otevřeným srdcem a snahou mít věci v klidu vyasněné. Když něco cítíš, chceš to řešit, ne schovávat pod koberec. Díky tomu je mezi vámi jasno, i když to někdy může působit trochu intenzivně.
----
-Tvůj partner to bere víc v klidu a emoce si nechává projít hlavou, než je pustí ven. Může působit rezervovaně, ale často jen potřebuje víc času a prostoru. Jeho přístup do vztahu vnáší lehkost, i když vás občas rozhodí rozdílné tempo.
----
-Mezi vámi je vidět snaha se potkat někde uprostřed. Jeden jde víc na přímo, druhý opatrněji, ale když si tohle uvědomíte, může vztah fungovat přirozeně a bez zbytečného tlaku.
  `;
 
     const moonPhaseShaper = `
@@ -190,7 +231,6 @@ Mezi vámi je vidět snaha se potkat někde uprostřed. Jeden jde víc na přím
 LENGTH: 140–160 words MAX.
 `;
 
-    // Select appropriate shaper based on mode
     let responseShaper;
     if (mode === 'daily') {
         responseShaper = dailyShaper;
@@ -203,7 +243,7 @@ LENGTH: 140–160 words MAX.
     } else if (mode === 'moon_phase') {
         responseShaper = moonPhaseShaper;
     } else {
-        responseShaper = dailyShaper; // Default fallback
+        responseShaper = dailyShaper;
     }
 
     return `
@@ -251,7 +291,7 @@ Tarotka does NOT use fatalistic language or claim absolute destiny. She avoid wa
 
 ---
 
-        ${responseShaper}
+${responseShaper}
 
 ---
 
@@ -275,7 +315,7 @@ Before sending every response, verify:
 1. ✅ Right structure for readingType?
 2. ✅ Within word limit?
 3. ✅ Sounds like a human, not a system?
-4. ✅ Mobile-friendly paragraphs? (short, spaced)
+4. ✅ Mobile-friendly paragraphs?
 5. ✅ Specific to the card drawn?
 6. ✅ Actionable or insightful?
 7. ✅ Natural Czech?

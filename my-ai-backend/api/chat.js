@@ -72,26 +72,26 @@ export default async function handler(req, res) {
             try {
                 // Strip markdown code blocks if present
                 let cleanAnswer = answer.replace(/```json\s?|```/g, '').trim();
-                
+
                 // Find JSON object if Claude added text around it
                 const jsonMatch = cleanAnswer.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     cleanAnswer = jsonMatch[0];
                 }
-                
+
                 // Parse the JSON
                 const parsed = JSON.parse(cleanAnswer);
-                
+
                 // Convert to array format that React expects
                 const paragraphs = [
                     parsed.ty || '',
                     parsed.partner || '',
                     parsed.vztah || ''
                 ].filter(p => p.length > 0);
-                
+
                 // Return as delimited string (so universe.ts doesn't need changes)
                 answer = paragraphs.join('\n---\n');
-                
+
                 console.log('Converted JSON to paragraphs:', paragraphs.length);
                 console.log('Para 1:', paragraphs[0]?.substring(0, 50));
                 console.log('Para 2:', paragraphs[1]?.substring(0, 50));
@@ -104,13 +104,13 @@ export default async function handler(req, res) {
         }
 
         return res.status(200).json({ answer });
-        
+
     } catch (error) {
         console.error('=== ERROR DETAILS ===');
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
-        
+
         return res.status(500).json({
             answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?'
         });

@@ -24,43 +24,22 @@ const READING_TYPES = {
 };
 
 /**
- * Main API Handler - WITH DEBUG LOGGING
+ * Main API Handler
  */
 export default async function handler(req, res) {
-    // DEBUG: Log request method
-    console.log('Request method:', req.method);
-
-    // DEBUG endpoint - remove this after testing!
-    if (req.method === 'GET') {
-        return res.status(200).json({
-            status: 'Backend is alive!',
-            hasApiKey: !!process.env.ANTHROPIC_API_KEY,
-            keyStart: process.env.ANTHROPIC_API_KEY?.substring(0, 20) || 'MISSING'
-        });
-    }
-
     if (req.method !== 'POST') {
         return res.status(405).json({ answer: 'Method not allowed' });
     }
 
     try {
         const { question, cards, mode = 'daily', spreadName } = req.body;
-
-        // DEBUG: Log what we received
-        console.log('=== REQUEST DATA ===');
-        console.log('Mode:', mode);
-        console.log('Question:', question);
-        console.log('Cards:', JSON.stringify(cards, null, 2));
-        console.log('SpreadName:', spreadName);
+        console.log(`--- API Request: ${mode} ---`);
+        console.log("Cards:", JSON.stringify(cards));
 
         if (!cards || !Array.isArray(cards)) {
-            console.log('ERROR: Invalid cards data');
-            return res.status(400).json({
-                answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?'
-            });
+            return res.status(400).json({ answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' });
         }
 
-        // DEBUG: Check API key
         if (!process.env.ANTHROPIC_API_KEY) {
             console.error('FATAL: ANTHROPIC_API_KEY is not set!');
             return res.status(500).json({
@@ -68,25 +47,15 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log('API Key exists:', !!process.env.ANTHROPIC_API_KEY);
-        console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY.substring(0, 20));
-
-        // Initialize Anthropic
-        console.log('Initializing Anthropic client...');
         const anthropic = new Anthropic({
             apiKey: process.env.ANTHROPIC_API_KEY,
         });
-        console.log('Anthropic client created successfully');
 
         const systemPrompt = buildSystemPrompt(mode);
         const userPrompt = buildUserPrompt(question, cards, spreadName, mode);
 
-        console.log('System prompt length:', systemPrompt.length);
-        console.log('User prompt length:', userPrompt.length);
-
-        console.log('Calling Claude API...');
         const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',  // ✅ Use the newest!
+            model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
             system: systemPrompt,
             messages: [
@@ -94,37 +63,56 @@ export default async function handler(req, res) {
             ],
             temperature: 0.7,
         });
-        console.log('Claude API responded successfully');
 
         let answer = response.content[0].text;
-        console.log('Answer received, length:', answer.length);
-        console.log('First 100 chars:', answer.substring(0, 100));
+        console.log("AI Raw Output (first 100 chars):", answer.substring(0, 100));
+
+        // Parse JSON for love readings
+        if (mode === 'love_3_card') {
+            try {
+                // Strip markdown code blocks if present
+                let cleanAnswer = answer.replace(/```json\s?|```/g, '').trim();
+                
+                // Find JSON object if Claude added text around it
+                const jsonMatch = cleanAnswer.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    cleanAnswer = jsonMatch[0];
+                }
+                
+                // Parse the JSON
+                const parsed = JSON.parse(cleanAnswer);
+                
+                // Convert to array format that React expects
+                const paragraphs = [
+                    parsed.ty || '',
+                    parsed.partner || '',
+                    parsed.vztah || ''
+                ].filter(p => p.length > 0);
+                
+                // Return as delimited string (so universe.ts doesn't need changes)
+                answer = paragraphs.join('\n---\n');
+                
+                console.log('Converted JSON to paragraphs:', paragraphs.length);
+                console.log('Para 1:', paragraphs[0]?.substring(0, 50));
+                console.log('Para 2:', paragraphs[1]?.substring(0, 50));
+                console.log('Para 3:', paragraphs[2]?.substring(0, 50));
+            } catch (e) {
+                console.error('JSON parsing error for love reading:', e);
+                console.error('Raw answer:', answer);
+                // If parsing fails, return as-is and hope for the best
+            }
+        }
 
         return res.status(200).json({ answer });
-
+        
     } catch (error) {
-        // DETAILED ERROR LOGGING
         console.error('=== ERROR DETAILS ===');
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
-
-        if (error.response) {
-            console.error('API Response status:', error.response.status);
-            console.error('API Response data:', error.response.data);
-        }
-
-        // Return error to client for debugging
+        
         return res.status(500).json({
-            answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?',
-            debug: {
-                error: error.message,
-                name: error.name,
-                // Only include in development
-                ...(process.env.NODE_ENV !== 'production' && {
-                    stack: error.stack
-                })
-            }
+            answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?'
         });
     }
 }
@@ -158,15 +146,12 @@ function buildSystemPrompt(mode) {
 
 A. CORE ENERGY (1 sentence)
 What is the "vibe" of this card for today?
-Example: "Dnešek bude o hledání rovnováhy mezi tím, co chceš ty, a co po tobě chce okolí."
 
 B. INTERPRETATION (2-3 sentences)
 Explain the specific meaning (upright or reversed) in a relatable way.
-Connect the card's symbolism to the user's likely mood or situation.
 
 C. THE "NUDGE" / TIP (1-2 sentences)
 One practical thing to do or a specific perspective to take.
-Example: "Zkus si dnes aspoň na půl hodiny vypnout telefon a jen tak být."
 
 LENGTH: 110–130 words MAX. 4 short paragraphs.
 TONE: Empathetic, direct, human – like a friend who gets it.
@@ -186,44 +171,41 @@ LENGTH: 160-180 words MAX.
 ## CUSTOM QUESTION STRUCTURE:
 
 A. DIRECT ANSWER (1-2 sentences)
-Address the essence of the user's question immediately through the card.
-
 B. DEPTH & CONTEXT (2-3 sentences)
-Elaborate on why this card appeared for this specific question.
-Connect symbolism to their specific problem or curiosity.
-
 C. PERSONAL PATTERNS (2 sentences)
-Directly answer their question through the card.
-Focus on what the card says about THEIR situation, patterns, blocks, or likely directions.
-Include emotional validation if appropriate.
-
 D. NEAR-FUTURE / PERSPECTIVE / TIP (1-2 sentences)
-Practical takeaway, likely development, or perspective shift.
 
 LENGTH: 160–180 words MAX. 4-5 paragraphs.
 TONE: Empathetic, direct, human – like a friend who gets it.
 `;
 
     const love3CardShaper = `
-## 3️⃣ LOVE 3-CARD STRUCTURE (PLAIN TEXT):
+## 3️⃣ LOVE 3-CARD STRUCTURE (JSON):
 
-Return exactly 3 paragraphs separated by "---" delimiter.
-NO markdown formatting. Just plain Czech text.
+Return a JSON object with exactly 3 fields.
+NO conversational text before or after. ONLY the JSON object.
 
 Format:
-[Paragraph 1 about "Ty" - 50-60 words]
----
-[Paragraph 2 about "Partner" - 50-60 words]
----
-[Paragraph 3 about "Tvůj vztah" - 50-60 words]
+{
+  "ty": "50-60 word paragraph about how user shows up in relationship",
+  "partner": "50-60 word paragraph about partner's role/energy in relationship", 
+  "vztah": "50-60 word paragraph about overall relationship dynamic"
+}
 
 CRITICAL RULES:
-- Each paragraph stands alone
+- Return ONLY valid JSON, nothing else
+- Each field is plain Czech text (no markdown symbols like *, \`, #)
 - Natural, modern Czech (ty-forma)
 - Brief, reflective, non-judgmental
-- NO markdown symbols
-- Plain text ONLY
- `;
+- 50-60 words per field
+
+Example:
+{
+  "ty": "Do vztahu jdeš s otevřeným srdcem a snahou mít věci v klidu vysvětlené. Když něco cítíš, chceš to řešit, ne schovávat pod koberec. Díky tomu je mezi vámi jasno, i když to někdy může působit trochu intenzivně.",
+  "partner": "Tvůj partner to bere víc v klidu a emoce si nechává projít hlavou, než je pustí ven. Může působit rezervovaně, ale často jen potřebuje víc času a prostoru. Jeho přístup do vztahu vnáší lehkost.",
+  "vztah": "Mezi vámi je vidět snaha se potkat někde uprostřed. Jeden jde víc na přímo, druhý opatrněji, ale když si tohle uvědomíte, může vztah fungovat přirozeně a bez zbytečného tlaku."
+}
+`;
 
     const moonPhaseShaper = `
 ## 4️⃣ MOON PHASE STRUCTURE:
@@ -299,14 +281,6 @@ ${responseShaper}
 
 CURRENT LIMIT: ~${readingType.maxWords} words max, ${readingType.paragraphs} paragraphs.
 
-If you exceed these limits:
-1. Shorten explanations
-2. Remove repetition
-3. Cut fluff
-4. Prioritize clarity over detail
-
-Never sacrifice clarity for length, but never ramble either.
-
 ---
 
 ## ✅ FINAL OUTPUT CHECK
@@ -317,8 +291,7 @@ Before sending every response, verify:
 3. ✅ Sounds like a human, not a system?
 4. ✅ Mobile-friendly paragraphs?
 5. ✅ Specific to the card drawn?
-6. ✅ Actionable or insightful?
-7. ✅ Natural Czech?
+6. ✅ Natural Czech?
 
 If ANY check fails → rewrite.
 

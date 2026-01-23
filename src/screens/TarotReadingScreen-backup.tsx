@@ -142,7 +142,7 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
         console.log(`✅ Card ${idx} flipped. Meaning:`, cardMeanings[idx]?.substring(0, 50));
     };
 
-    // ✅ Pre-fetch for Love spread with proper fallback
+    // ✅ Pre-fetch JSON for Love spread
     const preFetchLoveMeanings = async (cards: any[], spread: Spread) => {
         console.log('=== PRE-FETCHING LOVE MEANINGS ===');
         setIsLoadingMeanings(true);
@@ -162,74 +162,39 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
 
             console.log('Raw AI response:', reading.substring(0, 100));
 
-            // ✅ Try JSON parsing first
+            // Parse JSON response
             try {
-                // Clean up the response
-                let cleanResponse = reading.trim();
+                // Strip markdown code blocks if present
+                let cleanResponse = reading.replace(/```json\s?|```/g, '').trim();
 
-                // Remove markdown code blocks
-                cleanResponse = cleanResponse.replace(/```json\s?/g, '').replace(/```/g, '');
-
-                // Find JSON boundaries (first { to last })
-                const firstBrace = cleanResponse.indexOf('{');
-                const lastBrace = cleanResponse.lastIndexOf('}');
-
-                if (firstBrace === -1 || lastBrace === -1) {
-                    throw new Error('No JSON object found in response');
+                // Find JSON object
+                const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    cleanResponse = jsonMatch[0];
                 }
 
-                // Extract just the JSON part
-                cleanResponse = cleanResponse.substring(firstBrace, lastBrace + 1);
-
-                console.log('Attempting JSON parse...');
-
-                // Parse the JSON
                 const parsed = JSON.parse(cleanResponse);
-                console.log('✅ JSON parsed successfully. Keys:', Object.keys(parsed));
+                console.log('Parsed JSON:', Object.keys(parsed));
 
                 // Convert to array format
                 const meanings = [
                     parsed.ty || '',
                     parsed.partner || '',
                     parsed.vztah || ''
-                ];
+                ].filter(m => m.length > 0);
 
-                // Validate we have all 3
-                const validMeanings = meanings.filter(m => m.length > 10);
+                console.log(`✅ Extracted ${meanings.length} meanings`);
+                console.log('Meaning 1 (Ty):', meanings[0]?.substring(0, 50));
+                console.log('Meaning 2 (Partner):', meanings[1]?.substring(0, 50));
+                console.log('Meaning 3 (Vztah):', meanings[2]?.substring(0, 50));
 
-                if (validMeanings.length === 3) {
-                    console.log('✅ All 3 meanings extracted from JSON');
-                    console.log('Ty:', meanings[0].substring(0, 50));
-                    console.log('Partner:', meanings[1].substring(0, 50));
-                    console.log('Vztah:', meanings[2].substring(0, 50));
-                    setCardMeanings(meanings);
-                } else {
-                    console.warn(`⚠️ Only ${validMeanings.length}/3 valid meanings in JSON`);
-                    setCardMeanings(meanings);
-                }
+                setCardMeanings(meanings);
 
             } catch (parseError) {
                 console.error('❌ JSON parse error:', parseError);
-                console.log('⚠️ Falling back to delimiter parsing...');
-
-                // ✅ FALLBACK: Parse by delimiter
-                const paragraphs = reading
-                    .split('---')
-                    .map(p => p.trim())
-                    .filter(p => p.length > 0);
-
-                console.log(`✅ Delimiter parsing: found ${paragraphs.length} paragraphs`);
-
-                if (paragraphs.length >= 3) {
-                    console.log('Para 1 (Ty):', paragraphs[0].substring(0, 50));
-                    console.log('Para 2 (Partner):', paragraphs[1].substring(0, 50));
-                    console.log('Para 3 (Vztah):', paragraphs[2].substring(0, 50));
-                    setCardMeanings(paragraphs.slice(0, 3));
-                } else {
-                    console.error(`⚠️ Expected 3 paragraphs, got ${paragraphs.length}`);
-                    // Still set what we have
-                    setCardMeanings(paragraphs);
-                }
+                console.error('Attempted to parse:', reading);
+                // Fallback: show raw response
+                setCardMeanings([reading, '', '']);
             }
 
         } catch (error) {
@@ -429,6 +394,7 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
     );
 };
 
+// Styles (same as before but with labelAbove)
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
     centerContent: { flex: 1, padding: spacing.md, paddingTop: 60 },

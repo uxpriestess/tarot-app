@@ -70,17 +70,41 @@ export default async function handler(req, res) {
         // Parse JSON for love readings
         if (mode === 'love_3_card') {
             try {
-                // Strip markdown code blocks if present
-                let cleanAnswer = answer.replace(/```json\s?|```/g, '').trim();
+                console.log('=== PARSING LOVE READING ===');
+                console.log('Raw answer length:', answer.length);
+                console.log('First 100 chars:', answer.substring(0, 100));
 
-                // Find JSON object if Claude added text around it
-                const jsonMatch = cleanAnswer.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    cleanAnswer = jsonMatch[0];
+                // Clean up the response
+                let cleanAnswer = answer.trim();
+
+                // Remove markdown code blocks
+                cleanAnswer = cleanAnswer.replace(/```json\s?/g, '').replace(/```/g, '');
+
+                // Find JSON boundaries (first { to last })
+                const firstBrace = cleanAnswer.indexOf('{');
+                const lastBrace = cleanAnswer.lastIndexOf('}');
+
+                if (firstBrace === -1 || lastBrace === -1) {
+                    throw new Error('No JSON object found in response');
                 }
+
+                // Extract just the JSON part
+                cleanAnswer = cleanAnswer.substring(firstBrace, lastBrace + 1);
+
+                console.log('Cleaned JSON:', cleanAnswer.substring(0, 100));
 
                 // Parse the JSON
                 const parsed = JSON.parse(cleanAnswer);
+                console.log('✅ JSON parsed successfully');
+                console.log('Keys found:', Object.keys(parsed));
+
+                // Validate required fields
+                if (!parsed.ty || !parsed.partner || !parsed.vztah) {
+                    console.warn('⚠️ Missing required fields');
+                    console.warn('Has ty:', !!parsed.ty);
+                    console.warn('Has partner:', !!parsed.partner);
+                    console.warn('Has vztah:', !!parsed.vztah);
+                }
 
                 // Convert to array format that React expects
                 const paragraphs = [
@@ -92,14 +116,23 @@ export default async function handler(req, res) {
                 // Return as delimited string (so universe.ts doesn't need changes)
                 answer = paragraphs.join('\n---\n');
 
-                console.log('Converted JSON to paragraphs:', paragraphs.length);
-                console.log('Para 1:', paragraphs[0]?.substring(0, 50));
-                console.log('Para 2:', paragraphs[1]?.substring(0, 50));
-                console.log('Para 3:', paragraphs[2]?.substring(0, 50));
-            } catch (e) {
-                console.error('JSON parsing error for love reading:', e);
-                console.error('Raw answer:', answer);
-                // If parsing fails, return as-is and hope for the best
+                console.log('✅ Converted to', paragraphs.length, 'paragraphs');
+                console.log('Paragraph lengths:', paragraphs.map(p => p.split(' ').length + ' words'));
+
+            } catch (parseError) {
+                console.error('❌ JSON parsing failed:', parseError.message);
+                console.error('Error type:', parseError.name);
+                console.error('Raw answer (first 200 chars):', answer.substring(0, 200));
+
+                // Check if it's already delimiter-separated
+                if (answer.includes('---')) {
+                    console.log('⚠️ Response appears to be delimiter-separated, not JSON');
+                    console.log('Using as-is (fallback to delimiter format)');
+                    // Don't modify - let it pass through as delimited text
+                } else {
+                    console.error('⚠️ Response is neither JSON nor delimiter-separated');
+                    // Return as-is and hope frontend can handle it
+                }
             }
         }
 
@@ -182,29 +215,51 @@ TONE: Empathetic, direct, human – like a friend who gets it.
     const love3CardShaper = `
 ## 3️⃣ LOVE 3-CARD STRUCTURE (JSON):
 
-Return a JSON object with exactly 3 fields.
-NO conversational text before or after. ONLY the JSON object.
+You MUST return ONLY a valid JSON object. Nothing else.
 
-Format:
+CRITICAL FORMAT REQUIREMENTS:
+- Your response must START with { and END with }
+- NO text before the JSON
+- NO text after the JSON  
+- NO markdown code blocks (\`\`\`json)
+- NO explanations or preamble
+- JUST the raw JSON object
+
+JSON Structure:
 {
-  "ty": "50-60 word paragraph about how user shows up in relationship",
-  "partner": "50-60 word paragraph about partner's role/energy in relationship", 
-  "vztah": "50-60 word paragraph about overall relationship dynamic"
+  "ty": "50-60 word paragraph in Czech",
+  "partner": "50-60 word paragraph in Czech", 
+  "vztah": "50-60 word paragraph in Czech"
 }
 
-CRITICAL RULES:
-- Return ONLY valid JSON, nothing else
-- Each field is plain Czech text (no markdown symbols like *, \`, #)
-- Natural, modern Czech (ty-forma)
+CONTENT RULES:
+- Each field: plain Czech text only
+- No markdown formatting (*, \`, #)
+- Natural ty-forma Czech
 - Brief, reflective, non-judgmental
-- 50-60 words per field
+- Each paragraph: exactly 50-60 words
 
-Example:
+CONTENT FOCUS:
+- "ty": How the user shows up in the relationship
+- "partner": Partner's role/energy as perceived by user
+- "vztah": Overall relationship dynamic between them
+
+EXAMPLE OF CORRECT OUTPUT (copy this format exactly):
 {
   "ty": "Do vztahu jdeš s otevřeným srdcem a snahou mít věci v klidu vysvětlené. Když něco cítíš, chceš to řešit, ne schovávat pod koberec. Díky tomu je mezi vámi jasno, i když to někdy může působit trochu intenzivně.",
   "partner": "Tvůj partner to bere víc v klidu a emoce si nechává projít hlavou, než je pustí ven. Může působit rezervovaně, ale často jen potřebuje víc času a prostoru. Jeho přístup do vztahu vnáší lehkost.",
   "vztah": "Mezi vámi je vidět snaha se potkat někde uprostřed. Jeden jde víc na přímo, druhý opatrněji, ale když si tohle uvědomíte, může vztah fungovat přirozeně a bez zbytečného tlaku."
 }
+
+VERIFICATION CHECKLIST (before responding):
+✓ Does my response start with { ?
+✓ Does my response end with } ?
+✓ Is there NOTHING before or after the JSON?
+✓ Are all 3 fields present: ty, partner, vztah?
+✓ Is each paragraph 50-60 words?
+✓ Is the JSON valid (no trailing commas, proper quotes)?
+
+If ANY check fails → fix it before responding.
 `;
 
     const moonPhaseShaper = `

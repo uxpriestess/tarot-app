@@ -142,6 +142,47 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
         console.log(`✅ Card ${idx} flipped. Meaning:`, cardMeanings[idx]?.substring(0, 50));
     };
 
+    // ✅ Pre-fetch for Moon spread with moon phase context
+    const preFetchMoonMeaning = async (cards: any[], spread: Spread) => {
+        console.log('=== PRE-FETCHING MOON MEANING ===');
+        setIsLoadingMeanings(true);
+
+        try {
+            const currentDate = new Date();
+            const moonPhase = getMoonPhase(currentDate);
+
+            // Build moon phase context
+            const moonContext = `Aktuální fáze měsíce: ${moonPhase.icon} ${moonPhase.name}
+Téma: ${moonPhase.theme}
+${moonPhase.description}
+${moonPhase.energy}`;
+
+            console.log('🌙 Moon context:', moonContext);
+
+            const reading = await performReading({
+                spreadName: spread.name,
+                cards: cards.map((dc, idx) => ({
+                    name: dc.card.name,
+                    nameCzech: dc.card.nameCzech,
+                    position: dc.position,
+                    label: spread.labels![idx]
+                })),
+                question: 'Co mi tato karta říká v kontextu současné fáze měsíce?',
+                mode: 'moon_phase',
+                moonPhase: moonContext
+            });
+
+            console.log('✅ Moon reading received:', reading.substring(0, 100));
+            setCardMeanings([reading]);
+
+        } catch (err) {
+            console.error('❌ Moon reading failed:', err);
+            setCardMeanings(['Spojení se ztratilo v měsíčním světle. Zkus to znovu.']);
+        } finally {
+            setIsLoadingMeanings(false);
+        }
+    };
+
     // ✅ Pre-fetch for Love spread with proper fallback
     const preFetchLoveMeanings = async (cards: any[], spread: Spread) => {
         console.log('=== PRE-FETCHING LOVE MEANINGS ===');
@@ -266,6 +307,12 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
             console.log('🔮 Triggering pre-fetch for Love spread');
             preFetchLoveMeanings(cards, spread);
         }
+
+        // ✅ Pre-fetch for Moon spread
+        if (spread.id === 'moon') {
+            console.log('🌙 Triggering pre-fetch for Moon spread');
+            preFetchMoonMeaning(cards, spread);
+        }
     };
 
     const resetReading = () => {
@@ -309,7 +356,10 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
     const renderReading = () => {
         if (!selectedSpread) return null;
 
-        const subtitle = selectedSpread.id === 'love' ? 'Co je mezi vámi?' : 'Ponořte se do své otázky...';
+        const subtitle =
+            selectedSpread.id === 'love' ? 'Co je mezi vámi?' :
+                selectedSpread.id === 'moon' ? 'Klikni na kartu pro výklad' :
+                    'Ponořte se do své otázky...';
 
         return (
             <Animated.View style={[styles.readingContainer, { opacity: fadeAnim }]}>
@@ -317,10 +367,26 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                {/* ✅ Only 2 header lines */}
+                {/* ✅ Header - More air, less weight */}
                 <View style={styles.readingHeader}>
                     <Text style={styles.readingTitle}>{selectedSpread.name}</Text>
-                    <Text style={styles.readingSubtitle}>{subtitle}</Text>
+                    {selectedSpread.id !== 'moon' && (
+                        <Text style={styles.readingSubtitle}>{subtitle}</Text>
+                    )}
+
+                    {/* 🌙 Moon phase badge - informational anchor */}
+                    {selectedSpread.id === 'moon' && (() => {
+                        const currentMoon = getMoonPhase(new Date());
+                        return (
+                            <View style={styles.moonPhaseAnchor}>
+                                <Text style={styles.moonPhaseIconLarge}>{currentMoon.icon}</Text>
+                                <View>
+                                    <Text style={styles.moonPhaseNameLarge}>{currentMoon.name}</Text>
+                                    <Text style={styles.moonTheme}>{currentMoon.theme}</Text>
+                                </View>
+                            </View>
+                        );
+                    })()}
                 </View>
 
                 <View style={styles.spreadArea}>
@@ -338,6 +404,22 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
                     ))}
                 </View>
 
+                {/* 🌙 Moon message card - DARK RITUAL CONTAINER (before flip) */}
+                {selectedSpread.id === 'moon' && flippedCards.length === 0 && (() => {
+                    const currentMoon = getMoonPhase(new Date());
+                    return (
+                        <View style={styles.moonMessageCard}>
+                            <Text style={styles.moonMessageTitle}>Vzkaz luny</Text>
+                            <Text style={styles.moonMessageHero}>
+                                {currentMoon.description}
+                            </Text>
+                            <Text style={styles.moonMessageSupport}>
+                                {currentMoon.energy}
+                            </Text>
+                        </View>
+                    );
+                })()}
+
                 {/* Meanings Area */}
                 <ScrollView style={styles.meaningsScroll} contentContainerStyle={styles.meaningsContent}>
                     {isLoadingMeanings && cardMeanings.length === 0 && (
@@ -350,20 +432,46 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
                     )}
 
                     {/* Show meanings progressively as cards flip */}
-                    {flippedCards.map((flippedIdx) => cardMeanings[flippedIdx] && (
-                        <View key={flippedIdx} style={styles.meaningCard}>
-                            <Text style={styles.meaningLabel}>{selectedSpread.labels?.[flippedIdx]}</Text>
-                            <Text style={styles.meaningText}>{cardMeanings[flippedIdx]}</Text>
-                        </View>
-                    ))}
+                    {flippedCards.map((flippedIdx) => {
+                        const meaning = cardMeanings[flippedIdx];
+                        if (!meaning) return null;
 
-                    {/* Done button */}
-                    {selectedSpread.id === 'love' && flippedCards.length === selectedSpread.cards && cardMeanings.length === 3 && (
-                        <TouchableOpacity style={styles.doneButton} onPress={resetReading}>
-                            <Ionicons name="checkmark-circle-outline" size={20} color={colors.lavender} />
-                            <Text style={styles.doneButtonText}>Děkuji za výklad</Text>
-                        </TouchableOpacity>
-                    )}
+                        // Split into paragraphs (by double newline or single newline)
+                        const paragraphs = meaning.split('\n').filter(p => p.trim().length > 0);
+
+                        return (
+                            <View key={flippedIdx} style={styles.meaningCard}>
+                                {/* Only show label if not moon spread (since it's just one card) */}
+                                {selectedSpread.id !== 'moon' && (
+                                    <Text style={styles.meaningLabel}>{selectedSpread.labels?.[flippedIdx]}</Text>
+                                )}
+                                {paragraphs.map((para, pIdx) => (
+                                    <Text
+                                        key={pIdx}
+                                        style={[
+                                            styles.meaningText,
+                                            pIdx > 0 && styles.meaningTextSpacing
+                                        ]}
+                                    >
+                                        {para}
+                                    </Text>
+                                ))}
+                            </View>
+                        );
+                    })}
+
+                    {/* Done button with soft ending */}
+                    {((selectedSpread.id === 'love' && flippedCards.length === selectedSpread.cards && cardMeanings.length === 3) ||
+                        (selectedSpread.id === 'moon' && flippedCards.length === 1 && cardMeanings.length === 1)) && (
+                            <>
+                                <TouchableOpacity style={styles.doneButton} onPress={resetReading}>
+                                    <Ionicons name="checkmark-circle-outline" size={20} color={colors.lavender} />
+                                    <Text style={styles.doneButtonText}>Děkuji za výklad</Text>
+                                </TouchableOpacity>
+                                {/* Soft ending space */}
+                                <View style={styles.softEnding} />
+                            </>
+                        )}
                 </ScrollView>
             </Animated.View>
         );
@@ -443,9 +551,86 @@ const styles = StyleSheet.create({
     spreadName: { fontSize: 14, fontWeight: '600', color: '#fff', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textAlign: 'center', paddingHorizontal: 4, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
     readingContainer: { flex: 1, width: '100%' },
     readingBackButton: { position: 'absolute', top: 10, left: 20, zIndex: 50, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0, 0, 0, 0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)' },
-    readingHeader: { alignItems: 'center', marginTop: 60, marginBottom: spacing.lg, paddingHorizontal: spacing.md },
-    readingTitle: { fontSize: 28, color: colors.textCream, fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', fontWeight: '600', marginBottom: 6, textAlign: 'center' },
-    readingSubtitle: { fontSize: 16, color: 'rgba(255, 255, 255, 0.6)', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textAlign: 'center' },
+    readingHeader: { alignItems: 'center', marginTop: 70, marginBottom: spacing.xl, paddingHorizontal: spacing.md },
+    readingTitle: { fontSize: 28, color: 'rgba(255, 255, 255, 0.85)', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', fontWeight: '600', marginBottom: 6, textAlign: 'center', letterSpacing: 2 },
+    readingSubtitle: { fontSize: 15, color: 'rgba(255, 255, 255, 0.5)', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textAlign: 'center' },
+
+    // 🌙 Moon Phase Anchor - informational, not clickable
+    moonPhaseAnchor: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 16,
+        gap: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.25)',
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+    },
+    moonPhaseIconLarge: {
+        fontSize: 28,
+    },
+    moonPhaseNameLarge: {
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.95)',
+        letterSpacing: 1.5,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        fontWeight: '600',
+    },
+    moonTheme: {
+        fontSize: 12,
+        color: 'rgba(201, 184, 212, 0.8)',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        fontStyle: 'italic',
+        letterSpacing: 0.5,
+        marginTop: 2,
+    },
+
+    // 🌙 Moon Message Card - DARK RITUAL CONTAINER
+    moonMessageCard: {
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.md,
+        marginTop: spacing.sm,
+        backgroundColor: 'rgba(20, 15, 25, 0.88)', // Dark glass
+        borderRadius: 20,
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(139, 123, 168, 0.3)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    moonMessageTitle: {
+        fontSize: 11,
+        color: 'rgba(201, 184, 212, 0.7)',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+        marginBottom: 12,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textAlign: 'center',
+    },
+    moonMessageHero: {
+        fontSize: 17,
+        lineHeight: 26,
+        color: 'rgba(255, 255, 255, 0.95)',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        textAlign: 'center',
+        marginBottom: 14,
+        fontWeight: '400',
+    },
+    moonMessageSupport: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: 'rgba(201, 184, 212, 0.85)',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        fontStyle: 'italic',
+        textAlign: 'center',
+    },
     spreadArea: { height: 360, width: '100%', position: 'relative', marginBottom: spacing.md },
     cardWrapper: { position: 'absolute', alignItems: 'center' },
     labelAbove: { position: 'absolute', top: 0, color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 1.5, fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
@@ -455,12 +640,63 @@ const styles = StyleSheet.create({
     cardFront: { backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.2)', transform: [{ rotateY: '180deg' }], overflow: 'hidden' },
     closeButton: { position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
     meaningsScroll: { flex: 1, paddingHorizontal: spacing.md },
-    meaningsContent: { paddingBottom: 100 },
+    meaningsContent: { paddingBottom: 120 }, // More space to avoid tab bar collision
     loadingContainer: { padding: 20, alignItems: 'center' },
     loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 12, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif' },
-    meaningCard: { backgroundColor: 'rgba(255, 255, 255, 0.08)', padding: spacing.lg, borderRadius: borderRadius.lg, marginBottom: spacing.md, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)' },
-    meaningLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: spacing.xs },
-    meaningText: { fontSize: 16, lineHeight: 24, color: 'rgba(255, 255, 255, 0.95)', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif' },
-    doneButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 30, backgroundColor: 'rgba(100, 80, 120, 0.3)', borderRadius: 30, marginTop: 20, borderWidth: 1, borderColor: colors.lavender + '50' },
-    doneButtonText: { color: colors.textCream, marginLeft: 8, fontSize: 16, fontWeight: '600' },
+    meaningCard: {
+        backgroundColor: 'rgba(20, 15, 25, 0.85)', // Darker, more contained
+        padding: spacing.xl,
+        borderRadius: 20,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: 'rgba(139, 123, 168, 0.25)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
+    },
+    meaningLabel: {
+        fontSize: 11,
+        color: 'rgba(201, 184, 212, 0.7)',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+        marginBottom: spacing.sm,
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    },
+    meaningText: {
+        fontSize: 16,
+        lineHeight: 25,
+        color: 'rgba(255, 255, 255, 0.95)',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        textAlign: 'left',
+        fontWeight: '400',
+    },
+    meaningTextSpacing: {
+        marginTop: 16, // Only applied to non-first paragraphs
+    },
+    doneButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        backgroundColor: 'rgba(139, 123, 168, 0.25)',
+        borderRadius: 24,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(201, 184, 212, 0.4)',
+    },
+    doneButtonText: {
+        color: 'rgba(255, 255, 255, 0.9)',
+        marginLeft: 8,
+        fontSize: 15,
+        fontWeight: '500',
+        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        letterSpacing: 0.5,
+    },
+    softEnding: {
+        height: 40, // Reduced since ScrollView now has more padding
+        opacity: 0,
+    },
 });

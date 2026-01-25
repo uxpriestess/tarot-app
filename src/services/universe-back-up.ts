@@ -22,7 +22,6 @@ export interface ReadingRequest {
     cards: UniverseCard[];
     question?: string;
     mode?: string;
-    moonPhase?: string; // 🌙 Moon phase context for moon readings
 }
 
 /**
@@ -39,8 +38,7 @@ export async function performReading(request: ReadingRequest): Promise<string> {
                 spreadName: request.spreadName,
                 cards: request.cards,
                 question: request.question || 'Celkový výhled',
-                mode: request.mode || 'reading-screen', // Use provided mode or default
-                moonPhase: request.moonPhase // 🌙 Pass moon phase to API
+                mode: request.mode || 'reading-screen' // Use provided mode or default
             }),
         });
 

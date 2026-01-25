@@ -18,7 +18,7 @@ const READING_TYPES = {
     },
     moon_phase: {
         name: 'moon_phase',
-        maxWords: 160,
+        maxWords: 180,
         paragraphs: '4-5'
     }
 };
@@ -32,12 +32,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { question, cards, mode = 'daily', spreadName, moonPhase } = req.body;
+        const { question, cards, mode = 'daily', spreadName } = req.body;
         console.log(`--- API Request: ${mode} ---`);
         console.log("Cards:", JSON.stringify(cards));
-        if (moonPhase) {
-            console.log("Moon Phase Context:", moonPhase);
-        }
 
         if (!cards || !Array.isArray(cards)) {
             return res.status(400).json({ answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' });
@@ -54,8 +51,8 @@ export default async function handler(req, res) {
             apiKey: process.env.ANTHROPIC_API_KEY,
         });
 
-        const systemPrompt = buildSystemPrompt(mode, moonPhase);
-        const userPrompt = buildUserPrompt(question, cards, spreadName, mode, moonPhase);
+        const systemPrompt = buildSystemPrompt(mode);
+        const userPrompt = buildUserPrompt(question, cards, spreadName, mode);
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-20250514',
@@ -156,7 +153,7 @@ export default async function handler(req, res) {
 /**
  * Builds a structured user prompt based on the card(s) and question
  */
-function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
+function buildUserPrompt(question, cards, spreadName, mode) {
     const cardsInfo = cards.map((c, idx) => {
         const labelStr = c.label ? ` (${c.label})` : '';
         return `Karta ${idx + 1}${labelStr}: ${c.nameCzech || c.name} (${c.position === 'reversed' ? 'Obrácená' : 'Vzpřímená'})`;
@@ -168,18 +165,13 @@ function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
         prompt += `\n\nTYP VÝKLADU: ${spreadName}`;
     }
 
-    // Add moon phase context for moon_phase mode
-    if (mode === 'moon_phase' && moonPhase) {
-        prompt += `\n\n🌙 MĚSÍČNÍ KONTEXT:\n${moonPhase}`;
-    }
-
     return prompt;
 }
 
 /**
  * Builds the system prompt with specific shaper instructions
  */
-function buildSystemPrompt(mode, moonPhase) {
+function buildSystemPrompt(mode) {
     const readingType = READING_TYPES[mode] || READING_TYPES.daily;
 
     const dailyShaper = `
@@ -271,39 +263,9 @@ If ANY check fails → fix it before responding.
 `;
 
     const moonPhaseShaper = `
-## 🌙 MOON PHASE READING STRUCTURE:
+## 4️⃣ MOON PHASE STRUCTURE:
 
-This is a special reading that weaves together the card meaning with the current moon phase energy.
-
-CRITICAL CONCEPT: The moon phase is the "weather" the card is happening in.
-- The card shows WHAT is present in the user's life
-- The moon phase shows the ENERGETIC CLIMATE around it
-
-STRUCTURE:
-
-A. THE WEATHER (1-2 sentences)
-Briefly acknowledge the moon phase and its current energy (already provided in context).
-
-B. THE CARD IN THIS WEATHER (2-3 sentences)  
-Interpret the card through the lens of the moon phase.
-How does this phase color what the card is saying?
-
-C. EMOTIONAL/DECISION LANDSCAPE (2 sentences)
-How might the user be feeling or thinking under this combination?
-
-D. WORKING WITH IT (1-2 sentences)
-One specific way to work with this card given the moon's current influence.
-
-TONE:
-- Poetic but grounded
-- Acknowledge both card AND phase as equal players
-- Natural Czech, conversational
-- The moon phase isn't fortune-telling — it's emotional weather
-
-LENGTH: 140–160 words MAX. 4-5 paragraphs.
-
-EXAMPLE APPROACH:
-"Teď, v úplňku, kdy emoce vrcholí... [karta] ukazuje... To znamená, že... Můžeš pracovat s tím tak, že..."
+LENGTH: 140–160 words MAX.
 `;
 
     let responseShaper;
@@ -319,12 +281,6 @@ EXAMPLE APPROACH:
         responseShaper = moonPhaseShaper;
     } else {
         responseShaper = dailyShaper;
-    }
-
-    // Add moon phase awareness to system prompt when relevant
-    let moonPhaseContext = '';
-    if (mode === 'moon_phase' && moonPhase) {
-        moonPhaseContext = `\n\n🌙 MOON PHASE CONTEXT (important!):\n${moonPhase}\n\nThis reading must interpret the card through the lens of this moon phase energy.`;
     }
 
     return `
@@ -343,9 +299,7 @@ Tarotka explains tarot in a clear, relatable, and everyday way, connecting card 
 
 ---
 
-## 🔒 CURRENT READING TYPE: ${readingType.name}
-
-${moonPhaseContext}
+## 🔑 CURRENT READING TYPE: ${readingType.name}
 
 ---
 
@@ -393,7 +347,6 @@ Before sending every response, verify:
 4. ✅ Mobile-friendly paragraphs?
 5. ✅ Specific to the card drawn?
 6. ✅ Natural Czech?
-${mode === 'moon_phase' ? '7. ✅ Woven moon phase energy into interpretation?' : ''}
 
 If ANY check fails → rewrite.
 

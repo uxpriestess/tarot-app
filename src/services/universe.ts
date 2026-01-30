@@ -26,9 +26,33 @@ export interface ReadingRequest {
 }
 
 /**
- * Perform a complex reading using AI
+ * Structured reading section per architecture.md
+ * Backend parses LLM output into these; frontend only renders
  */
-export async function performReading(request: ReadingRequest): Promise<string> {
+export interface ReadingSection {
+    key: string;
+    label: string | null;
+    text: string;
+}
+
+/**
+ * Unified structured response from backend
+ */
+export interface StructuredReading {
+    readingType: string;
+    sections: ReadingSection[];
+    meta?: {
+        cardCount: number;
+        timestamp: string;
+    };
+    answer?: string; // Backward compat during transition
+}
+
+/**
+ * Perform a complex reading using AI
+ * Returns structured sections that frontend can render directly
+ */
+export async function performReading(request: ReadingRequest): Promise<StructuredReading> {
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
@@ -50,16 +74,27 @@ export async function performReading(request: ReadingRequest): Promise<string> {
             throw new Error(data.answer || `API error: ${response.status}`);
         }
 
-        return data.answer;
+        // Return structured response from backend
+        // Backend is the authority on structure per architecture.md
+        return {
+            readingType: data.readingType || request.mode || 'reading-screen',
+            sections: data.sections || [{ key: 'reading', label: null, text: data.answer || '' }],
+            meta: data.meta,
+            answer: data.answer
+        };
     } catch (error) {
         console.error('Reading service error:', error);
 
-        // Return Tarotka-voice error to user
-        if (error instanceof Error && error.message) {
-            return error.message;
-        }
+        // Return error as structured response
+        const errorMessage = error instanceof Error && error.message
+            ? error.message
+            : 'Obraz neprošel úplně jasně. Zkusíme to za chvíli znovu?';
 
-        return 'Obraz neprošel úplně jasně. Zkusíme to za chvíli znovu?';
+        return {
+            readingType: 'error',
+            sections: [{ key: 'error', label: null, text: errorMessage }],
+            answer: errorMessage
+        };
     }
 }
 

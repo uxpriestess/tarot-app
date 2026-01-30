@@ -25,7 +25,7 @@ import { colors, spacing, borderRadius } from '../theme/colors';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { drawCard } from '../data';
 import { CardImage } from '../components/CardImage';
-import { performReading } from '../services/universe';
+import { performReading, ReadingSection } from '../services/universe';
 import { getMoonPhase } from '../utils/moonPhase';
 
 const { width } = Dimensions.get('window');
@@ -103,7 +103,7 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
     const [drawnCards, setDrawnCards] = useState<any[]>([]);
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
     const [revealedCount, setRevealedCount] = useState(0);
-    const [cardMeanings, setCardMeanings] = useState<string[]>([]); // Pre-fetched meanings
+    const [cardMeanings, setCardMeanings] = useState<ReadingSection[]>([]); // Pre-fetched structured sections
     const [isLoadingMeanings, setIsLoadingMeanings] = useState(false);
     const [stage, setStage] = useState<Stage>('welcome');
 
@@ -139,10 +139,11 @@ export const TarotReadingScreen = ({ onClose }: Props) => {
         setFlippedCards(prev => [...prev, idx]);
         setRevealedCount(prev => prev + 1);
 
-        console.log(`✅ Card ${idx} flipped. Meaning:`, cardMeanings[idx]?.substring(0, 50));
+        console.log(`✅ Card ${idx} flipped. Section:`, cardMeanings[idx]?.text?.substring(0, 50));
     };
 
     // ✅ Pre-fetch for Moon spread with moon phase context
+    // Per architecture.md: frontend receives structured sections, no parsing
     const preFetchMoonMeaning = async (cards: any[], spread: Spread) => {
         console.log('=== PRE-FETCHING MOON MEANING ===');
         setIsLoadingMeanings(true);
@@ -172,18 +173,20 @@ ${moonPhase.energy}`;
                 moonPhase: moonContext
             });
 
-            console.log('✅ Moon reading received:', reading.substring(0, 100));
-            setCardMeanings([reading]);
+            // Backend returns structured sections - no parsing needed
+            console.log('✅ Moon reading received:', reading.sections.length, 'sections');
+            setCardMeanings(reading.sections);
 
         } catch (err) {
             console.error('❌ Moon reading failed:', err);
-            setCardMeanings(['Spojení se ztratilo v měsíčním světle. Zkus to znovu.']);
+            setCardMeanings([{ key: 'error', label: null, text: 'Spojení se ztratilo v měsíčním světle. Zkus to znovu.' }]);
         } finally {
             setIsLoadingMeanings(false);
         }
     };
 
-    // ✅ Pre-fetch for Love spread with proper fallback
+    // ✅ Pre-fetch for Love spread - NO PARSING NEEDED
+    // Per architecture.md: backend parses LLM output, frontend only renders
     const preFetchLoveMeanings = async (cards: any[], spread: Spread) => {
         console.log('=== PRE-FETCHING LOVE MEANINGS ===');
         setIsLoadingMeanings(true);
@@ -201,80 +204,17 @@ ${moonPhase.energy}`;
                 mode: 'love_3_card'
             });
 
-            console.log('Raw AI response:', reading.substring(0, 100));
+            // Backend returns structured sections - no parsing needed!
+            console.log('✅ Love reading received:', reading.sections.length, 'sections');
+            reading.sections.forEach((s, i) => {
+                console.log(`  Section ${i}: ${s.key} - ${s.text.substring(0, 40)}...`);
+            });
 
-            // ✅ Try JSON parsing first
-            try {
-                // Clean up the response
-                let cleanResponse = reading.trim();
-
-                // Remove markdown code blocks
-                cleanResponse = cleanResponse.replace(/```json\s?/g, '').replace(/```/g, '');
-
-                // Find JSON boundaries (first { to last })
-                const firstBrace = cleanResponse.indexOf('{');
-                const lastBrace = cleanResponse.lastIndexOf('}');
-
-                if (firstBrace === -1 || lastBrace === -1) {
-                    throw new Error('No JSON object found in response');
-                }
-
-                // Extract just the JSON part
-                cleanResponse = cleanResponse.substring(firstBrace, lastBrace + 1);
-
-                console.log('Attempting JSON parse...');
-
-                // Parse the JSON
-                const parsed = JSON.parse(cleanResponse);
-                console.log('✅ JSON parsed successfully. Keys:', Object.keys(parsed));
-
-                // Convert to array format
-                const meanings = [
-                    parsed.ty || '',
-                    parsed.partner || '',
-                    parsed.vztah || ''
-                ];
-
-                // Validate we have all 3
-                const validMeanings = meanings.filter(m => m.length > 10);
-
-                if (validMeanings.length === 3) {
-                    console.log('✅ All 3 meanings extracted from JSON');
-                    console.log('Ty:', meanings[0].substring(0, 50));
-                    console.log('Partner:', meanings[1].substring(0, 50));
-                    console.log('Vztah:', meanings[2].substring(0, 50));
-                    setCardMeanings(meanings);
-                } else {
-                    console.warn(`⚠️ Only ${validMeanings.length}/3 valid meanings in JSON`);
-                    setCardMeanings(meanings);
-                }
-
-            } catch (parseError) {
-                console.error('❌ JSON parse error:', parseError);
-                console.log('⚠️ Falling back to delimiter parsing...');
-
-                // ✅ FALLBACK: Parse by delimiter
-                const paragraphs = reading
-                    .split('---')
-                    .map(p => p.trim())
-                    .filter(p => p.length > 0);
-
-                console.log(`✅ Delimiter parsing: found ${paragraphs.length} paragraphs`);
-
-                if (paragraphs.length >= 3) {
-                    console.log('Para 1 (Ty):', paragraphs[0].substring(0, 50));
-                    console.log('Para 2 (Partner):', paragraphs[1].substring(0, 50));
-                    console.log('Para 3 (Vztah):', paragraphs[2].substring(0, 50));
-                    setCardMeanings(paragraphs.slice(0, 3));
-                } else {
-                    console.error(`⚠️ Expected 3 paragraphs, got ${paragraphs.length}`);
-                    // Still set what we have
-                    setCardMeanings(paragraphs);
-                }
-            }
+            setCardMeanings(reading.sections);
 
         } catch (error) {
             console.error('❌ API error:', error);
+            setCardMeanings([{ key: 'error', label: null, text: 'Něco se pokazilo. Zkus to znovu.' }]);
         } finally {
             setIsLoadingMeanings(false);
         }
@@ -432,20 +372,23 @@ ${moonPhase.energy}`;
                     )}
 
                     {/* Show meanings progressively as cards flip */}
+                    {/* Per architecture.md: frontend renders structured sections, no parsing */}
                     {flippedCards.map((flippedIdx) => {
-                        const meaning = cardMeanings[flippedIdx];
-                        if (!meaning) return null;
+                        const section = cardMeanings[flippedIdx];
+                        if (!section) return null;
 
-                        // Split into paragraphs (by double newline or single newline)
-                        const paragraphs = meaning.split('\n').filter(p => p.trim().length > 0);
+                        // Split text into paragraphs for better rendering
+                        const paragraphs = section.text.split('\n').filter((p: string) => p.trim().length > 0);
 
                         return (
                             <View key={flippedIdx} style={styles.meaningCard}>
-                                {/* Only show label if not moon spread (since it's just one card) */}
+                                {/* Use label from section if available, fall back to spread labels */}
                                 {selectedSpread.id !== 'moon' && (
-                                    <Text style={styles.meaningLabel}>{selectedSpread.labels?.[flippedIdx]}</Text>
+                                    <Text style={styles.meaningLabel}>
+                                        {section.label || selectedSpread.labels?.[flippedIdx]}
+                                    </Text>
                                 )}
-                                {paragraphs.map((para, pIdx) => (
+                                {paragraphs.map((para: string, pIdx: number) => (
                                     <Text
                                         key={pIdx}
                                         style={[

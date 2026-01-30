@@ -23,6 +23,107 @@ const READING_TYPES = {
     }
 };
 
+// Spread schemas - defines section structure per reading type
+const SPREAD_SCHEMAS = {
+    daily: {
+        sections: [{ key: 'reading', label: null }]
+    },
+    'reading-screen': {
+        sections: [{ key: 'reading', label: null }]
+    },
+    love_3_card: {
+        sections: [
+            { key: 'ty', label: 'Ty' },
+            { key: 'partner', label: 'Partner' },
+            { key: 'vztah', label: 'Tvůj vztah' }
+        ]
+    },
+    moon_phase: {
+        sections: [{ key: 'reading', label: 'Vzkaz luny' }]
+    },
+    custom_question: {
+        sections: [{ key: 'reading', label: null }]
+    }
+};
+
+/**
+ * Parse love reading sections from LLM output
+ * Expects JSON with ty, partner, vztah fields OR delimiter-separated text
+ */
+function parseLoveSections(rawText) {
+    const schema = SPREAD_SCHEMAS.love_3_card.sections;
+    
+    try {
+        // Try JSON parsing first
+        let cleanText = rawText.trim()
+            .replace(/```json\s?/g, '')
+            .replace(/```/g, '');
+        
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+            const parsed = JSON.parse(cleanText);
+            
+            if (parsed.ty && parsed.partner && parsed.vztah) {
+                console.log('✅ Parsed love sections from JSON');
+                return [
+                    { key: 'ty', label: 'Ty', text: parsed.ty.trim() },
+                    { key: 'partner', label: 'Partner', text: parsed.partner.trim() },
+                    { key: 'vztah', label: 'Tvůj vztah', text: parsed.vztah.trim() }
+                ];
+            }
+        }
+    } catch (e) {
+        console.log('⚠️ JSON parse failed, trying delimiter fallback');
+    }
+    
+    // Fallback: delimiter-separated text
+    const paragraphs = rawText.split('---').map(p => p.trim()).filter(p => p.length > 0);
+    
+    if (paragraphs.length >= 3) {
+        console.log('✅ Parsed love sections from delimiters');
+        return [
+            { key: 'ty', label: 'Ty', text: paragraphs[0] },
+            { key: 'partner', label: 'Partner', text: paragraphs[1] },
+            { key: 'vztah', label: 'Tvůj vztah', text: paragraphs[2] }
+        ];
+    }
+    
+    // Last resort: return as single section
+    console.warn('⚠️ Could not parse love sections, returning as single block');
+    return [{ key: 'reading', label: null, text: rawText.trim() }];
+}
+
+/**
+ * Build structured response per architecture.md
+ * Backend owns structure, LLM provides meaning
+ */
+function buildStructuredResponse(mode, rawText, cards) {
+    const schema = SPREAD_SCHEMAS[mode] || SPREAD_SCHEMAS.daily;
+    
+    let sections;
+    if (mode === 'love_3_card') {
+        sections = parseLoveSections(rawText);
+    } else {
+        // Simple readings: single section with full text
+        const label = schema.sections[0]?.label || null;
+        sections = [{ key: 'reading', label, text: rawText.trim() }];
+    }
+    
+    return {
+        readingType: mode,
+        sections,
+        meta: {
+            cardCount: cards.length,
+            timestamp: new Date().toISOString()
+        },
+        // Keep answer for backward compatibility during transition
+        answer: rawText.trim()
+    };
+}
+
 /**
  * Main API Handler
  */
@@ -67,79 +168,19 @@ export default async function handler(req, res) {
             temperature: 0.7,
         });
 
-        let answer = response.content[0].text;
-        console.log("AI Raw Output (first 100 chars):", answer.substring(0, 100));
+        const rawAnswer = response.content[0].text;
+        console.log("AI Raw Output (first 100 chars):", rawAnswer.substring(0, 100));
 
-        // Parse JSON for love readings
-        if (mode === 'love_3_card') {
-            try {
-                console.log('=== PARSING LOVE READING ===');
-                console.log('Raw answer length:', answer.length);
-                console.log('First 100 chars:', answer.substring(0, 100));
+        // Build structured response per architecture.md
+        // Backend owns structure, LLM provides meaning
+        const structuredResponse = buildStructuredResponse(mode, rawAnswer, cards);
+        
+        console.log(`✅ Structured response: ${structuredResponse.sections.length} sections for ${mode}`);
+        structuredResponse.sections.forEach((s, i) => {
+            console.log(`  Section ${i}: ${s.key} (${s.text.substring(0, 40)}...)`);
+        });
 
-                // Clean up the response
-                let cleanAnswer = answer.trim();
-
-                // Remove markdown code blocks
-                cleanAnswer = cleanAnswer.replace(/```json\s?/g, '').replace(/```/g, '');
-
-                // Find JSON boundaries (first { to last })
-                const firstBrace = cleanAnswer.indexOf('{');
-                const lastBrace = cleanAnswer.lastIndexOf('}');
-
-                if (firstBrace === -1 || lastBrace === -1) {
-                    throw new Error('No JSON object found in response');
-                }
-
-                // Extract just the JSON part
-                cleanAnswer = cleanAnswer.substring(firstBrace, lastBrace + 1);
-
-                console.log('Cleaned JSON:', cleanAnswer.substring(0, 100));
-
-                // Parse the JSON
-                const parsed = JSON.parse(cleanAnswer);
-                console.log('✅ JSON parsed successfully');
-                console.log('Keys found:', Object.keys(parsed));
-
-                // Validate required fields
-                if (!parsed.ty || !parsed.partner || !parsed.vztah) {
-                    console.warn('⚠️ Missing required fields');
-                    console.warn('Has ty:', !!parsed.ty);
-                    console.warn('Has partner:', !!parsed.partner);
-                    console.warn('Has vztah:', !!parsed.vztah);
-                }
-
-                // Convert to array format that React expects
-                const paragraphs = [
-                    parsed.ty || '',
-                    parsed.partner || '',
-                    parsed.vztah || ''
-                ].filter(p => p.length > 0);
-
-                // Return as delimited string (so universe.ts doesn't need changes)
-                answer = paragraphs.join('\n---\n');
-
-                console.log('✅ Converted to', paragraphs.length, 'paragraphs');
-                console.log('Paragraph lengths:', paragraphs.map(p => p.split(' ').length + ' words'));
-
-            } catch (parseError) {
-                console.error('❌ JSON parsing failed:', parseError.message);
-                console.error('Error type:', parseError.name);
-                console.error('Raw answer (first 200 chars):', answer.substring(0, 200));
-
-                // Check if it's already delimiter-separated
-                if (answer.includes('---')) {
-                    console.log('⚠️ Response appears to be delimiter-separated, not JSON');
-                    console.log('Using as-is (fallback to delimiter format)');
-                    // Don't modify - let it pass through as delimited text
-                } else {
-                    console.error('⚠️ Response is neither JSON nor delimiter-separated');
-                    // Return as-is and hope frontend can handle it
-                }
-            }
-        }
-
-        return res.status(200).json({ answer });
+        return res.status(200).json(structuredResponse);
 
     } catch (error) {
         console.error('=== ERROR DETAILS ===');

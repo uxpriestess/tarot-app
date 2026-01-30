@@ -96,9 +96,10 @@ const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
 
 interface Props {
     onClose?: () => void;
+    onOpenLoveReading?: () => void;
 }
 
-export const TarotReadingScreen = ({ onClose }: Props) => {
+export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     const [selectedSpread, setSelectedSpread] = useState<Spread | null>(null);
     const [drawnCards, setDrawnCards] = useState<any[]>([]);
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
@@ -223,6 +224,13 @@ ${moonPhase.energy}`;
     const startReading = (spread: Spread) => {
         console.log("=== STARTING READING ===");
         console.log("Spread:", spread.id);
+
+        // Redirect love spread to dedicated LoveReadingScreen
+        if (spread.id === 'love' && onOpenLoveReading) {
+            console.log('🔮 Redirecting to dedicated LoveReadingScreen');
+            onOpenLoveReading();
+            return;
+        }
 
         // Draw cards
         const cards = [];

@@ -12,9 +12,11 @@ import { useAppStore, JournalEntry } from './src/store/appStore';
 import { askUniverse } from './src/services/universe';
 import { colors } from './src/theme/colors';
 import { TarotReadingScreen } from './src/screens/TarotReadingScreen';
+import { LoveReadingScreen } from './src/screens/LoveReadingScreen';
 
 export default function App() {
   const [isMysticOpen, setIsMysticOpen] = useState(false);
+  const [isLoveReadingOpen, setIsLoveReadingOpen] = useState(false);
   const [currentCard, setCurrentCard] = useState<{
     card: TarotCard;
     position: 'upright' | 'reversed';
@@ -111,8 +113,10 @@ export default function App() {
             cards={universeResponse.cards}
             onClose={handleCloseUniverse}
           />
+        ) : isLoveReadingOpen ? (
+          <LoveReadingScreen onClose={() => setIsLoveReadingOpen(false)} />
         ) : isMysticOpen ? (
-          <TarotReadingScreen onClose={() => setIsMysticOpen(false)} />
+          <TarotReadingScreen onClose={() => setIsMysticOpen(false)} onOpenLoveReading={() => { setIsMysticOpen(false); setIsLoveReadingOpen(true); }} />
         ) : (
           <>
             <TabNavigator

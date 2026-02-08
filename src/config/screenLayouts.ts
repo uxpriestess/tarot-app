@@ -44,7 +44,13 @@ export const SCREEN_LAYOUTS: Record<string, ScreenLayout> = {
     backgroundImage: require('../../assets/screens/reading_background.jpg'),
     hotspots: [],
   },
+  // Love Reading Screen (Atmospheric)
+  LoveReading: {
+    backgroundImage: require('../../assets/screens/love_reading_background.jpg'),
+    hotspots: [],
+  },
   // Journal Screen (Cats & Moon)
+
   journal: {
     backgroundImage: require('../../assets/screens/journal_background.jpg'),
     hotspots: [],

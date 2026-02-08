@@ -2,13 +2,12 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import {
-    HomeScreen,
-    TarotReadingScreen, // Updated import
-    JournalScreen,
-    CollectionScreen,
-    ProfileScreen,
-} from '../screens';
+
+import { HomeScreen } from '../screens/HomeScreen';
+import { TarotReadingScreen } from '../screens/TarotReadingScreen';
+import { JournalScreen } from '../screens/JournalScreen';
+import { CollectionScreen } from '../screens/CollectionScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -16,9 +15,10 @@ interface TabNavigatorProps {
     onDrawCard: (subsetIds?: string[]) => void;
     onAskUniverse: (question: string) => Promise<void>;
     onOpenMystic?: () => void;
+    onOpenLoveReading?: () => void;
 }
 
-export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic }: TabNavigatorProps) {
+export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLoveReading }: TabNavigatorProps) {
     return (
         <Tab.Navigator
             screenOptions={{
@@ -67,8 +67,9 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic }: TabNav
                     ),
                 }}
             >
-                {() => <TarotReadingScreen />}
+                {() => <TarotReadingScreen onOpenLoveReading={onOpenLoveReading} />}
             </Tab.Screen>
+
 
             <Tab.Screen
                 name="Deník"

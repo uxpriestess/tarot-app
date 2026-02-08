@@ -4,15 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { Alert, ActivityIndicator, View, Modal } from 'react-native';
 import { TabNavigator } from './src/navigation/TabNavigator';
-import { CardRevealScreen } from './src/screens';
+import { CardRevealScreen } from './src/screens/CardRevealScreen';
 import { UniverseResponseScreen } from './src/screens/UniverseResponseScreen';
 import { drawCard } from './src/data';
 import { TarotCard } from './src/types/tarot';
 import { useAppStore, JournalEntry } from './src/store/appStore';
 import { askUniverse } from './src/services/universe';
 import { colors } from './src/theme/colors';
-import { TarotReadingScreen } from './src/screens/TarotReadingScreen';
-import { LoveReadingScreen } from './src/screens/LoveReadingScreen';
+import { TarotReadingScreen, LoveReadingScreen } from './src/screens';
 
 export default function App() {
   const [isMysticOpen, setIsMysticOpen] = useState(false);
@@ -123,6 +122,7 @@ export default function App() {
               onDrawCard={handleDrawCard}
               onAskUniverse={handleAskUniverse}
               onOpenMystic={() => setIsMysticOpen(true)}
+              onOpenLoveReading={() => setIsLoveReadingOpen(true)}
             />
 
             <Modal

@@ -1,20 +1,14 @@
 /**
- * LoveReadingScreen_v2.tsx
+ * LoveReadingScreen.tsx
  * 
- * STORY MODE VERSION
+ * 3-CARD LOVE READING - ONE CARD PER SCREEN
  * 
  * Flow:
- * 1. ONE card at a time (full screen, spacious)
- * 2. Card pulses → tap → flips → meaning appears
- * 3. Heart icon to progress to next card
- * 4. After 3rd card: "Celý výklad" button
- * 5. Timeline view with all cards visible
- * 
- * Key Features:
- * - Position labels integrated into flip animation
- * - Clean, aesthetic background (easy to customize)
- * - Anti-cramped design
- * - Smooth transitions
+ * 1. Ritual screen → "Začít výklad"
+ * 2. Screen: TY → Face-down card (pulsing) → Tap to flip → Meaning → "Další karta"
+ * 3. Screen: PARTNER → Face-down card (pulsing) → Tap to flip → Meaning → "Další karta"
+ * 4. Screen: VAŠE POUTO → Face-down card (pulsing) → Tap to flip → Meaning → "Zobrazit celý výklad"
+ * 5. Timeline → All 3 cards + meanings together
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -23,10 +17,10 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    Animated,
     ScrollView,
     SafeAreaView,
-    Dimensions,
+    ActivityIndicator,
+    Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
@@ -44,11 +38,7 @@ try {
     console.log('Haptics not available');
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.7, 280);
-const CARD_HEIGHT = CARD_WIDTH * 1.5;
-
-type Stage = 'ritual' | 'story' | 'timeline';
+type Stage = 'ritual' | 'ty' | 'partner' | 'pouto' | 'timeline';
 
 interface CardData {
     card: TarotCard;
@@ -77,54 +67,21 @@ function parseMeaningText(text: string) {
 }
 
 export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
-    // Core state
+    console.log('🎯🎯🎯 LOVE READING - ONE CARD PER SCREEN VERSION 🎯🎯🎯');
+
     const [stage, setStage] = useState<Stage>('ritual');
-    const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [cardsData, setCardsData] = useState<CardData[]>([]);
-    const [isCardFlipped, setIsCardFlipped] = useState(false);
-    const [isLoadingMeanings, setIsLoadingMeanings] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Animation refs
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const cardFlipAnim = useRef(new Animated.Value(0)).current;
-    const pulseAnim = useRef(new Animated.Value(1)).current;
-    const meaningFadeAnim = useRef(new Animated.Value(0)).current;
-    const cardTransitionAnim = useRef(new Animated.Value(1)).current;
-
-    // Fade in on mount
-    useEffect(() => {
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true
-        }).start();
-    }, []);
-
-    // Pulse animation for unflipped cards
-    useEffect(() => {
-        if (stage === 'story' && !isCardFlipped) {
-            const pulse = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(pulseAnim, {
-                        toValue: 1.05,
-                        duration: 1000,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(pulseAnim, {
-                        toValue: 1,
-                        duration: 1000,
-                        useNativeDriver: true,
-                    }),
-                ])
-            );
-            pulse.start();
-            return () => pulse.stop();
-        }
-    }, [stage, isCardFlipped]);
+    // Individual flip states for each card
+    const [tyFlipped, setTyFlipped] = useState(false);
+    const [partnerFlipped, setPartnerFlipped] = useState(false);
+    const [poutoFlipped, setPoutoFlipped] = useState(false);
 
     // Draw cards and fetch meanings
-    const drawCardsAndFetchMeanings = async () => {
+    const handleStartReading = async () => {
         console.log('=== DRAWING LOVE READING CARDS ===');
+        setIsLoading(true);
 
         // Draw 3 cards
         const draw1 = drawCard();
@@ -137,7 +94,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
         console.log('Cards drawn:', cards.map(c => c.name));
 
         // Fetch AI meanings
-        setIsLoadingMeanings(true);
         try {
             const reading = await performReading({
                 spreadName: 'Láska a vztahy',
@@ -148,7 +104,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                     label: positions[idx]
                 })),
                 question: 'Co je mezi námi?',
-                mode: 'love'
+                mode: 'love_3_card'
             });
 
             console.log('API response:', reading);
@@ -160,280 +116,118 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                     meaning: reading.sections[idx].text
                 }));
                 setCardsData(cardsWithMeanings);
-                console.log('Meanings loaded successfully');
+                setStage('ty'); // Move to first card screen
+                console.log('Meanings loaded, moving to TY screen');
             } else {
                 console.error('Invalid API response structure');
             }
         } catch (error) {
             console.error('Error fetching meanings:', error);
         } finally {
-            setIsLoadingMeanings(false);
+            setIsLoading(false);
         }
-
-        // Move to story stage
-        setStage('story');
     };
 
-    // Handle card flip
-    const handleCardFlip = () => {
-        if (isCardFlipped) return; // Already flipped
-
-        // Haptic feedback
-        if (Haptics) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-
-        // Flip animation
-        Animated.timing(cardFlipAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-        }).start();
-
-        // Fade in meaning
-        Animated.timing(meaningFadeAnim, {
-            toValue: 1,
-            duration: 800,
-            delay: 400,
-            useNativeDriver: true,
-        }).start();
-
-        setIsCardFlipped(true);
-    };
-
-    // Progress to next card
-    const handleNextCard = () => {
-        if (currentCardIndex >= 2) {
-            // All cards revealed, go to timeline
-            setStage('timeline');
-            return;
-        }
-
-        // Haptic feedback
-        if (Haptics) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-
-        // Fade out current card
-        Animated.timing(cardTransitionAnim, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-        }).start(() => {
-            // Move to next card
-            setCurrentCardIndex(currentCardIndex + 1);
-            setIsCardFlipped(false);
-
-            // Reset animations
-            cardFlipAnim.setValue(0);
-            meaningFadeAnim.setValue(0);
-            cardTransitionAnim.setValue(1);
-        });
-    };
-
-    // Current card data
-    const currentCard = cardsData[currentCardIndex];
-
-    // Card rotation for flip effect
-    const cardRotation = cardFlipAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '180deg'],
-    });
-
-    // Ritual opening screen
+    // ===============================
+    // RITUAL STAGE
+    // ===============================
     if (stage === 'ritual') {
         return (
             <ImmersiveScreen screenName="LoveReading">
                 <SafeAreaView style={styles.container}>
-                    <Animated.View style={[styles.ritualContainer, { opacity: fadeAnim }]}>
+                    <View style={styles.ritualContainer}>
                         <View style={styles.ritualContent}>
-                            {/* DEBUG MARKER - REMOVE AFTER TESTING */}
-                            <Text style={{ color: 'red', fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
-                                ✨ V2 - STORY MODE ✨
-                            </Text>
-
                             <Ionicons name="heart" size={60} color={colors.lavender} />
                             <Text style={styles.ritualTitle}>Láska a vztahy</Text>
                             <Text style={styles.ritualDescription}>
+                                Odhal vaši dynamiku
+                            </Text>
+                            <Text style={styles.ritualInstruction}>
                                 Tři karty odhalí tvůj vnitřní svět, svět tvého partnera
                                 a energii vašeho vztahu.
                             </Text>
-                            <Text style={styles.ritualInstruction}>
-                                Soustřeď se na svou otázku a když budeš připraven/á,
-                                vytáhni karty.
-                            </Text>
+
+                            {/* Small face-down card icon */}
+                            <View style={styles.faceDownCard}>
+                                <Ionicons name="albums-outline" size={80} color={colors.lavender} />
+                            </View>
 
                             <TouchableOpacity
                                 style={styles.beginButton}
-                                onPress={drawCardsAndFetchMeanings}
+                                onPress={handleStartReading}
+                                disabled={isLoading}
                             >
-                                <Text style={styles.beginButtonText}>Začít výklad</Text>
+                                {isLoading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.beginButtonText}>Začít výklad</Text>
+                                )}
                             </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                             <Ionicons name="close" size={24} color="#fff" />
                         </TouchableOpacity>
-                    </Animated.View>
+                    </View>
                 </SafeAreaView>
             </ImmersiveScreen>
         );
     }
 
-    // Story Mode - One card at a time
-    if (stage === 'story') {
-        if (!currentCard) {
-            return (
-                <ImmersiveScreen screenName="LoveReading">
-                    <SafeAreaView style={styles.container}>
-                        <View style={styles.loadingContainer}>
-                            <Text style={styles.loadingText}>Vesmír skládá tvůj příběh...</Text>
-                        </View>
-                    </SafeAreaView>
-                </ImmersiveScreen>
-            );
-        }
-
+    // ===============================
+    // TY SCREEN
+    // ===============================
+    if (stage === 'ty') {
+        if (!cardsData[0]) return null;
         return (
-            <ImmersiveScreen screenName="LoveReading">
-                <SafeAreaView style={styles.container}>
-                    <Animated.View
-                        style={[
-                            styles.storyContainer,
-                            { opacity: cardTransitionAnim }
-                        ]}
-                    >
-                        {/* Progress indicator */}
-                        <View style={styles.progressContainer}>
-                            {[0, 1, 2].map((idx) => (
-                                <View
-                                    key={idx}
-                                    style={[
-                                        styles.progressDot,
-                                        idx === currentCardIndex && styles.progressDotActive,
-                                        idx < currentCardIndex && styles.progressDotComplete,
-                                    ]}
-                                />
-                            ))}
-                        </View>
-
-                        {/* Position label */}
-                        <Animated.View
-                            style={[
-                                styles.positionLabelContainer,
-                                {
-                                    opacity: cardFlipAnim,
-                                    transform: [
-                                        {
-                                            translateY: cardFlipAnim.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [20, 0],
-                                            }),
-                                        },
-                                    ],
-                                },
-                            ]}
-                        >
-                            <Text style={styles.positionLabel}>{currentCard.position}</Text>
-                        </Animated.View>
-
-                        {/* Card */}
-                        <TouchableOpacity
-                            activeOpacity={0.9}
-                            onPress={handleCardFlip}
-                            disabled={isCardFlipped}
-                        >
-                            <Animated.View
-                                style={[
-                                    styles.cardWrapper,
-                                    {
-                                        transform: [
-                                            { scale: isCardFlipped ? 1 : pulseAnim },
-                                            { rotateY: cardRotation },
-                                        ],
-                                    },
-                                ]}
-                            >
-                                <CardImage
-                                    imageName={currentCard.card.imageName}
-                                    width={CARD_WIDTH}
-                                    height={CARD_HEIGHT}
-                                    resizeMode="cover"
-                                />
-
-                                {/* Tap indicator when not flipped */}
-                                {!isCardFlipped && (
-                                    <View style={styles.tapIndicator}>
-                                        <Ionicons name="hand-left-outline" size={24} color={colors.lavender} />
-                                        <Text style={styles.tapText}>Ťukni pro výklad</Text>
-                                    </View>
-                                )}
-                            </Animated.View>
-                        </TouchableOpacity>
-
-                        {/* Card name (appears on flip) */}
-                        {isCardFlipped && (
-                            <Animated.View
-                                style={[
-                                    styles.cardNameContainer,
-                                    { opacity: meaningFadeAnim }
-                                ]}
-                            >
-                                <Text style={styles.cardName}>
-                                    {currentCard.card.nameCzech || currentCard.card.name}
-                                </Text>
-                            </Animated.View>
-                        )}
-
-                        {/* Meaning (appears on flip) */}
-                        {isCardFlipped && (
-                            <Animated.View
-                                style={[
-                                    styles.meaningContainer,
-                                    { opacity: meaningFadeAnim }
-                                ]}
-                            >
-                                <ScrollView
-                                    showsVerticalScrollIndicator={false}
-                                    style={styles.meaningScroll}
-                                >
-                                    <Text style={styles.meaningText}>
-                                        {parseMeaningText(currentCard.meaning)}
-                                    </Text>
-                                </ScrollView>
-                            </Animated.View>
-                        )}
-
-                        {/* Next button (heart icon) */}
-                        {isCardFlipped && (
-                            <Animated.View
-                                style={[
-                                    styles.nextButtonContainer,
-                                    { opacity: meaningFadeAnim }
-                                ]}
-                            >
-                                <TouchableOpacity
-                                    style={styles.nextButton}
-                                    onPress={handleNextCard}
-                                >
-                                    <Ionicons name="heart" size={24} color="#fff" />
-                                    <Text style={styles.nextButtonText}>
-                                        {currentCardIndex === 2 ? 'Celý výklad' : ''}
-                                    </Text>
-                                </TouchableOpacity>
-                            </Animated.View>
-                        )}
-                    </Animated.View>
-
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                        <Ionicons name="close" size={24} color="#fff" />
-                    </TouchableOpacity>
-                </SafeAreaView>
-            </ImmersiveScreen>
+            <CardReadingDisplay
+                cardData={cardsData[0]}
+                isFlipped={tyFlipped}
+                onFlip={() => setTyFlipped(true)}
+                onNext={() => setStage('partner')}
+                nextButtonText="Další karta"
+                onClose={onClose}
+            />
         );
     }
 
-    // Timeline View - All cards visible
+    // ===============================
+    // PARTNER SCREEN
+    // ===============================
+    if (stage === 'partner') {
+        if (!cardsData[1]) return null;
+        return (
+            <CardReadingDisplay
+                cardData={cardsData[1]}
+                isFlipped={partnerFlipped}
+                onFlip={() => setPartnerFlipped(true)}
+                onNext={() => setStage('pouto')}
+                nextButtonText="Další karta"
+                onClose={onClose}
+            />
+        );
+    }
+
+    // ===============================
+    // POUTO SCREEN
+    // ===============================
+    if (stage === 'pouto') {
+        if (!cardsData[2]) return null;
+        return (
+            <CardReadingDisplay
+                cardData={cardsData[2]}
+                isFlipped={poutoFlipped}
+                onFlip={() => setPoutoFlipped(true)}
+                onNext={() => setStage('timeline')}
+                nextButtonText="Zobrazit celý výklad"
+                onClose={onClose}
+            />
+        );
+    }
+
+    // ===============================
+    // TIMELINE VIEW
+    // ===============================
     if (stage === 'timeline') {
         return (
             <ImmersiveScreen screenName="LoveReading">
@@ -458,8 +252,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                                 <View style={styles.timelineCardImageWrapper}>
                                     <CardImage
                                         imageName={cardData.card.imageName}
-                                        width={CARD_WIDTH * 0.6}
-                                        height={CARD_HEIGHT * 0.6}
+                                        width={168}
+                                        height={252}
                                         resizeMode="cover"
                                     />
                                 </View>
@@ -483,13 +277,13 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                             </View>
                         ))}
 
-                        {/* Close button */}
+                        {/* Done button */}
                         <TouchableOpacity
-                            style={styles.timelineDoneButton}
+                            style={styles.doneButton}
                             onPress={onClose}
                         >
                             <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                            <Text style={styles.timelineDoneButtonText}>Zavřít výklad</Text>
+                            <Text style={styles.doneButtonText}>Zavřít výklad</Text>
                         </TouchableOpacity>
 
                         <View style={{ height: 60 }} />
@@ -505,6 +299,176 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
 
     return null;
 };
+
+
+// ===============================
+// CARD SCREEN COMPONENT
+// ===============================
+interface CardReadingDisplayProps {
+    cardData: CardData;
+    isFlipped: boolean;
+    onFlip: () => void;
+    onNext: () => void;
+    nextButtonText: string;
+    onClose?: () => void;
+}
+
+const CardReadingDisplay = ({
+    cardData,
+    isFlipped,
+    onFlip,
+    onNext,
+    nextButtonText,
+    onClose
+}: CardReadingDisplayProps) => {
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const flipAnim = useRef(new Animated.Value(0)).current;
+    const meaningFadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Pulse animation when not flipped
+    useEffect(() => {
+        if (!isFlipped) {
+            const pulse = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.05,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            pulse.start();
+            return () => pulse.stop();
+        }
+    }, [isFlipped]);
+
+    const handleFlip = () => {
+        if (isFlipped) return;
+
+        // Haptic feedback
+        if (Haptics) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
+
+        // Flip animation
+        Animated.timing(flipAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+        }).start();
+
+        // Fade in meaning after flip
+        Animated.timing(meaningFadeAnim, {
+            toValue: 1,
+            duration: 800,
+            delay: 400,
+            useNativeDriver: true,
+        }).start();
+
+        onFlip();
+    };
+
+    const cardRotation = flipAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '180deg'],
+    });
+
+    return (
+        <ImmersiveScreen screenName="LoveReading">
+            <SafeAreaView style={styles.container}>
+                <ScrollView
+                    style={styles.scrollContainer}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Position label */}
+                    <View style={styles.positionLabelContainer}>
+                        <Text style={styles.positionLabel}>{cardData.position}</Text>
+                    </View>
+
+                    {/* Card */}
+                    <TouchableOpacity
+                        activeOpacity={0.9}
+                        onPress={handleFlip}
+                        disabled={isFlipped}
+                    >
+                        <Animated.View
+                            style={[
+                                styles.cardWrapper,
+                                {
+                                    transform: [
+                                        { scale: isFlipped ? 1 : pulseAnim },
+                                        { rotateY: cardRotation },
+                                    ],
+                                },
+                            ]}
+                        >
+                            {/* Show face-down card or actual card */}
+                            {!isFlipped ? (
+                                <View style={styles.faceDownCardBig}>
+                                    <Ionicons name="albums-outline" size={120} color={colors.lavender} />
+                                    <Text style={styles.tapToRevealText}>Ťukni pro odhalení</Text>
+                                </View>
+                            ) : (
+                                <CardImage
+                                    imageName={cardData.card.imageName}
+                                    width={280}
+                                    height={420}
+                                    resizeMode="cover"
+                                />
+                            )}
+                        </Animated.View>
+                    </TouchableOpacity>
+
+                    {/* Card name (appears after flip) */}
+                    {isFlipped && (
+                        <Animated.View style={{ opacity: meaningFadeAnim }}>
+                            <Text style={styles.cardName}>
+                                {cardData.card.nameCzech || cardData.card.name}
+                            </Text>
+                        </Animated.View>
+                    )}
+
+                    {/* Meaning (appears after flip) */}
+                    {isFlipped && (
+                        <Animated.View
+                            style={[styles.meaningContainer, { opacity: meaningFadeAnim }]}
+                        >
+                            <Text style={styles.meaningText}>
+                                {parseMeaningText(cardData.meaning)}
+                            </Text>
+                        </Animated.View>
+                    )}
+
+                    {/* Next button (appears after flip) */}
+                    {isFlipped && (
+                        <Animated.View style={{ opacity: meaningFadeAnim }}>
+                            <TouchableOpacity
+                                style={styles.nextButton}
+                                onPress={onNext}
+                            >
+                                <Text style={styles.nextButtonText}>{nextButtonText}</Text>
+                                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                            </TouchableOpacity>
+                        </Animated.View>
+                    )}
+
+                    <View style={{ height: 60 }} />
+                </ScrollView>
+
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                    <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+            </SafeAreaView>
+        </ImmersiveScreen>
+    );
+};
+
 
 // ============================================================
 // STYLES
@@ -524,28 +488,40 @@ const styles = StyleSheet.create({
     ritualContent: {
         alignItems: 'center',
         maxWidth: 400,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        padding: spacing.xl,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     ritualTitle: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: '700',
         color: '#fff',
-        marginTop: spacing.lg,
-        marginBottom: spacing.md,
+        marginTop: spacing.md,
+        marginBottom: spacing.xs,
         textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     ritualDescription: {
-        fontSize: 16,
-        color: 'rgba(255,255,255,0.8)',
+        fontSize: 22,
+        fontWeight: '600',
+        color: '#FFE4E1', // Misty Rose for better contrast
         textAlign: 'center',
-        lineHeight: 24,
-        marginBottom: spacing.lg,
+        marginBottom: spacing.md,
     },
     ritualInstruction: {
         fontSize: 14,
-        color: 'rgba(255,255,255,0.6)',
+        color: 'rgba(255,255,255,0.7)',
         textAlign: 'center',
-        fontStyle: 'italic',
+        lineHeight: 22,
         marginBottom: spacing.xl,
+    },
+    faceDownCard: {
+        marginBottom: spacing.xl,
+        opacity: 0.6,
     },
     beginButton: {
         backgroundColor: colors.lavender,
@@ -557,6 +533,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.4,
         shadowRadius: 12,
         elevation: 8,
+        minWidth: 150,
+        alignItems: 'center',
     },
     beginButtonText: {
         fontSize: 16,
@@ -564,41 +542,14 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
 
-    // ===== STORY STAGE =====
-    loadingContainer: {
+    // ===== CARD SCREENS =====
+    scrollContainer: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
-    loadingText: {
-        fontSize: 16,
-        color: 'rgba(255,255,255,0.7)',
-    },
-    storyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+    scrollContent: {
         paddingHorizontal: spacing.lg,
-    },
-    progressContainer: {
-        flexDirection: 'row',
-        gap: spacing.sm,
-        marginBottom: spacing.xl,
-        position: 'absolute',
-        top: 100,
-    },
-    progressDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255,255,255,0.3)',
-    },
-    progressDotActive: {
-        backgroundColor: colors.lavender,
-        width: 24,
-    },
-    progressDotComplete: {
-        backgroundColor: 'rgba(186, 148, 240, 0.6)',
+        paddingTop: 100,
+        alignItems: 'center',
     },
     positionLabelContainer: {
         marginBottom: spacing.md,
@@ -611,56 +562,46 @@ const styles = StyleSheet.create({
         letterSpacing: 2,
     },
     cardWrapper: {
-        alignItems: 'center',
         marginBottom: spacing.lg,
     },
-    tapIndicator: {
-        position: 'absolute',
-        bottom: spacing.md,
-        right: spacing.md,
-        flexDirection: 'row',
+    faceDownCardBig: {
+        width: 280,
+        height: 420,
+        backgroundColor: 'rgba(186, 148, 240, 0.1)',
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: colors.lavender,
+        borderStyle: 'dashed',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.full,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 3,
+        justifyContent: 'center',
     },
-    tapText: {
-        marginLeft: spacing.xs,
-        fontSize: 13,
+    tapToRevealText: {
+        marginTop: spacing.md,
+        fontSize: 14,
         fontWeight: '600',
-        color: colors.text,
-    },
-    cardNameContainer: {
-        marginBottom: spacing.md,
+        color: colors.lavender,
     },
     cardName: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: '700',
         color: '#fff',
         textAlign: 'center',
+        marginBottom: spacing.lg,
     },
     meaningContainer: {
-        flex: 1,
-        maxHeight: SCREEN_HEIGHT * 0.3,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: spacing.lg,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
         width: '100%',
-    },
-    meaningScroll: {
-        flex: 1,
+        marginBottom: spacing.xl,
     },
     meaningText: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: 'rgba(255,255,255,0.9)',
-        textAlign: 'center',
-    },
-    nextButtonContainer: {
-        marginTop: spacing.lg,
+        fontSize: 16,
+        lineHeight: 26,
+        color: '#fff',
+        textAlign: 'left',
     },
     nextButton: {
         flexDirection: 'row',
@@ -682,7 +623,7 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
 
-    // ===== TIMELINE STAGE =====
+    // ===== TIMELINE VIEW =====
     timelineScrollContainer: {
         flex: 1,
     },
@@ -747,7 +688,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(186, 148, 240, 0.3)',
         marginTop: spacing.lg,
     },
-    timelineDoneButton: {
+    doneButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -763,7 +704,7 @@ const styles = StyleSheet.create({
         elevation: 5,
         gap: spacing.sm,
     },
-    timelineDoneButtonText: {
+    doneButtonText: {
         fontSize: 16,
         fontWeight: '600',
         color: '#fff',

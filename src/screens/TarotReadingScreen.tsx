@@ -18,6 +18,7 @@ import {
     ScrollView,
     Image,
     Easing,
+    Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -110,6 +111,15 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const rotateAnim = useRef(new Animated.Value(0)).current;
+
+    // Debug: Check if callback is passed
+    useEffect(() => {
+        console.log('🎯 TarotReadingScreen mounted with props:', {
+            hasOnClose: !!onClose,
+            hasOnOpenLoveReading: !!onOpenLoveReading,
+            onOpenLoveReadingType: typeof onOpenLoveReading
+        });
+    }, []);
 
     useEffect(() => {
         Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
@@ -222,17 +232,42 @@ ${moonPhase.energy}`;
     };
 
     const startReading = (spread: Spread) => {
-        console.log("=== STARTING READING ===");
-        console.log("Spread:", spread.id);
+        console.log("=== START READING CALLED ===");
+        console.log("Spread ID:", spread.id);
+        console.log("Spread name:", spread.name);
 
-        // Redirect love spread to dedicated LoveReadingScreen
-        if (spread.id === 'love' && onOpenLoveReading) {
-            console.log('🔮 Redirecting to dedicated LoveReadingScreen');
-            onOpenLoveReading();
-            return;
+        // CRITICAL: Intercept love spread immediately
+        if (spread.id === 'love') {
+            console.log('🔴 LOVE SPREAD DETECTED!');
+            console.log(' onOpenLoveReading callback:', onOpenLoveReading);
+            console.log(' Type:', typeof onOpenLoveReading);
+            console.log(' Truthy?:', !!onOpenLoveReading);
+
+            if (onOpenLoveReading) {
+                console.log('✅ CALLING onOpenLoveReading() NOW');
+                try {
+                    onOpenLoveReading();
+                    console.log('✅ onOpenLoveReading() CALLED SUCCESSFULLY');
+                } catch (error) {
+                    console.error('❌ ERROR calling onOpenLoveReading:', error);
+                }
+                console.log('✅ RETURNING EARLY - should NOT see any more logs from this function');
+                return; // STOP HERE - do not continue
+            } else {
+                console.error('❌ CRITICAL: onOpenLoveReading is NOT defined!');
+                console.error('This means App.tsx is not passing the callback correctly!');
+                Alert.alert(
+                    'Configuration Error',
+                    'onOpenLoveReading callback is missing. Please check App.tsx configuration.'
+                );
+                // Still return to prevent rendering
+                return;
+            }
         }
 
-        // Draw cards
+        console.log('📝 Continuing with traditional spread render for:', spread.id);
+
+        // Draw cards (for non-love spreads only if we get here)
         const cards = [];
         for (let i = 0; i < spread.cards; i++) {
             const drawn = drawCard();
@@ -249,12 +284,6 @@ ${moonPhase.energy}`;
 
         fadeAnim.setValue(0);
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-
-        // ✅ Pre-fetch for Love spread
-        if (spread.id === 'love') {
-            console.log('🔮 Triggering pre-fetch for Love spread');
-            preFetchLoveMeanings(cards, spread);
-        }
 
         // ✅ Pre-fetch for Moon spread
         if (spread.id === 'moon') {

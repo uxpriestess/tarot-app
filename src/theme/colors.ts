@@ -30,6 +30,8 @@ export const colors = {
   // Functional
   border: '#EAE2D6', // Soft beige border
   softLinen: '#EAE2D6', // Soft beige for consistent borders
+  // Feedback
+  error: '#EF4444', // vivid red for errors
 
   // Mystic Accents
   textCream: '#FDFCF8', // Soft vintage cream

@@ -1,14 +1,11 @@
 /**
- * LoveReadingScreen.tsx
+ * LoveReadingScreen.tsx - BEAUTIFUL VERSION
  * 
  * 3-CARD LOVE READING - ONE CARD PER SCREEN
- * 
- * Flow:
- * 1. Ritual screen → "Začít výklad"
- * 2. Screen: TY → Face-down card (pulsing) → Tap to flip → Meaning → "Další karta"
- * 3. Screen: PARTNER → Face-down card (pulsing) → Tap to flip → Meaning → "Další karta"
- * 4. Screen: VAŠE POUTO → Face-down card (pulsing) → Tap to flip → Meaning → "Zobrazit celý výklad"
- * 5. Timeline → All 3 cards + meanings together
+ * ✨ Glass-morphism design
+ * ✨ Position subheadlines  
+ * ✨ Pink romantic theme
+ * ✨ Watercolor background
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -23,9 +20,11 @@ import {
     Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { CardImage } from '../components/CardImage';
-import { performReading, ReadingSection } from '../services/universe';
+import { performReading } from '../services/universe';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { drawCard } from '../data';
 import { TarotCard } from '../types/tarot';
@@ -43,12 +42,32 @@ type Stage = 'ritual' | 'ty' | 'partner' | 'pouto' | 'timeline';
 interface CardData {
     card: TarotCard;
     position: string;
+    subheadline: string;
     meaning: string;
 }
 
 interface LoveReadingScreenProps {
     onClose?: () => void;
 }
+
+// Position data with subheadlines
+const POSITIONS = [
+    {
+        label: 'TY',
+        subheadline: 'Tvá očekávání a emoce',
+        apiLabel: 'TY'
+    },
+    {
+        label: 'PARTNER',
+        subheadline: 'Druhá strana mince',
+        apiLabel: 'PARTNER'
+    },
+    {
+        label: 'VAŠE POUTO',
+        subheadline: 'Jak vám to funguje',
+        apiLabel: 'VAŠE POUTO'
+    }
+];
 
 // Helper to parse **bold** markdown
 function parseMeaningText(text: string) {
@@ -67,16 +86,37 @@ function parseMeaningText(text: string) {
 }
 
 export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
-    console.log('🎯🎯🎯 LOVE READING - ONE CARD PER SCREEN VERSION 🎯🎯🎯');
+    console.log('🎯 BEAUTIFUL LOVE READING SCREEN LOADED 🎯');
 
     const [stage, setStage] = useState<Stage>('ritual');
     const [cardsData, setCardsData] = useState<CardData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
 
     // Individual flip states for each card
     const [tyFlipped, setTyFlipped] = useState(false);
     const [partnerFlipped, setPartnerFlipped] = useState(false);
     const [poutoFlipped, setPoutoFlipped] = useState(false);
+
+    const glowAnim = useRef(new Animated.Value(0)).current;
+
+    // Glow animation
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(glowAnim, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: false,
+                }),
+                Animated.timing(glowAnim, {
+                    toValue: 0,
+                    duration: 2000,
+                    useNativeDriver: false,
+                }),
+            ])
+        ).start();
+    }, []);
 
     // Draw cards and fetch meanings
     const handleStartReading = async () => {
@@ -89,19 +129,19 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
         const draw3 = drawCard([draw1.card.name, draw2.card.name]);
 
         const cards = [draw1.card, draw2.card, draw3.card];
-        const positions = ['TY', 'PARTNER', 'VAŠE POUTO'];
 
         console.log('Cards drawn:', cards.map(c => c.name));
 
-        // Fetch AI meanings
+        // Clear previous errors and Fetch AI meanings (simple HEAD-style logic: expect 3 sections)
         try {
+            setApiError(null);
             const reading = await performReading({
                 spreadName: 'Láska a vztahy',
                 cards: cards.map((card, idx) => ({
                     name: card.name,
                     nameCzech: card.nameCzech,
                     position: 'upright',
-                    label: positions[idx]
+                    label: POSITIONS[idx].apiLabel
                 })),
                 question: 'Co je mezi námi?',
                 mode: 'love_3_card'
@@ -109,61 +149,104 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
 
             console.log('API response:', reading);
 
-            if (reading?.sections?.length === 3) {
+            // Expect ideally 3 sections (TY, PARTNER, VAŠE POUTO).
+            // Minimal fallback: use whatever text is available and fill missing slots with a placeholder.
+            const sections = reading?.sections || [];
+            if (sections.length >= 3) {
+                const meanings = sections.map((s: any) => s.text);
                 const cardsWithMeanings: CardData[] = cards.map((card, idx) => ({
                     card,
-                    position: positions[idx],
-                    meaning: reading.sections[idx].text
+                    position: POSITIONS[idx].label,
+                    subheadline: POSITIONS[idx].subheadline,
+                    meaning: meanings[idx]
                 }));
                 setCardsData(cardsWithMeanings);
-                setStage('ty'); // Move to first card screen
-                console.log('Meanings loaded, moving to TY screen');
+                setStage('ty');
+            } else if (sections.length > 0) {
+                // Try to salvage: collect all available text and attempt a simple split into up to 3 parts.
+                const allText = sections.map((s: any) => s.text).join('\n\n');
+                // Split by double newlines as a lightweight delimiter
+                const parts = allText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+                const meanings: string[] = [];
+                for (let i = 0; i < 3; i++) {
+                    meanings[i] = parts[i] || sections[i]?.text || 'Význam nedostupný';
+                }
+                const cardsWithMeanings: CardData[] = cards.map((card, idx) => ({
+                    card,
+                    position: POSITIONS[idx].label,
+                    subheadline: POSITIONS[idx].subheadline,
+                    meaning: meanings[idx]
+                }));
+                setCardsData(cardsWithMeanings);
+                setStage('ty');
             } else {
-                console.error('Invalid API response structure');
+                console.error('Unexpected API response structure, no sections returned', reading);
+                setApiError('Nepodařilo se získat plný výklad. Zkusit znovu?');
             }
         } catch (error) {
             console.error('Error fetching meanings:', error);
+            setApiError('Chyba při komunikaci se serverem. Zkusit znovu?');
         } finally {
             setIsLoading(false);
         }
     };
 
+    const handleRetry = () => {
+        setApiError(null);
+        handleStartReading();
+    };
+
+    const glowColor = glowAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['rgba(236, 72, 153, 0.3)', 'rgba(236, 72, 153, 0.6)'],
+    });
+
     // ===============================
-    // RITUAL STAGE
+    // RITUAL SCREEN
     // ===============================
     if (stage === 'ritual') {
         return (
             <ImmersiveScreen screenName="LoveReading">
                 <SafeAreaView style={styles.container}>
+                    {/* Darkening overlay */}
+                    <View style={styles.darkOverlay} />
+
                     <View style={styles.ritualContainer}>
-                        <View style={styles.ritualContent}>
-                            <Ionicons name="heart" size={60} color={colors.lavender} />
-                            <Text style={styles.ritualTitle}>Láska a vztahy</Text>
-                            <Text style={styles.ritualDescription}>
-                                Odhal vaši dynamiku
-                            </Text>
-                            <Text style={styles.ritualInstruction}>
-                                Tři karty odhalí tvůj vnitřní svět, svět tvého partnera
-                                a energii vašeho vztahu.
-                            </Text>
+                        {/* Title */}
+                        <Text style={styles.mainTitle}>Lásky, vztahy,{'\n'}spojení</Text>
 
-                            {/* Small face-down card icon */}
-                            <View style={styles.faceDownCard}>
-                                <Ionicons name="albums-outline" size={80} color={colors.lavender} />
-                            </View>
+                        {/* Glass-morphic card */}
+                        <Animated.View style={[styles.glassCard, { shadowColor: glowColor }]}>
+                            <BlurView intensity={20} tint="light" style={styles.blurContainer}>
+                                {/* Heart icon */}
+                                <View style={styles.heartIconContainer}>
+                                    <Ionicons name="heart" size={48} color="#ec4899" />
+                                </View>
 
-                            <TouchableOpacity
-                                style={styles.beginButton}
-                                onPress={handleStartReading}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.beginButtonText}>Začít výklad</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
+                                {/* Subtitle */}
+                                <Text style={styles.glassCardSubtitle}>
+                                    Ty · Partner · Vaše pouto
+                                </Text>
+
+                                {/* Button */}
+                                <TouchableOpacity
+                                    style={styles.revealButton}
+                                    onPress={handleStartReading}
+                                    disabled={isLoading}
+                                >
+                                    <LinearGradient
+                                        colors={['#ec4899', '#db2777']}
+                                        style={styles.gradientButton}
+                                    >
+                                        {isLoading ? (
+                                            <ActivityIndicator color="#fff" />
+                                        ) : (
+                                            <Text style={styles.revealButtonText}>Odhal karty</Text>
+                                        )}
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </BlurView>
+                        </Animated.View>
 
                         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                             <Ionicons name="close" size={24} color="#fff" />
@@ -187,6 +270,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 onNext={() => setStage('partner')}
                 nextButtonText="Další karta"
                 onClose={onClose}
+                apiError={apiError}
+                onRetry={handleRetry}
             />
         );
     }
@@ -204,6 +289,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 onNext={() => setStage('pouto')}
                 nextButtonText="Další karta"
                 onClose={onClose}
+                apiError={apiError}
+                onRetry={handleRetry}
             />
         );
     }
@@ -221,6 +308,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 onNext={() => setStage('timeline')}
                 nextButtonText="Zobrazit celý výklad"
                 onClose={onClose}
+                apiError={apiError}
+                onRetry={handleRetry}
             />
         );
     }
@@ -232,61 +321,60 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
         return (
             <ImmersiveScreen screenName="LoveReading">
                 <SafeAreaView style={styles.container}>
+                    {/* Light overlay for summary */}
+                    <View style={styles.summaryOverlay} />
+
                     <ScrollView
                         style={styles.timelineScrollContainer}
                         contentContainerStyle={styles.timelineScrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        <Text style={styles.timelineTitle}>Láska a vztahy</Text>
-                        <Text style={styles.timelineSubtitle}>Tvůj kompletní výklad</Text>
+                        <Text style={styles.timelineTitle}>Váš milostný výklad</Text>
+                        <Text style={styles.timelineSubtitle}>Cesta vaší lásky</Text>
 
                         {/* All cards in timeline */}
                         {cardsData.map((cardData, idx) => (
-                            <View key={idx} style={styles.timelineCard}>
-                                {/* Position label */}
-                                <View style={styles.timelinePositionContainer}>
-                                    <Text style={styles.timelinePosition}>{cardData.position}</Text>
-                                </View>
-
-                                {/* Card image (smaller) */}
-                                <View style={styles.timelineCardImageWrapper}>
-                                    <CardImage
-                                        imageName={cardData.card.imageName}
-                                        width={168}
-                                        height={252}
-                                        resizeMode="cover"
-                                    />
-                                </View>
-
-                                {/* Card name */}
-                                <Text style={styles.timelineCardName}>
-                                    {cardData.card.nameCzech || cardData.card.name}
-                                </Text>
-
-                                {/* Meaning */}
-                                <View style={styles.timelineMeaningContainer}>
-                                    <Text style={styles.timelineMeaningText}>
+                            <View key={idx}>
+                                <BlurView intensity={30} tint="light" style={styles.timelineCard}>
+                                    <View style={styles.timelineCardHeader}>
+                                        <CardImage
+                                            imageName={cardData.card.imageName}
+                                            width={70}
+                                            height={105}
+                                        />
+                                        <View style={styles.timelineCardTitles}>
+                                            <Text style={styles.timelinePosition}>
+                                                {cardData.position}
+                                            </Text>
+                                            <Text style={styles.timelineSubheadline}>
+                                                {cardData.subheadline}
+                                            </Text>
+                                            <Text style={styles.timelineCardName}>
+                                                {cardData.card.nameCzech || cardData.card.name}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.timelineMeaning}>
                                         {parseMeaningText(cardData.meaning)}
                                     </Text>
-                                </View>
-
-                                {/* Connection line (except for last card) */}
+                                </BlurView>
                                 {idx < cardsData.length - 1 && (
                                     <View style={styles.connectionLine} />
                                 )}
                             </View>
                         ))}
 
-                        {/* Done button */}
                         <TouchableOpacity
-                            style={styles.doneButton}
+                            style={styles.doneButtonLarge}
                             onPress={onClose}
                         >
-                            <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                            <Text style={styles.doneButtonText}>Zavřít výklad</Text>
+                            <LinearGradient
+                                colors={['#ec4899', '#db2777']}
+                                style={styles.gradientButton}
+                            >
+                                <Text style={styles.doneButtonText}>Zavřít</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
-
-                        <View style={{ height: 60 }} />
                     </ScrollView>
 
                     <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -300,7 +388,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     return null;
 };
 
-
 // ===============================
 // CARD SCREEN COMPONENT
 // ===============================
@@ -311,6 +398,8 @@ interface CardReadingDisplayProps {
     onNext: () => void;
     nextButtonText: string;
     onClose?: () => void;
+    apiError?: string | null;
+    onRetry?: () => void;
 }
 
 const CardReadingDisplay = ({
@@ -320,9 +409,9 @@ const CardReadingDisplay = ({
     onNext,
     nextButtonText,
     onClose
+    , apiError, onRetry
 }: CardReadingDisplayProps) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
-    const flipAnim = useRef(new Animated.Value(0)).current;
     const meaningFadeAnim = useRef(new Animated.Value(0)).current;
 
     // Pulse animation when not flipped
@@ -332,18 +421,26 @@ const CardReadingDisplay = ({
                 Animated.sequence([
                     Animated.timing(pulseAnim, {
                         toValue: 1.05,
-                        duration: 1000,
+                        duration: 1500,
                         useNativeDriver: true,
                     }),
                     Animated.timing(pulseAnim, {
                         toValue: 1,
-                        duration: 1000,
+                        duration: 1500,
                         useNativeDriver: true,
                     }),
                 ])
             );
             pulse.start();
             return () => pulse.stop();
+        } else {
+            // Fade in meaning after flip
+            Animated.timing(meaningFadeAnim, {
+                toValue: 1,
+                duration: 800,
+                delay: 300,
+                useNativeDriver: true,
+            }).start();
         }
     }, [isFlipped]);
 
@@ -355,40 +452,24 @@ const CardReadingDisplay = ({
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
 
-        // Flip animation
-        Animated.timing(flipAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-        }).start();
-
-        // Fade in meaning after flip
-        Animated.timing(meaningFadeAnim, {
-            toValue: 1,
-            duration: 800,
-            delay: 400,
-            useNativeDriver: true,
-        }).start();
-
         onFlip();
     };
-
-    const cardRotation = flipAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '180deg'],
-    });
 
     return (
         <ImmersiveScreen screenName="LoveReading">
             <SafeAreaView style={styles.container}>
+                {/* Darker overlay for card stages */}
+                <View style={styles.storyOverlay} />
+
                 <ScrollView
                     style={styles.scrollContainer}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Position label */}
-                    <View style={styles.positionLabelContainer}>
+                    {/* Position label and subheadline */}
+                    <View style={styles.labelContainer}>
                         <Text style={styles.positionLabel}>{cardData.position}</Text>
+                        <Text style={styles.subheadline}>{cardData.subheadline}</Text>
                     </View>
 
                     {/* Card */}
@@ -396,52 +477,48 @@ const CardReadingDisplay = ({
                         activeOpacity={0.9}
                         onPress={handleFlip}
                         disabled={isFlipped}
+                        style={styles.cardTouchable}
                     >
-                        <Animated.View
-                            style={[
-                                styles.cardWrapper,
-                                {
-                                    transform: [
-                                        { scale: isFlipped ? 1 : pulseAnim },
-                                        { rotateY: cardRotation },
-                                    ],
-                                },
-                            ]}
-                        >
-                            {/* Show face-down card or actual card */}
-                            {!isFlipped ? (
-                                <View style={styles.faceDownCardBig}>
-                                    <Ionicons name="albums-outline" size={120} color={colors.lavender} />
-                                    <Text style={styles.tapToRevealText}>Ťukni pro odhalení</Text>
-                                </View>
-                            ) : (
+                        {!isFlipped ? (
+                            // Face-down card with pulse
+                            <Animated.View style={[styles.cardBack, { transform: [{ scale: pulseAnim }] }]}>
+                                <LinearGradient
+                                    colors={['rgba(236, 72, 153, 0.3)', 'rgba(219, 39, 119, 0.3)']}
+                                    style={styles.cardBackGradient}
+                                >
+                                    <Text style={styles.cardBackEmoji}>💕</Text>
+                                    <View style={styles.cardBackPattern}>
+                                        {[...Array(5)].map((_, i) => (
+                                            <Text key={i} style={styles.cardBackStar}>✨</Text>
+                                        ))}
+                                    </View>
+                                </LinearGradient>
+                            </Animated.View>
+                        ) : (
+                            // Revealed card
+                            <View style={styles.cardFront}>
                                 <CardImage
                                     imageName={cardData.card.imageName}
                                     width={280}
                                     height={420}
                                     resizeMode="cover"
                                 />
-                            )}
-                        </Animated.View>
+                            </View>
+                        )}
                     </TouchableOpacity>
 
-                    {/* Card name (appears after flip) */}
+                    {/* Card name and meaning (appears after flip) */}
                     {isFlipped && (
                         <Animated.View style={{ opacity: meaningFadeAnim }}>
                             <Text style={styles.cardName}>
                                 {cardData.card.nameCzech || cardData.card.name}
                             </Text>
-                        </Animated.View>
-                    )}
-
-                    {/* Meaning (appears after flip) */}
-                    {isFlipped && (
-                        <Animated.View
-                            style={[styles.meaningContainer, { opacity: meaningFadeAnim }]}
-                        >
-                            <Text style={styles.meaningText}>
-                                {parseMeaningText(cardData.meaning)}
-                            </Text>
+                            <View style={styles.divider} />
+                            <View style={styles.meaningContainer}>
+                                <Text style={styles.meaningText}>
+                                    {parseMeaningText(cardData.meaning)}
+                                </Text>
+                            </View>
                         </Animated.View>
                     )}
 
@@ -452,14 +529,34 @@ const CardReadingDisplay = ({
                                 style={styles.nextButton}
                                 onPress={onNext}
                             >
-                                <Text style={styles.nextButtonText}>{nextButtonText}</Text>
-                                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                                <LinearGradient
+                                    colors={['#ec4899', '#db2777']}
+                                    style={styles.gradientButton}
+                                >
+                                    <Text style={styles.nextButtonText}>{nextButtonText}</Text>
+                                    <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                                </LinearGradient>
                             </TouchableOpacity>
                         </Animated.View>
                     )}
-
-                    <View style={{ height: 60 }} />
                 </ScrollView>
+
+                {apiError && (
+                    <View style={styles.errorOverlay} pointerEvents="box-none">
+                        <BlurView intensity={60} tint="light" style={styles.errorCard}>
+                            <Text style={styles.errorTitle}>Chyba</Text>
+                            <Text style={styles.errorText}>{apiError}</Text>
+                            <View style={styles.errorButtons}>
+                                <TouchableOpacity style={styles.errorButton} onPress={onRetry}>
+                                    <Text style={styles.errorButtonText}>Zkusit znovu</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.errorButton, styles.errorCloseButton]} onPress={onClose}>
+                                    <Text style={styles.errorButtonText}>Zavřít</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </BlurView>
+                    </View>
+                )}
 
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                     <Ionicons name="close" size={24} color="#fff" />
@@ -469,13 +566,24 @@ const CardReadingDisplay = ({
     );
 };
 
-
-// ============================================================
-// STYLES
-// ============================================================
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    darkOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        zIndex: 0,
+    },
+    storyOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        zIndex: 0,
+    },
+    summaryOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        zIndex: 0,
     },
 
     // ===== RITUAL STAGE =====
@@ -483,229 +591,291 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: spacing.xl,
+        paddingHorizontal: spacing.xl,
+        zIndex: 1,
     },
-    ritualContent: {
-        alignItems: 'center',
-        maxWidth: 400,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        padding: spacing.xl,
-        borderRadius: borderRadius.lg,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    ritualTitle: {
-        fontSize: 32,
+    mainTitle: {
+        fontSize: 42,
         fontWeight: '700',
         color: '#fff',
-        marginTop: spacing.md,
-        marginBottom: spacing.xs,
         textAlign: 'center',
+        marginBottom: spacing.xxl,
         textShadowColor: 'rgba(0, 0, 0, 0.5)',
         textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
+        textShadowRadius: 8,
+        letterSpacing: -0.5,
     },
-    ritualDescription: {
-        fontSize: 22,
+    glassCard: {
+        width: '90%',
+        maxWidth: 380,
+        borderRadius: 24,
+        overflow: 'hidden',
+        shadowColor: '#ec4899',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    blurContainer: {
+        padding: spacing.xxl,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderRadius: 24,
+    },
+    heartIconContainer: {
+        marginBottom: spacing.lg,
+    },
+    glassCardSubtitle: {
+        fontSize: 16,
         fontWeight: '600',
-        color: '#FFE4E1', // Misty Rose for better contrast
-        textAlign: 'center',
+        color: 'rgba(0, 0, 0, 0.8)',
         marginBottom: spacing.md,
+        letterSpacing: 1,
     },
-    ritualInstruction: {
+    glassCardDescription: {
         fontSize: 14,
-        color: 'rgba(255,255,255,0.7)',
+        color: 'rgba(0, 0, 0, 0.7)',
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: 20,
         marginBottom: spacing.xl,
     },
-    faceDownCard: {
-        marginBottom: spacing.xl,
-        opacity: 0.6,
-    },
-    beginButton: {
-        backgroundColor: colors.lavender,
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.full,
-        shadowColor: colors.lavender,
+    revealButton: {
+        width: '100%',
+        borderRadius: 12,
+        overflow: 'hidden',
+        shadowColor: '#ec4899',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
         elevation: 8,
-        minWidth: 150,
-        alignItems: 'center',
     },
-    beginButtonText: {
-        fontSize: 16,
+    gradientButton: {
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xl,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    revealButtonText: {
+        fontSize: 17,
         fontWeight: '600',
         color: '#fff',
     },
 
-    // ===== CARD SCREENS =====
+    // ===== CARD DISPLAY STAGE =====
     scrollContainer: {
         flex: 1,
+        zIndex: 1,
     },
     scrollContent: {
-        paddingHorizontal: spacing.lg,
+        padding: spacing.lg,
         paddingTop: 100,
         alignItems: 'center',
     },
-    positionLabelContainer: {
-        marginBottom: spacing.md,
+    labelContainer: {
+        alignItems: 'center',
+        marginBottom: spacing.xl,
     },
     positionLabel: {
-        fontSize: 16,
+        fontSize: 28,
         fontWeight: '700',
-        color: colors.lavender,
+        color: '#fff',
         textTransform: 'uppercase',
-        letterSpacing: 2,
+        letterSpacing: 3,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+        marginBottom: spacing.xs,
     },
-    cardWrapper: {
+    subheadline: {
+        fontSize: 15,
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontStyle: 'italic',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+    },
+    cardTouchable: {
         marginBottom: spacing.lg,
     },
-    faceDownCardBig: {
+    cardBack: {
         width: 280,
         height: 420,
-        backgroundColor: 'rgba(186, 148, 240, 0.1)',
         borderRadius: 20,
-        borderWidth: 2,
-        borderColor: colors.lavender,
-        borderStyle: 'dashed',
-        alignItems: 'center',
+        overflow: 'hidden',
+        shadowColor: '#ec4899',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    cardBackGradient: {
+        flex: 1,
         justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    },
+    cardBackEmoji: {
+        fontSize: 64,
+        marginBottom: 20,
     },
     tapToRevealText: {
-        marginTop: spacing.md,
-        fontSize: 14,
+        fontSize: 16,
+        color: '#ec4899',
         fontWeight: '600',
-        color: colors.lavender,
+    },
+    cardBackPattern: {
+        position: 'absolute',
+        bottom: 30,
+        flexDirection: 'row',
+        gap: 15,
+    },
+    cardBackStar: {
+        fontSize: 20,
+        opacity: 0.4,
+    },
+    cardFront: {
+        shadowColor: '#ec4899',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+        elevation: 10,
+        borderRadius: 20,
     },
     cardName: {
         fontSize: 24,
         fontWeight: '700',
         color: '#fff',
         textAlign: 'center',
-        marginBottom: spacing.lg,
+        marginTop: spacing.lg,
+        marginBottom: spacing.sm,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+    },
+    divider: {
+        width: 60,
+        height: 2,
+        backgroundColor: '#ec4899',
+        alignSelf: 'center',
+        marginVertical: spacing.md,
+        opacity: 0.8,
     },
     meaningContainer: {
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 16,
         padding: spacing.lg,
-        borderRadius: borderRadius.lg,
+        marginBottom: spacing.lg,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        width: '100%',
-        marginBottom: spacing.xl,
+        borderColor: 'rgba(236, 72, 153, 0.3)',
     },
     meaningText: {
-        fontSize: 16,
-        lineHeight: 26,
-        color: '#fff',
-        textAlign: 'left',
+        fontSize: 15,
+        lineHeight: 22,
+        color: '#374151',
+        textAlign: 'center',
     },
     nextButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.lavender,
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.full,
-        shadowColor: colors.lavender,
+        borderRadius: 12,
+        overflow: 'hidden',
+        shadowColor: '#ec4899',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.4,
         shadowRadius: 8,
         elevation: 5,
-        gap: spacing.sm,
+        marginBottom: spacing.xl,
     },
     nextButtonText: {
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: '600',
         color: '#fff',
     },
 
-    // ===== TIMELINE VIEW =====
+    // ===== TIMELINE STAGE =====
     timelineScrollContainer: {
         flex: 1,
+        zIndex: 1,
     },
     timelineScrollContent: {
-        paddingHorizontal: spacing.lg,
+        padding: spacing.lg,
         paddingTop: 100,
-        alignItems: 'center',
+        paddingBottom: 40,
     },
     timelineTitle: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: '700',
-        color: '#fff',
-        marginBottom: spacing.xs,
+        color: '#1f2937',
         textAlign: 'center',
+        marginBottom: spacing.xs,
     },
     timelineSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.6)',
-        marginBottom: spacing.xl,
+        fontSize: 16,
+        color: '#6b7280',
         textAlign: 'center',
+        marginBottom: spacing.xl,
     },
     timelineCard: {
-        width: '100%',
-        alignItems: 'center',
-        marginBottom: spacing.xl,
+        borderRadius: 20,
+        padding: spacing.lg,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        overflow: 'hidden',
     },
-    timelinePositionContainer: {
-        marginBottom: spacing.sm,
+    timelineCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: spacing.md,
+        gap: spacing.md,
+    },
+    timelineCardTitles: {
+        flex: 1,
     },
     timelinePosition: {
-        fontSize: 14,
+        fontSize: 12,
+        color: '#ec4899',
         fontWeight: '700',
-        color: colors.lavender,
         textTransform: 'uppercase',
         letterSpacing: 1.5,
+        marginBottom: 2,
     },
-    timelineCardImageWrapper: {
-        marginBottom: spacing.md,
+    timelineSubheadline: {
+        fontSize: 11,
+        color: '#6b7280',
+        fontStyle: 'italic',
+        marginBottom: 4,
     },
     timelineCardName: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#fff',
-        marginBottom: spacing.sm,
-        textAlign: 'center',
+        color: '#1f2937',
     },
-    timelineMeaningContainer: {
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        padding: spacing.lg,
-        borderRadius: borderRadius.lg,
-        width: '100%',
-    },
-    timelineMeaningText: {
+    timelineMeaning: {
         fontSize: 14,
-        lineHeight: 22,
-        color: 'rgba(255,255,255,0.85)',
-        textAlign: 'left',
+        lineHeight: 21,
+        color: '#374151',
     },
     connectionLine: {
         width: 2,
-        height: 40,
-        backgroundColor: 'rgba(186, 148, 240, 0.3)',
-        marginTop: spacing.lg,
+        height: 30,
+        backgroundColor: 'rgba(236, 72, 153, 0.3)',
+        alignSelf: 'center',
+        marginVertical: spacing.xs,
     },
-    doneButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.lavender,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.xl,
-        borderRadius: borderRadius.full,
+    doneButtonLarge: {
         marginTop: spacing.xl,
-        shadowColor: colors.lavender,
+        marginBottom: spacing.xl,
+        borderRadius: 12,
+        overflow: 'hidden',
+        shadowColor: '#ec4899',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.4,
         shadowRadius: 8,
         elevation: 5,
-        gap: spacing.sm,
     },
     doneButtonText: {
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: '600',
         color: '#fff',
     },
@@ -715,12 +885,59 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 60,
         right: 20,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 100,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    errorOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 200,
+        paddingHorizontal: spacing.lg,
+    },
+    errorCard: {
+        width: '100%',
+        maxWidth: 360,
+        padding: spacing.lg,
+        borderRadius: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.08)',
+    },
+    errorTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: spacing.sm,
+        color: '#1f2937',
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#374151',
+        textAlign: 'center',
+        marginBottom: spacing.md,
+    },
+    errorButtons: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    errorButton: {
+        backgroundColor: '#ec4899',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        borderRadius: 10,
+    },
+    errorCloseButton: {
+        backgroundColor: 'rgba(0,0,0,0.12)'
+    },
+    errorButtonText: {
+        color: '#fff',
+        fontWeight: '600',
     },
 });

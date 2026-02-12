@@ -142,13 +142,22 @@ tarotapp-fresh/
 
 ## 🔄 Future Enhancements
 
-- [ ] Multi-card spreads (3-card readings)
-- [ ] Journal entries with card associations
-- [ ] Card favorites and collections
-- [ ] Export journal as PDF
-- [ ] Dark mode toggle
-- [ ] Additional language support
-- [ ] Share cards on social media
+
+## 🔁 How the App Handles Changes
+
+- **Persistent data:** The app uses AsyncStorage together with the Zustand persistence middleware to store draws, streaks, and journal entries locally. User progress is preserved across restarts and app updates.
+- **Versioned state & migrations:** Stored state includes a version key so the app can run lightweight migrations on startup to adapt older state shapes (e.g., recalculating streaks or renaming fields) and avoid data loss when the schema changes.
+- **Asset updates:** Card images are bundled in the `assets/cards` folder and referenced via the image mapping in `src/data/cardImages.ts`. When illustrations are updated, updating the mapping keeps existing saved draws referencing the correct assets.
+- **Daily-draw & timezone handling:** The "last draw" is tracked as a date (UTC/ISO). The app compares stored dates to the current date to keep streak logic consistent across timezone or clock changes.
+- **Offline-first & sync considerations:** Progress is written locally immediately. If cloud sync is added later, local changes should merge by timestamp to resolve conflicts and preserve the most recent user actions.
+- **Backups & export (recommended):** For long-term preservation, provide export or backup options (or rely on device backups) so users can keep their history when moving devices or reinstalling the app.
+
+- **Security note:** Do not commit secrets or `.env.local` files. If sensitive keys are accidentally committed, rotate/revoke them immediately and remove the file from the repository history. See `docs/CONTRIBUTING.md` for guidance and use `.env.example` as a template.
+
+For implementation details, migration examples, and contributor guidance see:
+
+- [docs/CHANGELOG.md](docs/CHANGELOG.md)
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
 
 ## 📄 License
 

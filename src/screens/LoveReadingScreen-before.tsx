@@ -367,7 +367,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                             onPress={onClose}
                         >
                             <LinearGradient
-                                colors={['#c294d8', '#a67bb8']} // Soft plum gradient
+                                colors={['#ec4899', '#db2777']}
                                 style={styles.gradientButton}
                             >
                                 <Text style={styles.doneButtonText}>Zavřít</Text>
@@ -477,9 +477,11 @@ const CardReadingDisplay = ({
                                     colors={['rgba(236, 72, 153, 0.3)', 'rgba(219, 39, 119, 0.3)']}
                                     style={styles.cardBackGradient}
                                 >
-                                    {/* White heart outline */}
-                                    <View style={styles.heartOutline}>
-                                        <Ionicons name="heart-outline" size={80} color="#fff" />
+                                    <Text style={styles.cardBackEmoji}>💕</Text>
+                                    <View style={styles.cardBackPattern}>
+                                        {[...Array(5)].map((_, i) => (
+                                            <Text key={i} style={styles.cardBackStar}>✨</Text>
+                                        ))}
                                     </View>
                                 </LinearGradient>
                             </Animated.View>
@@ -519,7 +521,7 @@ const CardReadingDisplay = ({
                                 onPress={onNext}
                             >
                                 <LinearGradient
-                                    colors={['#c294d8', '#a67bb8']} // Soft plum gradient
+                                    colors={['#ec4899', '#db2777']}
                                     style={styles.gradientButton}
                                 >
                                     <Text style={styles.nextButtonText}>{nextButtonText}</Text>
@@ -628,7 +630,7 @@ const styles = StyleSheet.create({
     positionLabel: {
         fontSize: 28,
         fontWeight: '700',
-        color: '#c294d8', // Soft plum instead of bright pink
+        color: '#ec4899',
         textTransform: 'uppercase',
         letterSpacing: 2,
         marginBottom: 4,
@@ -662,9 +664,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
-    heartOutline: {
-        alignItems: 'center',
-        justifyContent: 'center',
+    cardBackEmoji: {
+        fontSize: 80,
+        marginBottom: 16,
+    },
+    cardBackPattern: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    cardBackStar: {
+        fontSize: 24,
+        opacity: 0.6,
     },
     cardFront: {
         shadowColor: '#000',
@@ -683,7 +693,7 @@ const styles = StyleSheet.create({
     divider: {
         width: 60,
         height: 2,
-        backgroundColor: '#c294d8', // Soft plum
+        backgroundColor: '#ec4899',
         alignSelf: 'center',
         marginBottom: spacing.lg,
     },
@@ -703,7 +713,7 @@ const styles = StyleSheet.create({
     nextButton: {
         borderRadius: borderRadius.full,
         overflow: 'hidden',
-        shadowColor: '#c294d8', // Soft plum shadow
+        shadowColor: '#ec4899',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -766,7 +776,7 @@ const styles = StyleSheet.create({
     timelinePosition: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#c294d8', // Soft plum
+        color: '#ec4899',
         textTransform: 'uppercase',
         letterSpacing: 1.5,
         marginBottom: 2,
@@ -800,7 +810,7 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.md,
         width: '100%',
         borderLeftWidth: 3,
-        borderLeftColor: '#c294d8', // Soft plum
+        borderLeftColor: '#ec4899',
     },
     timelineMeaningText: {
         fontSize: 14,
@@ -811,14 +821,14 @@ const styles = StyleSheet.create({
     connectionLine: {
         width: 2,
         height: 30,
-        backgroundColor: 'rgba(194, 148, 216, 0.4)', // Soft plum
+        backgroundColor: 'rgba(236, 72, 153, 0.4)',
         marginTop: spacing.lg,
     },
     doneButton: {
         borderRadius: borderRadius.full,
         overflow: 'hidden',
         marginTop: spacing.xl,
-        shadowColor: '#c294d8', // Soft plum
+        shadowColor: '#ec4899',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,

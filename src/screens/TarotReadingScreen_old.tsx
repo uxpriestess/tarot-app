@@ -662,8 +662,7 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
     const frontInterpolate = rotateAnim.interpolate({ inputRange: [0, 180], outputRange: ['0deg', '180deg'] });
     const backInterpolate = rotateAnim.interpolate({ inputRange: [0, 180], outputRange: ['180deg', '360deg'] });
 
-    // 🌙 Moon cards should be bigger since it's just one card
-    const cardWidth = isMoonSpread ? width * 0.5 : width * 0.3;
+    const cardWidth = width * 0.3;
     const cardHeight = cardWidth * 1.5;
 
     return (
@@ -697,7 +696,7 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
                             style={styles.moonCardBackGradient}
                         >
                             <Animated.View style={{ opacity: glowAnim }}>
-                                <Ionicons name="moon-outline" size={80} color="rgba(255, 255, 255, 0.9)" />
+                                <Ionicons name="moon-outline" size={64} color="rgba(255, 255, 255, 0.9)" />
                             </Animated.View>
                             <Text style={styles.moonCardPrompt}>Odhal kartu</Text>
                         </LinearGradient>
@@ -793,7 +792,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         borderWidth: 1,
         borderColor: 'rgba(150, 130, 200, 0.3)',
-        maxWidth: '90%', // Prevent text from being too wide
     },
     moonKeywordsText: {
         fontSize: 15,
@@ -813,7 +811,7 @@ const styles = StyleSheet.create({
     cardFront: { backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.2)', transform: [{ rotateY: '180deg' }], overflow: 'hidden' },
     closeButton: { position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
     meaningsScroll: { flex: 1, paddingHorizontal: spacing.md },
-    meaningsContent: { paddingBottom: 200 }, // Extra space to avoid tab bar collision
+    meaningsContent: { paddingBottom: 120 }, // More space to avoid tab bar collision
     loadingContainer: { padding: 20, alignItems: 'center' },
     loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 12, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif' },
     meaningCard: {

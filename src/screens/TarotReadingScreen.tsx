@@ -849,12 +849,21 @@ const styles = StyleSheet.create({
         marginTop: 16, // Only applied to non-first paragraphs
     },
     
-    // 🌙 Moon Meaning Card (ethereal style)
+    // 🌙 Moon Meaning Card (ethereal style - single container)
     moonMeaningCard: {
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(20, 15, 25, 0.7)',
         marginBottom: spacing.md,
         overflow: 'hidden',
         borderRadius: 20,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(150, 130, 200, 0.3)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 2,
     },
     moonCardName: {
         fontSize: 20,
@@ -879,19 +888,9 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         textAlign: 'left',
         fontWeight: '400',
-        backgroundColor: 'rgba(25, 20, 45, 0.95)',
-        padding: spacing.lg,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(150, 130, 200, 0.4)',
-        shadowColor: 'rgba(150, 130, 200, 0.3)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-        elevation: 5,
     },
     moonMeaningTextSpacing: {
-        marginTop: 12,
+        marginTop: 16,
     },
     
     // 🌙 Moon Card Back

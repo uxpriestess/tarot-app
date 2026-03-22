@@ -210,15 +210,6 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const rotateAnim = useRef(new Animated.Value(0)).current;
 
-    // Debug: Check if callback is passed
-    useEffect(() => {
-        console.log('🎯 TarotReadingScreen mounted with props:', {
-            hasOnClose: !!onClose,
-            hasOnOpenLoveReading: !!onOpenLoveReading,
-            onOpenLoveReadingType: typeof onOpenLoveReading
-        });
-    }, []);
-
     useEffect(() => {
         Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
     }, []);

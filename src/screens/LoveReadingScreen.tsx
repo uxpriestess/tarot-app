@@ -36,7 +36,6 @@ let Haptics: any = null;
 try {
     Haptics = require('expo-haptics');
 } catch (e) {
-    console.log('Haptics not available');
 }
 
 type Stage = 'ritual' | 'loading' | 'ty' | 'partner' | 'pouto' | 'timeline';
@@ -82,7 +81,6 @@ function parseMeaningText(text: string) {
 }
 
 export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
-    console.log('🎯 LOVE READING - COMPLETE & FIXED 🎯');
     
     const fontsLoaded = useFonts();
     const [stage, setStage] = useState<Stage>('ritual');
@@ -119,7 +117,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
 
     // Draw cards and fetch meanings
     const handleStartReading = async () => {
-        console.log('=== DRAWING LOVE READING CARDS ===');
         setStage('loading');
 
         const draw1 = drawCard();
@@ -127,7 +124,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
         const draw3 = drawCard([draw1.card.name, draw2.card.name]);
 
         const cards = [draw1.card, draw2.card, draw3.card];
-        console.log('Cards drawn:', cards.map(c => c.name));
 
         try {
             const reading = await performReading({
@@ -142,8 +138,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 mode: 'love'
             });
 
-            console.log('API response:', reading);
-
             // Parse response - handle ALL variations
             let meanings: string[] = [];
             
@@ -151,7 +145,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 meanings = reading.sections.map((s: any) => s.text);
             } else if (reading?.sections?.length === 1) {
                 const combinedText = reading.sections[0].text;
-                console.log('Combined text to parse:', combinedText);
                 
                 const sections = combinedText.split(/\*\*/);
                 
@@ -175,8 +168,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                            upper.includes('VÁŠ VZTAH –') || upper.includes('VÁŠ VZTAH:') ||
                            upper.includes('CO JE MEZI VÁMI') || upper.includes('MEZI VÁMI');
                 });
-                
-                console.log('Found indices:', { tyIndex, partnerIndex, poutoIndex });
+
                 
                 const tyText = tyIndex >= 0 && partnerIndex > tyIndex 
                     ? sections.slice(tyIndex + 1, partnerIndex).join('**').trim() 
@@ -193,8 +185,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                     partnerText || 'Význam nedostupný',
                     poutoText || 'Význam nedostupný'
                 ];
-                
-                console.log('Parsed meanings:', meanings);
             }
             
             if (meanings.length === 3 && meanings[0] !== 'Význam nedostupný') {

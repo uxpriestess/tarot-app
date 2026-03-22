@@ -19,7 +19,7 @@ const READING_TYPES = {
     moon_phase: {
         name: 'moon_phase',
         maxWords: 160,
-        paragraphs: '4-5'
+        paragraphs: '3-4'
     }
 };
 
@@ -47,8 +47,8 @@ const SPREAD_SCHEMAS = {
 };
 
 /**
- * Parse love reading sections from LLM output
- * Expects JSON with ty, partner, vztah fields OR delimiter-separated text
+ * Parse love reading sections from LLM output.
+ * Expects JSON with ty, partner, vztah fields OR delimiter-separated text.
  */
 function parseLoveSections(rawText) {
     const schema = SPREAD_SCHEMAS.love_3_card.sections;
@@ -97,8 +97,8 @@ function parseLoveSections(rawText) {
 }
 
 /**
- * Build structured response per architecture.md
- * Backend owns structure, LLM provides meaning
+ * Build structured response per architecture.md.
+ * Backend owns structure, LLM provides meaning.
  */
 function buildStructuredResponse(mode, rawText, cards) {
     const schema = SPREAD_SCHEMAS[mode] || SPREAD_SCHEMAS.daily;
@@ -195,7 +195,20 @@ export default async function handler(req, res) {
 }
 
 /**
- * Builds a structured user prompt based on the card(s) and question
+ * Builds a structured user prompt based on the card(s) and question.
+ *
+ * CHANGE 1 of 2 — moon phase context in the user prompt.
+ *
+ * Previously the full moonPhase string (name + theme + description + energy
+ * question, ~4 lines) was appended here. But the same full string is already
+ * injected into the system prompt via moonPhaseContext in buildSystemPrompt().
+ * Sending it twice gave the LLM two reasons to restate it — and Section A of
+ * the old shaper added a third by explicitly asking it to "acknowledge" the phase.
+ *
+ * Now we only pass the first line (e.g. "Aktuální fáze měsíce: 🌒 Dorůstající srpek")
+ * as a short label. Think of it like a meeting agenda: the full briefing document
+ * was already emailed to everyone (system prompt), so here we just say
+ * "re: Tuesday's item" rather than re-reading the whole memo out loud.
  */
 function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
     const cardsInfo = cards.map((c, idx) => {
@@ -209,16 +222,20 @@ function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
         prompt += `\n\nTYP VÝKLADU: ${spreadName}`;
     }
 
-    // Add moon phase context for moon_phase mode
+    // Only pass the first line of moonPhase here (the name + icon).
+    // The full context — theme, description, energy question — is already in
+    // the system prompt. Repeating it here caused the LLM to over-emphasise
+    // the phase name and restate it multiple times in its output.
     if (mode === 'moon_phase' && moonPhase) {
-        prompt += `\n\n🌙 MĚSÍČNÍ KONTEXT:\n${moonPhase}`;
+        const phaseName = moonPhase.split('\n')[0]; // e.g. "Aktuální fáze měsíce: 🌒 Dorůstající srpek"
+        prompt += `\n\nFÁZE: ${phaseName}`;
     }
 
     return prompt;
 }
 
 /**
- * Builds the system prompt with specific shaper instructions
+ * Builds the system prompt with specific shaper instructions.
  */
 function buildSystemPrompt(mode, moonPhase) {
     const readingType = READING_TYPES[mode] || READING_TYPES.daily;
@@ -311,40 +328,62 @@ VERIFICATION CHECKLIST (before responding):
 If ANY check fails → fix it before responding.
 `;
 
+    // -------------------------------------------------------------------------
+    // CHANGE 2 of 2 — moonPhaseShaper rewritten to eliminate repetition.
+    //
+    // The old shaper had a Section A that said "briefly acknowledge the moon
+    // phase and its current energy". That instruction, combined with the phase
+    // context arriving twice (system prompt + user prompt), caused the LLM to
+    // restate the phase name and emoji 2-3 times inside a 160-word response.
+    //
+    // The fix has three parts:
+    //   1. Section A is removed entirely. The phase is already visible to the
+    //      user in the UI badge — restating it in the reading text adds no value.
+    //   2. An explicit DO NOT rule is added, with a concrete before/after example.
+    //      LLMs respond much better to "here is exactly what bad looks like,
+    //      never do this" than to abstract rules like "avoid repetition".
+    //   3. The structure is trimmed from 4 sections to 3, which also helps the
+    //      LLM stay within the 160-word limit without padding.
+    // -------------------------------------------------------------------------
     const moonPhaseShaper = `
 ## 🌙 MOON PHASE READING STRUCTURE:
 
-This is a special reading that weaves together the card meaning with the current moon phase energy.
-
 CRITICAL CONCEPT: The moon phase is the "weather" the card is happening in.
-- The card shows WHAT is present in the user's life
-- The moon phase shows the ENERGETIC CLIMATE around it
+- The card shows WHAT is present in the user's life.
+- The moon phase shows the ENERGETIC CLIMATE around it.
+
+⚠️ DO NOT restate the moon phase name or emoji in your response.
+The user can already see the phase name in the app. Mentioning it again
+wastes words and breaks the flow. Dive straight into the interpretation.
+
+❌ NEVER write like this:
+"V Dorůstajícím srpku, kdy energie roste... [later] ...tato fáze Dorůstajícího
+srpku znamená... [later] ...Dorůstající srpek nám říká..."
+
+✅ WRITE like this — assume the user knows the phase, just interpret through it:
+"Eso pohárů tady říká, že se v tobě něco otevírá — a ta energie kolem toho
+nahrává prvním krokům. Není to čas čekat, až budeš stoprocentně připravený..."
 
 STRUCTURE:
 
-A. THE WEATHER (1-2 sentences)
-Briefly acknowledge the moon phase and its current energy (already provided in context).
+A. THE CARD IN THIS WEATHER (2-3 sentences)
+Interpret the card through the lens of the moon phase energy — WITHOUT naming
+the phase. How does this energetic climate colour what the card is saying?
 
-B. THE CARD IN THIS WEATHER (2-3 sentences)  
-Interpret the card through the lens of the moon phase.
-How does this phase color what the card is saying?
+B. EMOTIONAL / DECISION LANDSCAPE (2 sentences)
+How might the user be feeling or what might they be navigating under this
+combination of card and phase energy?
 
-C. EMOTIONAL/DECISION LANDSCAPE (2 sentences)
-How might the user be feeling or thinking under this combination?
-
-D. WORKING WITH IT (1-2 sentences)
-One specific way to work with this card given the moon's current influence.
+C. WORKING WITH IT (1-2 sentences)
+One specific, practical way to work with this card given the current lunar influence.
 
 TONE:
 - Poetic but grounded
-- Acknowledge both card AND phase as equal players
-- Natural Czech, conversational
-- The moon phase isn't fortune-telling — it's emotional weather
+- Natural Czech, conversational, ty-forma
+- The moon phase is emotional weather, not fortune-telling
+- No emoji in the text (the UI already shows them)
 
-LENGTH: 140–160 words MAX. 4-5 paragraphs.
-
-EXAMPLE APPROACH:
-"Teď, v úplňku, kdy emoce vrcholí... [karta] ukazuje... To znamená, že... Můžeš pracovat s tím tak, že..."
+LENGTH: 140–160 words MAX. 3 short paragraphs.
 `;
 
     let responseShaper;
@@ -362,7 +401,10 @@ EXAMPLE APPROACH:
         responseShaper = dailyShaper;
     }
 
-    // Add moon phase awareness to system prompt when relevant
+    // The full moon phase context (name + theme + description + energy question)
+    // is injected here, into the system prompt, exactly once. This is the single
+    // authoritative place the LLM reads it. The user prompt only carries the
+    // short phase name as a label (see buildUserPrompt above).
     let moonPhaseContext = '';
     if (mode === 'moon_phase' && moonPhase) {
         moonPhaseContext = `\n\n🌙 MOON PHASE CONTEXT (important!):\n${moonPhase}\n\nThis reading must interpret the card through the lens of this moon phase energy.`;
@@ -399,7 +441,7 @@ Advice – Tarotka MAY and SHOULD advise practical suggestions and perspective s
 
 ## WHAT TAROTKA AVOIDS
 
-Tarotka does NOT use fatalistic language or claim absolute destiny. She avoid walls of text and mystical guru language.
+Tarotka does NOT use fatalistic language or claim absolute destiny. She avoids walls of text and mystical guru language.
 
 ---
 
@@ -434,7 +476,7 @@ Before sending every response, verify:
 4. ✅ Mobile-friendly paragraphs?
 5. ✅ Specific to the card drawn?
 6. ✅ Natural Czech?
-${mode === 'moon_phase' ? '7. ✅ Woven moon phase energy into interpretation?' : ''}
+${mode === 'moon_phase' ? '7. ✅ Moon phase woven in — but NOT restated by name?' : ''}
 
 If ANY check fails → rewrite.
 

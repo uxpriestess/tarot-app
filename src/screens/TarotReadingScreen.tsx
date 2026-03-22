@@ -5,6 +5,13 @@
 // 3. Fixes layout/positioning issues
 // 4. Labels ABOVE cards
 // 5. Only 2 header lines
+//
+// 🌙 MOON SPREAD: Refactored to single-scroll layout (like CardRevealScreen)
+//    - One ScrollView with flexGrow: 1 — no competing scroll areas
+//    - Card flows in document (centered block, not absolute positioned)
+//    - Keywords as pills below card (identical to daily card keywords)
+//    - Meaning card appears below after flip, fully scrollable
+//    - All other spreads completely unchanged
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -30,6 +37,10 @@ import { performReading, ReadingSection } from '../services/universe';
 import { getMoonPhase } from '../utils/moonPhase';
 
 const { width } = Dimensions.get('window');
+
+// Card dimensions for moon spread — same proportions as daily card (0.75 width)
+const MOON_CARD_WIDTH = Math.round(width * 0.75);
+const MOON_CARD_HEIGHT = Math.round(MOON_CARD_WIDTH * 1.5);
 
 // 🌙 Enhanced Moon Phase Data with Keywords
 interface MoonPhaseEnhanced {
@@ -164,7 +175,7 @@ const SPREADS: Spread[] = [
     { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7, labels: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'] },
 ];
 
-// UPDATED POSITIONS
+// UPDATED POSITIONS (used by multi-card spreads only — moon uses flow layout)
 const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
     love: [
         { x: 25, y: 40 },
@@ -192,7 +203,7 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     const [drawnCards, setDrawnCards] = useState<any[]>([]);
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
     const [revealedCount, setRevealedCount] = useState(0);
-    const [cardMeanings, setCardMeanings] = useState<ReadingSection[]>([]); // Pre-fetched structured sections
+    const [cardMeanings, setCardMeanings] = useState<ReadingSection[]>([]);
     const [isLoadingMeanings, setIsLoadingMeanings] = useState(false);
     const [stage, setStage] = useState<Stage>('welcome');
 
@@ -254,7 +265,6 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
             return;
         }
 
-        // Flip the card
         setFlippedCards(prev => [...prev, idx]);
         setRevealedCount(prev => prev + 1);
 
@@ -262,7 +272,6 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     };
 
     // ✅ Pre-fetch for Moon spread with moon phase context
-    // Per architecture.md: frontend receives structured sections, no parsing
     const preFetchMoonMeaning = async (cards: any[], spread: Spread) => {
         console.log('=== PRE-FETCHING MOON MEANING ===');
         setIsLoadingMeanings(true);
@@ -271,7 +280,6 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
             const currentDate = new Date();
             const moonPhase = getMoonPhaseEnhanced(currentDate);
 
-            // Build moon phase context
             const moonContext = `Aktuální fáze měsíce: ${moonPhase.icon} ${moonPhase.name}
 Téma: ${moonPhase.theme}
 ${moonPhase.description}
@@ -292,7 +300,6 @@ ${moonPhase.energy}`;
                 moonPhase: moonContext
             });
 
-            // Backend returns structured sections - no parsing needed
             console.log('✅ Moon reading received:', reading.sections.length, 'sections');
             setCardMeanings(reading.sections);
 
@@ -304,8 +311,7 @@ ${moonPhase.energy}`;
         }
     };
 
-    // ✅ Pre-fetch for Love spread - NO PARSING NEEDED
-    // Per architecture.md: backend parses LLM output, frontend only renders
+    // ✅ Pre-fetch for Love spread
     const preFetchLoveMeanings = async (cards: any[], spread: Spread) => {
         console.log('=== PRE-FETCHING LOVE MEANINGS ===');
         setIsLoadingMeanings(true);
@@ -323,7 +329,6 @@ ${moonPhase.energy}`;
                 mode: 'love_3_card'
             });
 
-            // Backend returns structured sections - no parsing needed!
             console.log('✅ Love reading received:', reading.sections.length, 'sections');
             reading.sections.forEach((s, i) => {
                 console.log(`  Section ${i}: ${s.key} - ${s.text.substring(0, 40)}...`);
@@ -360,7 +365,7 @@ ${moonPhase.energy}`;
                     console.error('❌ ERROR calling onOpenLoveReading:', error);
                 }
                 console.log('✅ RETURNING EARLY - should NOT see any more logs from this function');
-                return; // STOP HERE - do not continue
+                return;
             } else {
                 console.error('❌ CRITICAL: onOpenLoveReading is NOT defined!');
                 console.error('This means App.tsx is not passing the callback correctly!');
@@ -368,14 +373,13 @@ ${moonPhase.energy}`;
                     'Configuration Error',
                     'onOpenLoveReading callback is missing. Please check App.tsx configuration.'
                 );
-                // Still return to prevent rendering
                 return;
             }
         }
 
         console.log('📝 Continuing with traditional spread render for:', spread.id);
 
-        // Draw cards (for non-love spreads only if we get here)
+        // Draw cards (for non-love spreads only)
         const cards = [];
         for (let i = 0; i < spread.cards; i++) {
             const drawn = drawCard();
@@ -438,13 +442,132 @@ ${moonPhase.energy}`;
         </Animated.View>
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 🌙 MOON READING — single-scroll layout, same pattern as CardRevealScreen
+    // ─────────────────────────────────────────────────────────────────────────
+    const renderMoonReading = () => {
+        const currentMoon = getMoonPhaseEnhanced(new Date());
+        const isFlipped = flippedCards.length > 0;
+        const section = isFlipped ? cardMeanings[0] : null;
+        const cardData = drawnCards[0];
+
+        return (
+            <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim }]}>
+                {/* Back button — floats above scroll */}
+                <TouchableOpacity onPress={resetReading} style={styles.readingBackButton}>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
+
+                <ScrollView
+                    contentContainerStyle={styles.moonScrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* ── Moon phase badge ── */}
+                    <View style={styles.moonBadge}>
+                        <Text style={styles.moonBadgeIcon}>{currentMoon.icon}</Text>
+                        <View>
+                            <Text style={styles.moonBadgeName}>{currentMoon.name}</Text>
+                            <Text style={styles.moonBadgeTheme}>{currentMoon.theme}</Text>
+                        </View>
+                    </View>
+
+                    {/* ── Card — same large size as daily, flows in document ── */}
+                    {cardData && (
+                        <MoonCardFlow
+                            isFlipped={isFlipped}
+                            onFlip={() => flipCard(0)}
+                            cardData={cardData}
+                            pulseEnabled={!isFlipped}
+                            glowEnabled={!isFlipped}
+                        />
+                    )}
+
+                    {/* ── Keywords — shown before flip, pill style identical to daily ── */}
+                    {!isFlipped && (
+                        <View style={styles.moonKeywordRow}>
+                            {currentMoon.keywords.map((kw, i) => (
+                                <View key={i} style={styles.keywordPill}>
+                                    <Text style={styles.keywordPillText}>{kw}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* ── Loading spinner (while backend fetches) ── */}
+                    {isLoadingMeanings && (
+                        <View style={styles.loadingContainer}>
+                            <Animated.View style={{
+                                transform: [{
+                                    rotate: rotateAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg']
+                                    })
+                                }]
+                            }}>
+                                <Ionicons name="sparkles" size={32} color={colors.lavender} />
+                            </Animated.View>
+                            <Text style={styles.loadingText}>Připravuji výklad...</Text>
+                        </View>
+                    )}
+
+                    {/* ── Meaning card — appears after flip, fully scrollable ── */}
+                    {section && (() => {
+                        const cleanedText = stripMarkdownHeader(section.text);
+                        const paragraphs = cleanedText
+                            .split('\n')
+                            .filter((p: string) => p.trim().length > 0);
+                        const cardName =
+                            cardData?.card.nameCzech || cardData?.card.name;
+
+                        return (
+                            <View style={styles.moonMeaningCard}>
+                                <Text style={styles.moonCardName}>
+                                    {currentMoon.icon} {cardName}
+                                </Text>
+                                <View style={styles.moonDivider} />
+                                {paragraphs.map((para: string, pIdx: number) => (
+                                    <Text
+                                        key={pIdx}
+                                        style={[
+                                            styles.moonMeaningText,
+                                            pIdx > 0 && styles.moonMeaningTextSpacing
+                                        ]}
+                                    >
+                                        {parseBoldText(para)}
+                                    </Text>
+                                ))}
+                            </View>
+                        );
+                    })()}
+
+                    {/* ── Done button ── */}
+                    {isFlipped && cardMeanings.length > 0 && !isLoadingMeanings && (
+                        <TouchableOpacity style={styles.doneButton} onPress={resetReading}>
+                            <Ionicons name="checkmark-circle-outline" size={20} color={colors.lavender} />
+                            <Text style={styles.doneButtonText}>Zavřítvýklad</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <View style={{ height: 60 }} />
+                </ScrollView>
+            </Animated.View>
+        );
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // All other spreads — completely unchanged
+    // ─────────────────────────────────────────────────────────────────────────
     const renderReading = () => {
         if (!selectedSpread) return null;
 
+        // 🌙 Moon spread gets its own clean layout
+        if (selectedSpread.id === 'moon') {
+            return renderMoonReading();
+        }
+
         const subtitle =
             selectedSpread.id === 'love' ? 'Co je mezi vámi?' :
-                selectedSpread.id === 'moon' ? 'Klikni na kartu pro výklad' :
-                    'Ponořte se do své otázky...';
+                'Ponořte se do své otázky...';
 
         return (
             <Animated.View style={[styles.readingContainer, { opacity: fadeAnim }]}>
@@ -452,26 +575,10 @@ ${moonPhase.energy}`;
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                {/* ✅ Header - More air, less weight */}
+                {/* Header */}
                 <View style={styles.readingHeader}>
                     <Text style={styles.readingTitle}>{selectedSpread.name}</Text>
-                    {selectedSpread.id !== 'moon' && (
-                        <Text style={styles.readingSubtitle}>{subtitle}</Text>
-                    )}
-
-                    {/* 🌙 Moon phase badge - informational anchor */}
-                    {selectedSpread.id === 'moon' && (() => {
-                        const currentMoon = getMoonPhase(new Date());
-                        return (
-                            <View style={styles.moonPhaseAnchor}>
-                                <Text style={styles.moonPhaseIconLarge}>{currentMoon.icon}</Text>
-                                <View>
-                                    <Text style={styles.moonPhaseNameLarge}>{currentMoon.name}</Text>
-                                    <Text style={styles.moonTheme}>{currentMoon.theme}</Text>
-                                </View>
-                            </View>
-                        );
-                    })()}
+                    <Text style={styles.readingSubtitle}>{subtitle}</Text>
                 </View>
 
                 <View style={styles.spreadArea}>
@@ -485,31 +592,26 @@ ${moonPhase.energy}`;
                             cardData={dc}
                             label={selectedSpread.labels?.[idx]}
                             isLocked={idx !== revealedCount}
-                            isMoonSpread={selectedSpread.id === 'moon'}
+                            isMoonSpread={false}
                         />
                     ))}
                 </View>
 
-                {/* 🌙 Moon keywords - ONLY show BEFORE flip */}
-                {selectedSpread.id === 'moon' && flippedCards.length === 0 && (() => {
-                    const currentMoon = getMoonPhaseEnhanced(new Date());
-                    return (
-                        <View style={styles.moonKeywordsContainer}>
-                            <Text style={styles.moonKeywordsTitle}>Energie této fáze</Text>
-                            <View style={styles.moonKeywordsBox}>
-                                <Text style={styles.moonKeywordsText}>
-                                    {currentMoon.keywords.join(' • ')}
-                                </Text>
-                            </View>
-                        </View>
-                    );
-                })()}
-
                 {/* Meanings Area */}
-                <ScrollView style={styles.meaningsScroll} contentContainerStyle={styles.meaningsContent}>
+                <ScrollView
+                    style={styles.meaningsScroll}
+                    contentContainerStyle={styles.meaningsContent}
+                >
                     {isLoadingMeanings && cardMeanings.length === 0 && (
                         <View style={styles.loadingContainer}>
-                            <Animated.View style={{ transform: [{ rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
+                            <Animated.View style={{
+                                transform: [{
+                                    rotate: rotateAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg']
+                                    })
+                                }]
+                            }}>
                                 <Ionicons name="sparkles" size={32} color={colors.lavender} />
                             </Animated.View>
                             <Text style={styles.loadingText}>Připravuji výklad...</Text>
@@ -521,39 +623,11 @@ ${moonPhase.energy}`;
                         const section = cardMeanings[flippedIdx];
                         if (!section) return null;
 
-                        // Strip markdown header and parse text
                         const cleanedText = stripMarkdownHeader(section.text);
-                        const paragraphs = cleanedText.split('\n').filter((p: string) => p.trim().length > 0);
+                        const paragraphs = cleanedText
+                            .split('\n')
+                            .filter((p: string) => p.trim().length > 0);
 
-                        // 🌙 Special rendering for moon spread
-                        if (selectedSpread.id === 'moon') {
-                            const currentMoon = getMoonPhaseEnhanced(new Date());
-                            const cardName = drawnCards[flippedIdx]?.card.nameCzech || drawnCards[flippedIdx]?.card.name;
-
-                            return (
-                                <View key={flippedIdx} style={styles.moonMeaningCard}>
-                                    {/* Card name with moon emoji */}
-                                    <Text style={styles.moonCardName}>
-                                        {currentMoon.icon} {cardName}
-                                    </Text>
-                                    <View style={styles.moonDivider} />
-                                    {/* Meaning text */}
-                                    {paragraphs.map((para: string, pIdx: number) => (
-                                        <Text
-                                            key={pIdx}
-                                            style={[
-                                                styles.moonMeaningText,
-                                                pIdx > 0 && styles.moonMeaningTextSpacing
-                                            ]}
-                                        >
-                                            {parseBoldText(para)}
-                                        </Text>
-                                    ))}
-                                </View>
-                            );
-                        }
-
-                        // Default rendering for other spreads
                         return (
                             <View key={flippedIdx} style={styles.meaningCard}>
                                 {section.label && (
@@ -574,15 +648,15 @@ ${moonPhase.energy}`;
                         );
                     })}
 
-                    {/* Done button with soft ending */}
-                    {((selectedSpread.id === 'love' && flippedCards.length === selectedSpread.cards && cardMeanings.length === 3) ||
-                        (selectedSpread.id === 'moon' && flippedCards.length === 1 && cardMeanings.length === 1)) && (
+                    {/* Done button */}
+                    {selectedSpread.id === 'love' &&
+                        flippedCards.length === selectedSpread.cards &&
+                        cardMeanings.length === 3 && (
                             <>
                                 <TouchableOpacity style={styles.doneButton} onPress={resetReading}>
                                     <Ionicons name="checkmark-circle-outline" size={20} color={colors.lavender} />
                                     <Text style={styles.doneButtonText}>Děkuji za výklad</Text>
                                 </TouchableOpacity>
-                                {/* Soft ending space */}
                                 <View style={styles.softEnding} />
                             </>
                         )}
@@ -601,7 +675,140 @@ ${moonPhase.energy}`;
     );
 };
 
-// Card Component with label ABOVE
+// ─────────────────────────────────────────────────────────────────────────────
+// 🌙 MoonCardFlow — card that sits in document flow (not absolute positioned)
+//    Used only by renderMoonReading. Has the same flip + pulse + glow animations
+//    as the old CardComponent moon mode, but fills its parent View naturally.
+// ─────────────────────────────────────────────────────────────────────────────
+const MoonCardFlow = ({
+    isFlipped,
+    onFlip,
+    cardData,
+    pulseEnabled,
+    glowEnabled,
+}: {
+    isFlipped: boolean;
+    onFlip: () => void;
+    cardData: any;
+    pulseEnabled: boolean;
+    glowEnabled: boolean;
+}) => {
+    const rotateAnim = useRef(new Animated.Value(0)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const glowAnim = useRef(new Animated.Value(0.7)).current;
+
+    useEffect(() => {
+        Animated.timing(rotateAnim, {
+            toValue: isFlipped ? 180 : 0,
+            duration: 700,
+            useNativeDriver: true,
+        }).start();
+    }, [isFlipped]);
+
+    useEffect(() => {
+        if (pulseEnabled) {
+            const pulse = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.02,
+                        duration: 3000,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 3000,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            pulse.start();
+            return () => pulse.stop();
+        }
+    }, [pulseEnabled]);
+
+    useEffect(() => {
+        if (glowEnabled) {
+            const glow = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(glowAnim, {
+                        toValue: 1,
+                        duration: 2000,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(glowAnim, {
+                        toValue: 0.7,
+                        duration: 2000,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            glow.start();
+            return () => glow.stop();
+        }
+    }, [glowEnabled]);
+
+    const frontInterpolate = rotateAnim.interpolate({
+        inputRange: [0, 180],
+        outputRange: ['0deg', '180deg'],
+    });
+    const backInterpolate = rotateAnim.interpolate({
+        inputRange: [0, 180],
+        outputRange: ['180deg', '360deg'],
+    });
+
+    return (
+        <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onFlip}
+            style={styles.moonCardFlowTouchable}
+        >
+            {/* Back face */}
+            <Animated.View style={[
+                styles.moonCardFlowFace,
+                styles.cardBack,
+                {
+                    transform: [
+                        { rotateY: frontInterpolate },
+                        { scale: pulseEnabled ? pulseAnim : 1 },
+                    ]
+                }
+            ]}>
+                <LinearGradient
+                    colors={['rgba(30, 20, 50, 0.9)', 'rgba(50, 40, 70, 0.9)']}
+                    style={styles.moonCardBackGradient}
+                >
+                    <Animated.View style={{ opacity: glowAnim }}>
+                        <Ionicons name="moon-outline" size={80} color="rgba(255, 255, 255, 0.9)" />
+                    </Animated.View>
+                    <Text style={styles.moonCardPrompt}>Odhal kartu</Text>
+                </LinearGradient>
+            </Animated.View>
+
+            {/* Front face */}
+            <Animated.View style={[
+                styles.moonCardFlowFace,
+                styles.cardFront,
+                { transform: [{ rotateY: backInterpolate }] }
+            ]}>
+                {cardData && isFlipped && (
+                    <CardImage
+                        imageName={cardData.card.imageName}
+                        width={MOON_CARD_WIDTH - 4}
+                        height={MOON_CARD_HEIGHT - 4}
+                    />
+                )}
+            </Animated.View>
+        </TouchableOpacity>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CardComponent — used by all non-moon spreads (absolute positioned, unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
 const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, isLocked, isMoonSpread }: any) => {
     const rotateAnim = useRef(new Animated.Value(0)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -611,7 +818,6 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
         Animated.timing(rotateAnim, { toValue: isFlipped ? 180 : 0, duration: 700, useNativeDriver: true }).start();
     }, [isFlipped]);
 
-    // 🌙 Calm pulse animation for moon card (only when not flipped)
     useEffect(() => {
         if (isMoonSpread && !isFlipped) {
             const pulse = Animated.loop(
@@ -635,7 +841,6 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
         }
     }, [isMoonSpread, isFlipped]);
 
-    // 🌙 Soft glow animation for moon icon
     useEffect(() => {
         if (isMoonSpread && !isFlipped) {
             const glow = Animated.loop(
@@ -662,7 +867,6 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
     const frontInterpolate = rotateAnim.interpolate({ inputRange: [0, 180], outputRange: ['0deg', '180deg'] });
     const backInterpolate = rotateAnim.interpolate({ inputRange: [0, 180], outputRange: ['180deg', '360deg'] });
 
-    // 🌙 Moon cards should be bigger since it's just one card
     const cardWidth = isMoonSpread ? width * 0.5 : width * 0.3;
     const cardHeight = cardWidth * 1.5;
 
@@ -675,7 +879,6 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
             marginLeft: -cardWidth / 2,
             marginTop: -(cardHeight + 50) / 2,
         }]}>
-            {/* Label ABOVE */}
             {label && <Text style={styles.labelAbove}>{label}</Text>}
 
             <TouchableOpacity
@@ -684,14 +887,12 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
                 disabled={isLocked}
                 style={{ width: cardWidth, height: cardHeight, opacity: isLocked ? 0.5 : 1, marginTop: 30 }}
             >
-                {/* Back - with moon or sparkle */}
                 <Animated.View style={[
                     styles.cardFace,
                     styles.cardBack,
                     { transform: [{ rotateY: frontInterpolate }, { scale: isMoonSpread ? pulseAnim : 1 }] }
                 ]}>
                     {isMoonSpread ? (
-                        // 🌙 Moon card back with glowing moon outline
                         <LinearGradient
                             colors={['rgba(30, 20, 50, 0.9)', 'rgba(50, 40, 70, 0.9)']}
                             style={styles.moonCardBackGradient}
@@ -702,14 +903,12 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
                             <Text style={styles.moonCardPrompt}>Odhal kartu</Text>
                         </LinearGradient>
                     ) : (
-                        // Default card back with sparkles
                         <View style={styles.cardBackInner}>
                             <Ionicons name="sparkles" size={28} color="rgba(255,255,255,0.3)" />
                         </View>
                     )}
                 </Animated.View>
 
-                {/* Front - only load when flipped */}
                 <Animated.View style={[styles.cardFace, styles.cardFront, { transform: [{ rotateY: backInterpolate }] }]}>
                     {cardData && isFlipped && (
                         <CardImage imageName={cardData.card.imageName} width={cardWidth - 4} height={cardHeight - 4} />
@@ -732,18 +931,31 @@ const styles = StyleSheet.create({
     watercolorIcon: { width: 140, height: 140 },
     cardContent: { alignItems: 'center', marginTop: 0 },
     spreadName: { fontSize: 14, fontWeight: '600', color: '#fff', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textAlign: 'center', paddingHorizontal: 4, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+
+    // ── Multi-card spread layout (unchanged) ──────────────────────────────────
     readingContainer: { flex: 1, width: '100%' },
     readingBackButton: { position: 'absolute', top: 10, left: 20, zIndex: 50, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0, 0, 0, 0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)' },
     readingHeader: { alignItems: 'center', marginTop: 70, marginBottom: spacing.xl, paddingHorizontal: spacing.md },
     readingTitle: { fontSize: 28, color: 'rgba(255, 255, 255, 0.85)', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', fontWeight: '600', marginBottom: 6, textAlign: 'center', letterSpacing: 2 },
     readingSubtitle: { fontSize: 15, color: 'rgba(255, 255, 255, 0.5)', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textAlign: 'center' },
+    spreadArea: { height: 360, width: '100%', position: 'relative', marginBottom: spacing.md },
+    cardWrapper: { position: 'absolute', alignItems: 'center' },
+    labelAbove: { position: 'absolute', top: 0, color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 1.5, fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+    meaningsScroll: { flex: 1, paddingHorizontal: spacing.md },
+    meaningsContent: { flexGrow: 1, paddingBottom: 200 },
 
-    // 🌙 Moon Phase Anchor - informational, not clickable
-    moonPhaseAnchor: {
+    // ── 🌙 Moon reading — single-scroll layout ────────────────────────────────
+    moonScrollContent: {
+        flexGrow: 1,
+        paddingTop: 70,
+        paddingBottom: 40,
+        paddingHorizontal: spacing.lg,
+        alignItems: 'center',
+    },
+    // Phase badge — same pill style as daily card position label
+    moonBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 16,
         gap: 12,
         paddingVertical: 12,
         paddingHorizontal: 20,
@@ -751,109 +963,90 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.15)',
+        marginBottom: spacing.xl,
     },
-    moonPhaseIconLarge: {
-        fontSize: 28,
-    },
-    moonPhaseNameLarge: {
-        fontSize: 16,
+    moonBadgeIcon: { fontSize: 24 },
+    moonBadgeName: {
+        fontSize: 15,
         color: 'rgba(255, 255, 255, 0.95)',
-        letterSpacing: 1.5,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         fontWeight: '600',
+        letterSpacing: 1,
     },
-    moonTheme: {
-        fontSize: 12,
-        color: 'rgba(201, 184, 212, 0.8)',
+    moonBadgeTheme: {
+        fontSize: 11,
+        color: 'rgba(201, 184, 212, 0.75)',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         fontStyle: 'italic',
-        letterSpacing: 0.5,
         marginTop: 2,
     },
-
-    // 🌙 Moon Keywords Container (replaces message box)
-    moonKeywordsContainer: {
-        marginHorizontal: spacing.lg,
-        marginBottom: spacing.md,
-        marginTop: spacing.sm,
+    // Card in flow — fills fixed-size touchable, no absolute positioning
+    moonCardFlowTouchable: {
+        width: MOON_CARD_WIDTH,
+        height: MOON_CARD_HEIGHT,
+        marginBottom: spacing.xl,
+    },
+    moonCardFlowFace: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        borderRadius: borderRadius.sm,
+        backfaceVisibility: 'hidden',
         alignItems: 'center',
-    },
-    moonKeywordsTitle: {
-        fontSize: 11,
-        color: 'rgba(201, 184, 212, 0.7)',
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        marginBottom: 12,
-        fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    },
-    moonKeywordsBox: {
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: 16,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
+        justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(150, 130, 200, 0.3)',
-        maxWidth: '90%', // Prevent text from being too wide
     },
-    moonKeywordsText: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: 'rgba(201, 184, 212, 0.95)',
+    // Keywords — pill style identical to CardRevealScreen keywords
+    moonKeywordRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 8,
+        marginBottom: spacing.xl,
+        paddingHorizontal: spacing.sm,
+    },
+    keywordPill: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        marginBottom: 4,
+    },
+    keywordPillText: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.85)',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        letterSpacing: 0.5,
     },
-    spreadArea: { height: 360, width: '100%', position: 'relative', marginBottom: spacing.md },
-    cardWrapper: { position: 'absolute', alignItems: 'center' },
-    labelAbove: { position: 'absolute', top: 0, color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 1.5, fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+
+    // ── Shared card faces ─────────────────────────────────────────────────────
     cardFace: { position: 'absolute', width: '100%', height: '100%', borderRadius: borderRadius.sm, backfaceVisibility: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
     cardBack: { backgroundColor: '#1a1420', borderColor: '#8B7BA8', borderWidth: 2, padding: 8 },
     cardBackInner: { flex: 1, width: '100%', height: '100%', borderWidth: 1, borderColor: 'rgba(139, 123, 168, 0.4)', borderRadius: 6, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F0F0F' },
     cardFront: { backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.2)', transform: [{ rotateY: '180deg' }], overflow: 'hidden' },
-    closeButton: { position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
-    meaningsScroll: { flex: 1, paddingHorizontal: spacing.md },
-    meaningsContent: { paddingBottom: 200 }, // Extra space to avoid tab bar collision
-    loadingContainer: { padding: 20, alignItems: 'center' },
-    loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 12, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif' },
-    meaningCard: {
-        backgroundColor: 'rgba(20, 15, 25, 0.85)', // Darker, more contained
-        padding: spacing.xl,
-        borderRadius: 20,
-        marginBottom: spacing.md,
-        borderWidth: 1,
-        borderColor: 'rgba(139, 123, 168, 0.25)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 4,
+    moonCardBackGradient: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        borderRadius: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
     },
-    meaningLabel: {
-        fontSize: 11,
-        color: 'rgba(201, 184, 212, 0.7)',
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        marginBottom: spacing.sm,
+    moonCardPrompt: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.5)',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+        fontStyle: 'italic',
+        letterSpacing: 0.5,
     },
-    meaningText: {
-        fontSize: 16,
-        lineHeight: 25,
-        color: 'rgba(255, 255, 255, 0.95)',
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        textAlign: 'left',
-        fontWeight: '400',
-    },
-    meaningTextSpacing: {
-        marginTop: 16, // Only applied to non-first paragraphs
-    },
-    
-    // 🌙 Moon Meaning Card (ethereal style - single container)
+
+    // ── Meaning cards ─────────────────────────────────────────────────────────
     moonMeaningCard: {
+        width: '100%',
         backgroundColor: 'rgba(20, 15, 25, 0.7)',
         marginBottom: spacing.md,
-        overflow: 'hidden',
         borderRadius: 20,
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.lg,
@@ -892,25 +1085,43 @@ const styles = StyleSheet.create({
     moonMeaningTextSpacing: {
         marginTop: 16,
     },
-    
-    // 🌙 Moon Card Back
-    moonCardBackGradient: {
-        flex: 1,
-        width: '100%',
-        height: '100%',
-        borderRadius: 6,
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 16,
+    meaningCard: {
+        backgroundColor: 'rgba(20, 15, 25, 0.85)',
+        padding: spacing.xl,
+        borderRadius: 20,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: 'rgba(139, 123, 168, 0.25)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
     },
-    moonCardPrompt: {
-        fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.5)',
+    meaningLabel: {
+        fontSize: 11,
+        color: 'rgba(201, 184, 212, 0.7)',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+        marginBottom: spacing.sm,
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-        fontStyle: 'italic',
-        letterSpacing: 0.5,
     },
-    
+    meaningText: {
+        fontSize: 16,
+        lineHeight: 25,
+        color: 'rgba(255, 255, 255, 0.95)',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        textAlign: 'left',
+        fontWeight: '400',
+    },
+    meaningTextSpacing: {
+        marginTop: 16,
+    },
+
+    // ── Shared UI ─────────────────────────────────────────────────────────────
+    closeButton: { position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
+    loadingContainer: { padding: 20, alignItems: 'center' },
+    loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 12, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif' },
     doneButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -932,7 +1143,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     softEnding: {
-        height: 40, // Reduced since ScrollView now has more padding
+        height: 40,
         opacity: 0,
     },
 });

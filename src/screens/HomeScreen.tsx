@@ -16,6 +16,7 @@ import { CelestialBackground } from '../components/CelestialBackground';
 import { HomeCarousel, CarouselItem } from '../components/HomeCarousel';
 import { ActionBottomSheet } from '../components/ActionBottomSheet';
 import { getMoonPhase } from '../utils/moonPhase';
+import { supabase } from '../services/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -75,6 +76,7 @@ export function HomeScreen({
   const fadeIn = useRef(new Animated.Value(0)).current;
   const buttonY = useRef(new Animated.Value(20)).current;
 
+  // Existing animation + timer effect
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeIn, {
@@ -93,7 +95,7 @@ export function HomeScreen({
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-
+ 
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return { text: 'Dobré ráno', icon: '☀️' };

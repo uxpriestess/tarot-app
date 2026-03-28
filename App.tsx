@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { NameScreen } from './src/screens/onboarding/NameScreen';
+import { WelcomeScreen } from './src/screens/onboarding/WelcomeScreen';
+import { BirthDateScreen } from './src/screens/onboarding/BirthDateScreen';
+import { ZodiacRevealScreen } from './src/screens/onboarding/ZodiacRevealScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
@@ -15,6 +19,7 @@ import { TarotReadingScreen, LoveReadingScreen } from './src/screens';
 
 export default function App() {
   const [isMysticOpen, setIsMysticOpen] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'name' | 'birthDate' | 'zodiacReveal' | ''>('welcome');
   const [isLoveReadingOpen, setIsLoveReadingOpen] = useState(false);
   const [currentCard, setCurrentCard] = useState<{
     card: TarotCard;
@@ -100,51 +105,64 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        {isLoadingUniverse ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-            <ActivityIndicator size="large" color={colors.lavender} />
-          </View>
-        ) : universeResponse ? (
-          <UniverseResponseScreen
-            question={universeResponse.question}
-            answer={universeResponse.answer}
-            cards={universeResponse.cards}
-            onClose={handleCloseUniverse}
-          />
-        ) : isLoveReadingOpen ? (
-          <LoveReadingScreen onClose={() => setIsLoveReadingOpen(false)} />
-        ) : isMysticOpen ? (
-          <TarotReadingScreen onClose={() => setIsMysticOpen(false)} onOpenLoveReading={() => { setIsMysticOpen(false); setIsLoveReadingOpen(true); }} />
-        ) : (
-          <>
-            <TabNavigator
-              onDrawCard={handleDrawCard}
-              onAskUniverse={handleAskUniverse}
-              onOpenMystic={() => setIsMysticOpen(true)}
-              onOpenLoveReading={() => setIsLoveReadingOpen(true)}
-            />
-
-            <Modal
-              visible={!!currentCard}
-              animationType="fade"
-              transparent={true}
-              onRequestClose={handleClose}
-            >
-              {currentCard && (
-                <CardRevealScreen
-                  card={currentCard.card}
-                  position={currentCard.position}
-                  aiMeaning={currentCard.aiMeaning}
-                  onClose={handleClose}
-                  onSaveReading={handleSaveReading}
+        <NavigationContainer>
+            {onboardingStep === 'welcome' ? (
+                <WelcomeScreen onContinue={() => setOnboardingStep('name')} />
+            ) : onboardingStep === 'name' ? (
+                <NameScreen onContinue={() => setOnboardingStep('birthDate')} />
+            ) : onboardingStep === 'birthDate' ? (
+                <BirthDateScreen onContinue={() => setOnboardingStep('zodiacReveal')} />
+            ) : onboardingStep === 'zodiacReveal' ? (
+                <ZodiacRevealScreen onContinue={() => setOnboardingStep('')} />
+            ) : isLoadingUniverse ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+                    <ActivityIndicator size="large" color={colors.lavender} />
+                </View>
+            ) : universeResponse ? (
+                <UniverseResponseScreen
+                    question={universeResponse.question}
+                    answer={universeResponse.answer}
+                    cards={universeResponse.cards}
+                    onClose={handleCloseUniverse}
                 />
-              )}
-            </Modal>
-          </>
-        )}
-        <StatusBar style="auto" />
-      </NavigationContainer>
+            ) : isLoveReadingOpen ? (
+                <LoveReadingScreen onClose={() => setIsLoveReadingOpen(false)} />
+            ) : isMysticOpen ? (
+                <TarotReadingScreen
+                    onClose={() => setIsMysticOpen(false)}
+                    onOpenLoveReading={() => {
+                        setIsMysticOpen(false);
+                        setIsLoveReadingOpen(true);
+                    }}
+                />
+            ) : (
+                <>
+                    <TabNavigator
+                        onDrawCard={handleDrawCard}
+                        onAskUniverse={handleAskUniverse}
+                        onOpenMystic={() => setIsMysticOpen(true)}
+                        onOpenLoveReading={() => setIsLoveReadingOpen(true)}
+                    />
+                    <Modal
+                        visible={!!currentCard}
+                        animationType="fade"
+                        transparent={true}
+                        onRequestClose={handleClose}
+                    >
+                        {currentCard && (
+                            <CardRevealScreen
+                                card={currentCard.card}
+                                position={currentCard.position}
+                                aiMeaning={currentCard.aiMeaning}
+                                onClose={handleClose}
+                                onSaveReading={handleSaveReading}
+                            />
+                        )}
+                    </Modal>
+                </>
+            )}
+            <StatusBar style="auto" />
+        </NavigationContainer>
     </SafeAreaProvider>
-  );
+);
 }

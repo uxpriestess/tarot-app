@@ -16,6 +16,11 @@ export interface ScreenLayout {
 }
 
 export const SCREEN_LAYOUTS: Record<string, ScreenLayout> = {
+  // Onboarding screens
+  onboarding: {
+    backgroundImage: require('../../assets/screens/reading_background.jpg'),
+    hotspots: [],
+  },
   // Option A: Ritual (Candles)
   home_ritual: {
     backgroundImage: require('../../assets/screens/home_ritual.jpg'),

@@ -16,9 +16,10 @@ interface TabNavigatorProps {
     onAskUniverse: (question: string) => Promise<void>;
     onOpenMystic?: () => void;
     onOpenLoveReading?: () => void;
+    onShowAuth?: () => void;
 }
 
-export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLoveReading }: TabNavigatorProps) {
+export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLoveReading, onShowAuth }: TabNavigatorProps) {
     return (
         <Tab.Navigator
             screenOptions={{
@@ -30,7 +31,7 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLo
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    elevation: 0, // Remove shadow on Android
+                    elevation: 0,
                 },
                 tabBarActiveTintColor: colors.lavender,
                 tabBarInactiveTintColor: colors.textLight,
@@ -70,7 +71,6 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLo
                 {() => <TarotReadingScreen onOpenLoveReading={onOpenLoveReading} />}
             </Tab.Screen>
 
-
             <Tab.Screen
                 name="Deník"
                 component={JournalScreen}
@@ -93,13 +93,14 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLo
 
             <Tab.Screen
                 name="Profil"
-                component={ProfileScreen}
                 options={{
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="person" size={size} color={color} />
                     ),
                 }}
-            />
+            >
+                {() => <ProfileScreen onShowAuth={onShowAuth} />}
+            </Tab.Screen>
         </Tab.Navigator>
     );
 }

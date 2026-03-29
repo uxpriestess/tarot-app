@@ -11,6 +11,11 @@ export interface JournalEntry {
 }
 
 interface AppState {
+    // User Profile
+    displayName: string;
+    birthDate: string;
+    zodiacSign: string;
+    
     // Progress
     journalEntries: number;
     streakDays: number;
@@ -18,6 +23,7 @@ interface AppState {
     journalHistory: JournalEntry[];
 
     // Actions
+    setUserProfile: (displayName: string, birthDate: string, zodiacSign: string) => void;
     addJournalEntry: (entry: JournalEntry) => void;
     updateEntryNote: (id: string, note: string) => void;
     increaseStreak: () => void;
@@ -27,10 +33,23 @@ interface AppState {
 export const useAppStore = create<AppState>()(
     persist(
         (set) => ({
+            // User Profile
+            displayName: '',
+            birthDate: '',
+            zodiacSign: '',
+            
+            // Progress
             journalEntries: 0,
             streakDays: 0,
             drawHistory: [], // Keeping for legacy, or we could remove. Let's keep it empty.
             journalHistory: [], // New rich history
+
+            setUserProfile: (displayName, birthDate, zodiacSign) =>
+                set(() => ({
+                    displayName,
+                    birthDate,
+                    zodiacSign,
+                })),
 
             addJournalEntry: (entry) =>
                 set((s) => ({

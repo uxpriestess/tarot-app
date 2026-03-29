@@ -11,21 +11,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { useAppStore } from '../store/appStore';
+import { supabase } from '../services/supabase';
 
-export function ProfileScreen() {
+interface ProfileScreenProps {
+    onShowAuth?: () => void;
+}
+
+export function ProfileScreen({ onShowAuth }: ProfileScreenProps) {
+    const displayName = useAppStore((s) => s.displayName);
+    const birthDate = useAppStore((s) => s.birthDate);
+    const zodiacSign = useAppStore((s) => s.zodiacSign);
     const streakDays = useAppStore((s) => s.streakDays);
     const journalEntries = useAppStore((s) => s.journalEntries);
     const drawHistory = useAppStore((s) => s.drawHistory);
+    const setUserProfile = useAppStore((s) => s.setUserProfile);
 
     const handleResetOnboarding = async () => {
         Alert.alert(
             'Reset Onboarding',
             'Znovu zobrazit úvodní obrazovku při příštím spuštění?',
             [
-                {
-                    text: 'Zrušit',
-                    style: 'cancel',
-                },
+                { text: 'Zrušit', style: 'cancel' },
                 {
                     text: 'Reset',
                     style: 'destructive',
@@ -41,6 +47,26 @@ export function ProfileScreen() {
             ]
         );
     };
+
+    const handleLogout = async () => {
+        Alert.alert(
+            'Odhlásit se',
+            'Opravdu se chceš odhlásit?',
+            [
+                { text: 'Zrušit', style: 'cancel' },
+                {
+                    text: 'Odhlásit',
+                    style: 'destructive',
+                    onPress: async () => {
+                        await supabase.auth.signOut();
+                        setUserProfile('', '', '');
+                    },
+                },
+            ]
+        );
+    };
+
+    const isLoggedIn = !!displayName;
 
     const stats = [
         { icon: 'flame', label: 'Série', value: streakDays, color: colors.bronze },
@@ -63,6 +89,40 @@ export function ProfileScreen() {
                     <Text style={styles.subtitle}>Sleduj svůj pokrok</Text>
                 </View>
 
+                {/* Auth card — shown when not logged in */}
+                {!isLoggedIn && (
+                    <TouchableOpacity
+                        style={styles.authCard}
+                        onPress={onShowAuth}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="person-circle-outline" size={24} color={colors.lavender} />
+                        <View style={styles.authCardText}>
+                            <Text style={styles.authCardTitle}>Přihlásit se nebo zaregistrovat</Text>
+                            <Text style={styles.authCardSubtitle}>Ulož si svůj pokrok a profil</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+                    </TouchableOpacity>
+                )}
+
+                {/* User Profile Card — shown when logged in */}
+                {isLoggedIn && (
+                    <View style={styles.profileCard}>
+                        <View style={styles.profileRow}>
+                            <Text style={styles.profileLabel}>Jméno</Text>
+                            <Text style={styles.profileValue}>{displayName}</Text>
+                        </View>
+                        <View style={[styles.profileRow, styles.profileRowBorder]}>
+                            <Text style={styles.profileLabel}>Narozen(a)</Text>
+                            <Text style={styles.profileValue}>{birthDate}</Text>
+                        </View>
+                        <View style={styles.profileRow}>
+                            <Text style={styles.profileLabel}>Znamení</Text>
+                            <Text style={styles.profileValue}>{zodiacSign}</Text>
+                        </View>
+                    </View>
+                )}
+
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
                     {stats.map((stat, index) => (
@@ -76,7 +136,7 @@ export function ProfileScreen() {
                     ))}
                 </View>
 
-                {/* Preferences */}
+                {/* About */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>O aplikaci</Text>
                     <View style={styles.aboutCard}>
@@ -99,6 +159,14 @@ export function ProfileScreen() {
                         <Text style={styles.linkText}>Kontakt</Text>
                         <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
                     </TouchableOpacity>
+
+                    {/* Logout — only when logged in */}
+                    {isLoggedIn && (
+                        <TouchableOpacity style={styles.linkButton} onPress={handleLogout} activeOpacity={0.7}>
+                            <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: spacing.sm }} />
+                            <Text style={[styles.linkText, { color: colors.error }]}>Odhlásit se</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Dev Section */}
@@ -153,6 +221,30 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 16,
+        color: colors.textSecondary,
+    },
+    authCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.lavender + '40',
+        marginBottom: spacing.xl,
+        gap: spacing.md,
+    },
+    authCardText: {
+        flex: 1,
+    },
+    authCardTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: colors.text,
+        marginBottom: 2,
+    },
+    authCardSubtitle: {
+        fontSize: 13,
         color: colors.textSecondary,
     },
     statsGrid: {
@@ -216,9 +308,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.textLight,
     },
-    linksContainer: {
-        // gap removed
-    },
+    linksContainer: {},
     linkButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -259,5 +349,34 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: colors.error,
+    },
+    profileCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.softLinen,
+        marginBottom: spacing.xl,
+    },
+    profileRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+    },
+    profileRowBorder: {
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: colors.softLinen,
+    },
+    profileLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: colors.textSecondary,
+    },
+    profileValue: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.text,
     },
 });

@@ -6,6 +6,7 @@ import { BirthDateScreen } from './src/screens/onboarding/BirthDateScreen';
 import { ZodiacRevealScreen } from './src/screens/onboarding/ZodiacRevealScreen';
 import { FirstCardScreen } from './src/screens/onboarding/FirstCardScreen';
 import { SignUpScreen } from './src/screens/onboarding/SignUpScreen';
+import { LoginScreen } from './src/screens/onboarding/LoginScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
@@ -24,7 +25,9 @@ import { supabase } from './src/services/supabase';
 
 export default function App() {
   const [isMysticOpen, setIsMysticOpen] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'name' | 'birthDate' | 'zodiacReveal' | 'firstCard' | 'signUp' | ''>('welcome');
+  const [onboardingStep, setOnboardingStep] = useState<
+    'welcome' | 'name' | 'birthDate' | 'zodiacReveal' | 'firstCard' | 'signUp' | 'login' | ''
+  >('welcome');
   const [isLoveReadingOpen, setIsLoveReadingOpen] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [isFirstCardDraw, setIsFirstCardDraw] = useState(false);
@@ -46,6 +49,7 @@ export default function App() {
 
     checkOnboardingStatus();
   }, []);
+
   const [currentCard, setCurrentCard] = useState<{
     card: TarotCard;
     position: 'upright' | 'reversed';
@@ -64,9 +68,8 @@ export default function App() {
 
   const handleDrawCard = async (subsetIds?: string[]) => {
     const drawn = drawCard(subsetIds);
-    setCurrentCard({ ...drawn, aiMeaning: undefined }); // Reset AI meaning for new draw
+    setCurrentCard({ ...drawn, aiMeaning: undefined });
 
-    // Fetch AI meaning in the background
     try {
       const response = await askUniverse(
         `Výklad pro kartu: ${drawn.card.nameCzech || drawn.card.name} (${drawn.position === 'upright' ? 'vzpřímená' : 'obrácená'})`,
@@ -80,13 +83,11 @@ export default function App() {
       setCurrentCard(prev => prev ? { ...prev, aiMeaning: response.answer } : null);
     } catch (error) {
       console.error('Failed to fetch AI meaning:', error);
-      // Fallback is handled by the component or it just stays undefined
     }
   };
 
   const handleClose = () => {
     setCurrentCard(null);
-    // If this was the first card during onboarding, show sign-up screen
     if (isFirstCardDraw && onboardingStep === 'firstCard') {
       setIsFirstCardDraw(false);
       setOnboardingStep('signUp');
@@ -104,7 +105,6 @@ export default function App() {
     };
 
     addJournalEntry(entry);
-
     Alert.alert("Uloženo!", "Tvůj výklad byl uložen do deníku.");
   };
 
@@ -137,64 +137,110 @@ export default function App() {
     setIsFirstCardDraw(true);
   };
 
-  // Mock Auth: Create user profile in Supabase with onboarding data
-  const createUserProfile = async (authMethod: 'google' | 'apple' | 'skip') => {
+  // Sign up with email and password
+  const handleSignUp = async (email: string, password: string) => {
     try {
       const onboardingData = useOnboardingStore.getState().data;
-      
-      if (!onboardingData.displayName) {
-        Alert.alert('Chyba', 'Chybí tvoje jméno. Zkus to znovu.');
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          Alert.alert('Účet již existuje', 'Tento e-mail je již registrován. Přihlaš se.');
+        } else {
+          Alert.alert('Chyba', error.message);
+        }
         return;
       }
 
-      // In real OAuth, we'd get a UUID from Supabase auth
-      // For mock auth, we'll generate a simple mock ID
-      const mockUserId = `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const user = data.user;
+      if (!user) return;
 
-      // Write profile data to Supabase (RLS disabled for mock auth testing)
-      const { error } = await supabase
+      // Force sign in to guarantee an active session before RLS-protected insert
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        console.error('Auto sign-in after signup failed:', signInError);
+      }
+
+      // Now insert profile — session is guaranteed
+      const { error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: mockUserId,
+          id: user.id,
           display_name: onboardingData.displayName,
           birth_date: onboardingData.birthDate,
           zodiac_sign: onboardingData.zodiacSign,
         });
 
-      if (error) {
-        console.error('Supabase insert error:', error);
-        Alert.alert('Chyba při ukládání', 'Tvůj profil se nepodařilo uložit. Zkus to znovu.');
-        return;
+      if (profileError && profileError.code !== '23505') {
+        // 23505 = unique violation, profile already exists — that's fine
+        console.error('Profile insert error:', profileError);
       }
 
-      // Success: Mark onboarding as complete and navigate to home
+      // Save profile to local store
+      useAppStore.getState().setUserProfile(
+        onboardingData.displayName,
+        onboardingData.birthDate,
+        onboardingData.zodiacSign,
+      );
+
       await AsyncStorage.setItem('onboarding_complete', 'true');
-      
-      // Reset onboarding store for future use
       useOnboardingStore.getState().reset();
-      
-      // Navigate to home screen
       setOnboardingStep('');
-      
-      Alert.alert('Vítej! 🔮', `Ahoj ${onboardingData.displayName}! Tvůj profil je připraven.`);
     } catch (error) {
-      console.error('Error creating profile:', error);
-      Alert.alert('Chyba', error instanceof Error ? error.message : 'Něco se pokazilo při vytváření profilu.');
+      Alert.alert('Chyba', 'Něco se pokazilo. Zkus to znovu.');
     }
   };
 
-  const handleSignUpGoogle = async () => {
-    // Phase A (Mock Auth): Simulate Google OAuth
-    console.log('Mock: Google sign-up');
-    await createUserProfile('google');
+  // Log in with email and password
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          Alert.alert('Chyba', 'Špatný e-mail nebo heslo.');
+        } else {
+          Alert.alert('Chyba', error.message);
+        }
+        return;
+      }
+
+      const user = data.user;
+      if (!user) return;
+
+      // Try to load existing profile, don't crash if missing (PGRST116)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
+      }
+
+      // Load profile into local store if it exists
+      if (profile) {
+        useAppStore.getState().setUserProfile(
+          profile.display_name,
+          profile.birth_date,
+          profile.zodiac_sign,
+        );
+      }
+
+      await AsyncStorage.setItem('onboarding_complete', 'true');
+      setOnboardingStep('');
+    } catch (error) {
+      Alert.alert('Chyba', 'Něco se pokazilo. Zkus to znovu.');
+    }
   };
 
-  const handleSignUpApple = async () => {
-    // Phase A (Mock Auth): Simulate Apple Sign-In
-    console.log('Mock: Apple sign-up');
-    await createUserProfile('apple');
-  };
-
+  // Skip auth entirely
   const handleSignUpSkip = async () => {
     try {
       await AsyncStorage.setItem('onboarding_complete', 'true');
@@ -216,79 +262,86 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-        <NavigationContainer>
-            {onboardingStep === 'welcome' ? (
-                <WelcomeScreen onContinue={() => setOnboardingStep('name')} />
-            ) : onboardingStep === 'name' ? (
-                <NameScreen onContinue={() => setOnboardingStep('birthDate')} />
-            ) : onboardingStep === 'birthDate' ? (
-                <BirthDateScreen onContinue={() => setOnboardingStep('zodiacReveal')} />
-            ) : onboardingStep === 'zodiacReveal' ? (
-                <ZodiacRevealScreen onContinue={() => setOnboardingStep('firstCard')} />
-            ) : onboardingStep === 'firstCard' ? (
-                <FirstCardScreen onDrawCard={() => {
-                  handleDrawCard();
-                  setTimeout(() => handleFirstCardComplete(), 100);
-                }} />
-            ) : onboardingStep === 'signUp' ? (
-                <SignUpScreen
-                  onSignUpGoogle={handleSignUpGoogle}
-                  onSignUpApple={handleSignUpApple}
-                  onSkip={handleSignUpSkip}
-                />
-            ) : isLoadingUniverse ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-                    <ActivityIndicator size="large" color={colors.lavender} />
-                </View>
-            ) : universeResponse ? (
-                <UniverseResponseScreen
-                    question={universeResponse.question}
-                    answer={universeResponse.answer}
-                    cards={universeResponse.cards}
-                    onClose={handleCloseUniverse}
-                />
-            ) : isLoveReadingOpen ? (
-                <LoveReadingScreen onClose={() => setIsLoveReadingOpen(false)} />
-            ) : isMysticOpen ? (
-                <TarotReadingScreen
-                    onClose={() => setIsMysticOpen(false)}
-                    onOpenLoveReading={() => {
-                        setIsMysticOpen(false);
-                        setIsLoveReadingOpen(true);
-                    }}
-                />
-            ) : (
-                <>
-                    <TabNavigator
-                        onDrawCard={handleDrawCard}
-                        onAskUniverse={handleAskUniverse}
-                        onOpenMystic={() => setIsMysticOpen(true)}
-                        onOpenLoveReading={() => setIsLoveReadingOpen(true)}
-                    />
-                </>
-            )}
-            
-            {/* CardRevealScreen Modal - always available regardless of onboarding state */}
-            <Modal
-                visible={!!currentCard}
-                animationType="fade"
-                transparent={true}
-                onRequestClose={handleClose}
-            >
-                {currentCard && (
-                    <CardRevealScreen
-                        card={currentCard.card}
-                        position={currentCard.position}
-                        aiMeaning={currentCard.aiMeaning}
-                        onClose={handleClose}
-                        onSaveReading={handleSaveReading}
-                        isOnboarding={onboardingStep === 'firstCard'}
-                    />
-                )}
-            </Modal>
-            
-            <StatusBar style="auto" />
-        </NavigationContainer>
+      <NavigationContainer>
+        {onboardingStep === 'welcome' ? (
+          <WelcomeScreen onContinue={() => setOnboardingStep('name')} />
+        ) : onboardingStep === 'name' ? (
+          <NameScreen onContinue={() => setOnboardingStep('birthDate')} />
+        ) : onboardingStep === 'birthDate' ? (
+          <BirthDateScreen onContinue={() => setOnboardingStep('zodiacReveal')} />
+        ) : onboardingStep === 'zodiacReveal' ? (
+          <ZodiacRevealScreen onContinue={() => setOnboardingStep('firstCard')} />
+        ) : onboardingStep === 'firstCard' ? (
+          <FirstCardScreen onDrawCard={() => {
+            handleDrawCard();
+            setTimeout(() => handleFirstCardComplete(), 100);
+          }} />
+        ) : onboardingStep === 'signUp' ? (
+          <SignUpScreen
+            onSignUp={handleSignUp}
+            onGoToLogin={() => setOnboardingStep('login')}
+            onSkip={handleSignUpSkip}
+          />
+        ) : onboardingStep === 'login' ? (
+          <LoginScreen
+            onLogin={handleLogin}
+            onBackToSignUp={() => setOnboardingStep('signUp')}
+            onSkip={handleSignUpSkip}
+          />
+        ) : isLoadingUniverse ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+            <ActivityIndicator size="large" color={colors.lavender} />
+          </View>
+        ) : universeResponse ? (
+          <UniverseResponseScreen
+            question={universeResponse.question}
+            answer={universeResponse.answer}
+            cards={universeResponse.cards}
+            onClose={handleCloseUniverse}
+          />
+        ) : isLoveReadingOpen ? (
+          <LoveReadingScreen onClose={() => setIsLoveReadingOpen(false)} />
+        ) : isMysticOpen ? (
+          <TarotReadingScreen
+            onClose={() => setIsMysticOpen(false)}
+            onOpenLoveReading={() => {
+              setIsMysticOpen(false);
+              setIsLoveReadingOpen(true);
+            }}
+          />
+        ) : (
+          <>
+            <TabNavigator
+              onDrawCard={handleDrawCard}
+              onAskUniverse={handleAskUniverse}
+              onOpenMystic={() => setIsMysticOpen(true)}
+              onOpenLoveReading={() => setIsLoveReadingOpen(true)}
+              onShowAuth={() => setOnboardingStep('login')}
+            />
+          </>
+        )}
+
+        {/* CardRevealScreen Modal - always available regardless of onboarding state */}
+        <Modal
+          visible={!!currentCard}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={handleClose}
+        >
+          {currentCard && (
+            <CardRevealScreen
+              card={currentCard.card}
+              position={currentCard.position}
+              aiMeaning={currentCard.aiMeaning}
+              onClose={handleClose}
+              onSaveReading={handleSaveReading}
+              isOnboarding={onboardingStep === 'firstCard'}
+            />
+          )}
+        </Modal>
+
+        <StatusBar style="auto" />
+      </NavigationContainer>
     </SafeAreaProvider>
-);
+  );
 }

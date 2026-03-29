@@ -14,13 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { ImmersiveScreen } from '../../components/ImmersiveScreen';
 import { spacing } from '../../theme/colors';
 
-interface SignUpScreenProps {
-    onSignUp: (email: string, password: string) => void;
-    onGoToLogin: () => void;
+interface LoginScreenProps {
+    onLogin: (email: string, password: string) => void;
+    onBackToSignUp: () => void;
     onSkip: () => void;
 }
 
-export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProps) {
+export function LoginScreen({ onLogin, onBackToSignUp, onSkip }: LoginScreenProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +52,7 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
         ]).start();
     }, []);
 
-    const handleSignUp = async () => {
+    const handleLogin = async () => {
         // Validation
         if (!email.trim()) {
             Alert.alert('Chyba', 'Zadej svůj e-mail.');
@@ -61,11 +61,6 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
         
         if (!password.trim()) {
             Alert.alert('Chyba', 'Zadej heslo.');
-            return;
-        }
-
-        if (password.length < 6) {
-            Alert.alert('Chyba', 'Heslo musí mít alespoň 6 znaků.');
             return;
         }
 
@@ -78,7 +73,7 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
 
         setIsLoading(true);
         try {
-            await onSignUp(email, password);
+            await onLogin(email, password);
         } finally {
             setIsLoading(false);
         }
@@ -89,11 +84,11 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
             <View style={styles.container}>
                 {/* Question */}
                 <Animated.Text style={[styles.question, { opacity: questionAnim }]}>
-                    Zítra tu bude nová karta.
+                    Vítej zpátky!
                 </Animated.Text>
 
                 <Animated.Text style={[styles.questionContinuation, { opacity: questionAnim }]}>
-                    Mám si tě pamatovat?
+                    Přihlásíš se?
                 </Animated.Text>
 
                 {/* Email & Password Form */}
@@ -119,7 +114,7 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                         <Ionicons name="lock-closed" size={18} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Heslo (min. 6 znaků)"
+                            placeholder="Heslo"
                             placeholderTextColor="rgba(255, 255, 255, 0.4)"
                             value={password}
                             onChangeText={setPassword}
@@ -140,10 +135,10 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                         </TouchableOpacity>
                     </View>
 
-                    {/* Sign Up Button */}
+                    {/* Log In Button */}
                     <TouchableOpacity
                         style={[styles.button, isLoading && styles.buttonDisabled]}
-                        onPress={handleSignUp}
+                        onPress={handleLogin}
                         activeOpacity={0.8}
                         disabled={isLoading}
                     >
@@ -151,21 +146,21 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                             <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.95)" />
                         ) : (
                             <>
-                                <Ionicons name="checkmark-circle" size={20} color="rgba(255, 255, 255, 0.95)" />
-                                <Text style={styles.buttonText}>Vytvořit účet</Text>
+                                <Ionicons name="log-in" size={20} color="rgba(255, 255, 255, 0.95)" />
+                                <Text style={styles.buttonText}>Přihlásit se</Text>
                             </>
                         )}
                     </TouchableOpacity>
                 </Animated.View>
 
-                {/* Login & Skip Options */}
+                {/* Back to Sign Up & Skip Options */}
                 <Animated.View style={[{ opacity: skipAnim }, styles.linkContainer]}>
                     <TouchableOpacity
-                        onPress={onGoToLogin}
+                        onPress={onBackToSignUp}
                         activeOpacity={0.7}
                         disabled={isLoading}
                     >
-                        <Text style={[styles.skipText, isLoading && { opacity: 0.5 }]}>Přihlásit se</Text>
+                        <Text style={[styles.skipText, isLoading && { opacity: 0.5 }]}>Chci se zaregistrovat</Text>
                     </TouchableOpacity>
                     <Text style={styles.divider}>·</Text>
                     <TouchableOpacity
@@ -257,18 +252,17 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.95)',
         fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
         letterSpacing: 0.5,
-        textAlign: 'center',
-    },
-    skipText: {
-        fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.7)',
-        textDecorationLine: 'underline',
     },
     linkContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         justifyContent: 'center',
+    },
+    skipText: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.7)',
+        textDecorationLine: 'underline',
     },
     divider: {
         fontSize: 14,

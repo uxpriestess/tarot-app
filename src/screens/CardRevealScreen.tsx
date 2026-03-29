@@ -25,6 +25,7 @@ interface CardRevealScreenProps {
   note?: string;
   onUpdateNote?: (text: string) => void;
   isJournalMode?: boolean;
+  isOnboarding?: boolean;
 }
 
 const { width } = Dimensions.get('window');
@@ -40,6 +41,7 @@ export function CardRevealScreen({
   note,
   onUpdateNote,
   isJournalMode = false,
+  isOnboarding = false,
 }: CardRevealScreenProps) {
   const [isRevealed, setIsRevealed] = useState(false);
   const [localNote, setLocalNote] = useState(note || '');
@@ -93,14 +95,16 @@ export function CardRevealScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Close button */}
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={onClose}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="close" size={24} color="#fff" />
-        </TouchableOpacity>
+        {/* Close button - hidden during onboarding */}
+        {!isOnboarding && (
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
 
         {/* Card Section - Now using RevealableCard */}
         <View style={styles.cardSection}>
@@ -147,8 +151,8 @@ export function CardRevealScreen({
               },
             ]}
           >
-            {/* Notes Section */}
-            {(isJournalMode || onUpdateNote) && (
+            {/* Notes Section - hidden during onboarding */}
+            {!isOnboarding && (isJournalMode || onUpdateNote) && (
               <View style={styles.noteContainer}>
                 <Text style={styles.sectionTitle}>Tvé poznámky</Text>
                 <TextInput
@@ -163,8 +167,8 @@ export function CardRevealScreen({
               </View>
             )}
 
-            {/* Save Button (only if onSaveReading provided) */}
-            {onSaveReading && (
+            {/* Save Button (hidden during onboarding) */}
+            {!isOnboarding && onSaveReading && (
               <TouchableOpacity
                 style={styles.saveButton}
                 onPress={onSaveReading}
@@ -172,6 +176,17 @@ export function CardRevealScreen({
               >
                 <Ionicons name="bookmark-outline" size={20} color="#fff" style={{ marginRight: spacing.xs }} />
                 <Text style={styles.saveButtonText}>Uložit výklad</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Pojď dál Button - shown only during onboarding */}
+            {isOnboarding && (
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.continueButtonText}>Pojď dál</Text>
               </TouchableOpacity>
             )}
           </Animated.View>
@@ -278,5 +293,22 @@ const styles = StyleSheet.create({
     minHeight: 120,
     lineHeight: 24,
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+  },
+  continueButton: {
+    paddingVertical: spacing.md,
+    backgroundColor: 'rgba(215, 192, 207, 0.25)',
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(215, 192, 207, 0.5)',
+    marginTop: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    letterSpacing: 0.5,
   },
 });

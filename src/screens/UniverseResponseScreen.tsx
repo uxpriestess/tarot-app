@@ -26,6 +26,9 @@ export function UniverseResponseScreen({
     onClose,
     onSaveToJournal,
 }: UniverseResponseScreenProps) {
+    // Strip markdown characters from answer
+    const cleanAnswer = answer.replace(/\*\*/g, '');
+
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -62,7 +65,7 @@ export function UniverseResponseScreen({
                 {/* AI Answer */}
                 <View style={styles.answerContainer}>
                     <Text style={styles.sectionLabel}>Odpověď:</Text>
-                    <Text style={styles.answerText}>{answer}</Text>
+                    <Text style={styles.answerText}>{cleanAnswer}</Text>
                 </View>
 
                 {/* Actions */}

@@ -160,8 +160,8 @@ export function HomeScreen({
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSubmit={(q) => onAskUniverse?.(q)}
-        title="Vaše otázka"
-        subtitle="Soustřeďte se na to, co vás zajímá"
+        title="Tvoje otázka"
+        subtitle="Soustřeď se na to, co tě zajímá"
       />
     </CelestialBackground>
   );

@@ -61,13 +61,10 @@ export function CardRevealScreen({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(30)).current;
 
-  // Auto-reveal animation sequence
+  // Trigger content animations when card is manually revealed by user
   useEffect(() => {
-    // Delay before auto-revealing (dramatic pause)
-    const revealTimer = setTimeout(() => {
-      setIsRevealed(true);
-
-      // After card reveals, show the content section
+    if (isRevealed) {
+      // Show content section after card reveals
       setTimeout(() => {
         setShowContent(true);
         Animated.parallel([
@@ -84,10 +81,8 @@ export function CardRevealScreen({
           }),
         ]).start();
       }, 600); // Wait for card expansion to complete
-    }, isJournalMode ? 0 : 1000); // Instant in journal mode, delayed otherwise
-
-    return () => clearTimeout(revealTimer);
-  }, [isJournalMode]);
+    }
+  }, [isRevealed]);
 
   return (
     <View style={styles.modalOverlay}>
@@ -112,7 +107,7 @@ export function CardRevealScreen({
             card={card}
             position={position === 'upright' ? 'Vzpřímená' : 'Obrácená'}
             isRevealed={isRevealed}
-            onToggleReveal={() => { }} // No manual toggle - auto-reveals
+            onToggleReveal={() => setIsRevealed(true)} // Enable manual reveal via tap
             aiMeaning={aiMeaning} // Don't fallback to static meaning
             cardWidth={CARD_WIDTH}
             cardHeight={CARD_HEIGHT}

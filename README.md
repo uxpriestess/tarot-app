@@ -55,12 +55,8 @@ tarotapp-fresh/
 │   │   ├── cardImages.ts    # Image asset mappings
 │   │   └── index.ts
 │   ├── hooks/               # Custom React hooks
-│   │   ├── useInsights.ts   # Dynamic insights generation
-│   │   └── useLastDraw.ts   # Track daily draw status
-│   ├── insights/            # Insights logic
-│   │   ├── logic.ts         # Core insight algorithms
-│   │   ├── microcopy.ts     # Text variations
-│   │   └── types.ts         # TypeScript definitions
+│   │   ├── useFonts.ts      # Font loading hook
+│   │   └── useUserProgress.ts # Track user progress
 │   ├── screens/             # Main app screens
 │   │   ├── HomeScreen.tsx   # Dashboard with daily draw
 │   │   ├── DrawScreen.tsx   # Card selection interface

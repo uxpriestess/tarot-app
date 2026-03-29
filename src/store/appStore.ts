@@ -17,15 +17,11 @@ interface AppState {
     drawHistory: string[]; // Deprecated
     journalHistory: JournalEntry[];
 
-    // User pref
-    userMicrocopyStyle: "soft" | "genz";
-
     // Actions
     addJournalEntry: (entry: JournalEntry) => void;
     updateEntryNote: (id: string, note: string) => void;
     increaseStreak: () => void;
     addDraw: (card: string) => void; // Deprecated but kept for type compat
-    setStyle: (style: "soft" | "genz") => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -35,7 +31,6 @@ export const useAppStore = create<AppState>()(
             streakDays: 0,
             drawHistory: [], // Keeping for legacy, or we could remove. Let's keep it empty.
             journalHistory: [], // New rich history
-            userMicrocopyStyle: "soft",
 
             addJournalEntry: (entry) =>
                 set((s) => ({
@@ -54,8 +49,6 @@ export const useAppStore = create<AppState>()(
 
             // Deprecated/Legacy interface implementation if needed, or update consumers
             addDraw: (card) => console.warn('addDraw is deprecated, use addJournalEntry'),
-
-            setStyle: (style) => set({ userMicrocopyStyle: style })
         }),
         {
             name: "tarot-app-storage-v2", // New key to reset data

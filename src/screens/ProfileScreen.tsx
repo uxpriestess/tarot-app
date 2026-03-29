@@ -5,7 +5,9 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
+    Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { useAppStore } from '../store/appStore';
@@ -14,8 +16,31 @@ export function ProfileScreen() {
     const streakDays = useAppStore((s) => s.streakDays);
     const journalEntries = useAppStore((s) => s.journalEntries);
     const drawHistory = useAppStore((s) => s.drawHistory);
-    const microcopyStyle = useAppStore((s) => s.userMicrocopyStyle);
-    const setMicrocopyStyle = useAppStore((s) => s.setStyle);
+
+    const handleResetOnboarding = async () => {
+        Alert.alert(
+            'Reset Onboarding',
+            'Znovu zobrazit úvodní obrazovku při příštím spuštění?',
+            [
+                {
+                    text: 'Zrušit',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Reset',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await AsyncStorage.removeItem('onboarding_complete');
+                            Alert.alert('Hotovo!', 'Onboarding bude zobrazen při příštím spuštění aplikace.');
+                        } catch (error) {
+                            Alert.alert('Chyba', 'Nepodařilo se resetovat onboarding');
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     const stats = [
         { icon: 'flame', label: 'Série', value: streakDays, color: colors.bronze },
@@ -53,64 +78,10 @@ export function ProfileScreen() {
 
                 {/* Preferences */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Nastavení</Text>
-
-                    {/* Microcopy Style */}
-                    <View style={styles.settingCard}>
-                        <View style={styles.settingHeader}>
-                            <Ionicons name="text-outline" size={20} color={colors.lavender} style={{ marginRight: spacing.sm }} />
-                            <Text style={styles.settingTitle}>Styl textu</Text>
-                        </View>
-                        <Text style={styles.settingDescription}>
-                            Vyber si, jak s tebou chceš, aby aplikace mluvila
-                        </Text>
-                        <View style={styles.toggleContainer}>
-                            <TouchableOpacity
-                                onPress={() => setMicrocopyStyle('soft')}
-                                style={[
-                                    styles.toggleOption,
-                                    microcopyStyle === 'soft' && styles.toggleOptionActive,
-                                ]}
-                                activeOpacity={0.7}
-                            >
-                                <Text
-                                    style={[
-                                        styles.toggleText,
-                                        microcopyStyle === 'soft' && styles.toggleTextActive,
-                                    ]}
-                                >
-                                    🌙 Soft
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => setMicrocopyStyle('genz')}
-                                style={[
-                                    styles.toggleOption,
-                                    microcopyStyle === 'genz' && styles.toggleOptionActive,
-                                    { marginRight: 0 }
-                                ]}
-                                activeOpacity={0.7}
-                            >
-                                <Text
-                                    style={[
-                                        styles.toggleText,
-                                        microcopyStyle === 'genz' && styles.toggleTextActive,
-                                    ]}
-                                >
-                                    ✨ GenZ
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-
-                {/* About */}
-                <View style={styles.section}>
                     <Text style={styles.sectionTitle}>O aplikaci</Text>
                     <View style={styles.aboutCard}>
                         <Text style={styles.aboutText}>
-                            Tarot App je tvůj denní průvodce k sebereflexi a mindfulness.
-                            Vytáhni si kartu každý den a objevuj její význam.
+                            Tarotka je prostor pro velké otázky i malé rituály. Pomůže ti zastavit, podívat se dovnitř a lépe porozumět otázkám, které ti nedají spát. Objev, co ti přinese nová denní karta. Pokládej vlastní otázky, objevuj výklady a zapisuj si to, co se v tobě právě odehrává.
                         </Text>
                         <Text style={styles.versionText}>Verze 1.0.0</Text>
                     </View>
@@ -127,6 +98,19 @@ export function ProfileScreen() {
                         <Ionicons name="mail-outline" size={20} color={colors.lavender} style={{ marginRight: spacing.sm }} />
                         <Text style={styles.linkText}>Kontakt</Text>
                         <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Dev Section */}
+                <View style={styles.devSection}>
+                    <Text style={styles.devLabel}>DEV</Text>
+                    <TouchableOpacity
+                        style={styles.devButton}
+                        onPress={handleResetOnboarding}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="refresh" size={18} color={colors.error} style={{ marginRight: spacing.sm }} />
+                        <Text style={styles.devButtonText}>Reset Onboarding</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -215,55 +199,6 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         letterSpacing: -0.3,
     },
-    settingCard: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.lg,
-        borderWidth: 1,
-        borderColor: colors.softLinen,
-    },
-    settingHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: spacing.xs,
-    },
-    settingTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    settingDescription: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginBottom: spacing.md,
-    },
-    toggleContainer: {
-        flexDirection: 'row',
-    },
-    toggleOption: {
-        flex: 1,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.md,
-        backgroundColor: colors.background,
-        borderWidth: 1,
-        borderColor: colors.softLinen,
-        alignItems: 'center',
-        marginRight: spacing.sm,
-    },
-    toggleOptionActive: {
-        backgroundColor: colors.lavender + '20',
-        borderColor: colors.lavender,
-        borderWidth: 2,
-    },
-    toggleText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.textSecondary,
-    },
-    toggleTextActive: {
-        color: colors.text,
-        fontWeight: '600',
-    },
     aboutCard: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.lg,
@@ -299,5 +234,30 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '500',
         color: colors.text,
+    },
+    devSection: {
+        marginTop: spacing.xl,
+        marginBottom: spacing.lg,
+    },
+    devLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.error,
+        letterSpacing: 1,
+        marginBottom: spacing.sm,
+    },
+    devButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.error + '10',
+        borderWidth: 1,
+        borderColor: colors.error + '30',
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+    },
+    devButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.error,
     },
 });

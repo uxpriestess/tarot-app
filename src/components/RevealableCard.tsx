@@ -183,7 +183,7 @@ export function RevealableCard({
             {!isRevealed && !disabled && (
               <View style={styles.tapIndicator}>
                 <Ionicons name="hand-left-outline" size={24} color={colors.lavender} />
-                <Text style={styles.tapText}>Ťukni pro výklad</Text>
+                <Text style={styles.tapText}>Ťukni pro odhalení</Text>
               </View>
             )}
           </View>

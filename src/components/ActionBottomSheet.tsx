@@ -10,6 +10,8 @@ import {
     Dimensions,
     PanResponder,
     Platform,
+    ScrollView,
+    KeyboardAvoidingView,
 } from 'react-native';
 import { useRef } from 'react';
 
@@ -97,59 +99,70 @@ export function ActionBottomSheet({
                     activeOpacity={1}
                     onPress={onClose}
                 />
-                <Animated.View
-                    style={[
-                        styles.sheet,
-                        { transform: [{ translateY: panY }] }
-                    ]}
-                    {...panResponder.panHandlers}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1, justifyContent: 'flex-end' }}
                 >
-                    <View style={styles.handle} />
+                    <Animated.View
+                        style={[
+                            styles.sheet,
+                            { transform: [{ translateY: panY }] }
+                        ]}
+                        {...panResponder.panHandlers}
+                    >
+                        <View style={styles.handle} />
 
-                    <Text style={styles.title}>{title}</Text>
-                    <Text style={styles.subtitle}>{subtitle}</Text>
-
-                    <View style={styles.inputWrapper}>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Co vás trápí? Co vás zajímá?"
-                            placeholderTextColor="rgba(201, 184, 212, 0.5)"
-                            multiline
-                            maxLength={200}
-                            value={question}
-                            onChangeText={setQuestion}
-                        />
-                        <Text style={styles.charCount}>{question.length}/200</Text>
-                    </View>
-
-                    <View style={styles.quickQuestions}>
-                        <Text style={styles.label}>Nebo si vyberte rychlou otázku:</Text>
-                        <View style={styles.chips}>
-                            {['Co mě dnes čeká?', 'Jak mám postupovat?', 'Na co se zaměřit?'].map((q) => (
-                                <TouchableOpacity
-                                    key={q}
-                                    style={styles.chip}
-                                    onPress={() => handleQuickQuestion(q)}
-                                >
-                                    <Text style={styles.chipText}>{q}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <View style={styles.actions}>
-                        <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                            <Text style={styles.cancelText}>Zrušit</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.submitBtn, question.length < 3 && styles.submitBtnDisabled]}
-                            onPress={handleDraw}
-                            disabled={question.length < 3}
+                        <ScrollView
+                            scrollEnabled={true}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.scrollContent}
                         >
-                            <Text style={styles.submitText}>✨ Vyložit kartu</Text>
-                        </TouchableOpacity>
-                    </View>
-                </Animated.View>
+                            <Text style={styles.title}>{title}</Text>
+                            <Text style={styles.subtitle}>{subtitle}</Text>
+
+                            <View style={styles.inputWrapper}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Co tě trápí? Co tě zajímá?"
+                                    placeholderTextColor="rgba(201, 184, 212, 0.5)"
+                                    multiline
+                                    maxLength={200}
+                                    value={question}
+                                    onChangeText={setQuestion}
+                                />
+                                <Text style={styles.charCount}>{question.length}/200</Text>
+                            </View>
+
+                            <View style={styles.quickQuestions}>
+                                <Text style={styles.label}>Nebo si vyber rychlou otázku:</Text>
+                                <View style={styles.chips}>
+                                    {['Co mě dnes čeká?', 'Jak mám postupovat?', 'Na co se zaměřit?'].map((q) => (
+                                        <TouchableOpacity
+                                            key={q}
+                                            style={styles.chip}
+                                            onPress={() => handleQuickQuestion(q)}
+                                        >
+                                            <Text style={styles.chipText}>{q}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        </ScrollView>
+
+                        <View style={styles.actions}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+                                <Text style={styles.cancelText}>Zrušit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.submitBtn, question.length < 3 && styles.submitBtnDisabled]}
+                                onPress={handleDraw}
+                                disabled={question.length < 3}
+                            >
+                                <Text style={styles.submitText}>✨ Vylozit kartu</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                </KeyboardAvoidingView>
             </View>
         </Modal>
     );
@@ -170,9 +183,13 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 30,
         padding: 24,
         paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-        minHeight: 500,
+        maxHeight: '90%',
         borderWidth: 1,
         borderColor: 'rgba(212, 175, 122, 0.2)',
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 20,
     },
     handle: {
         width: 40,
@@ -246,6 +263,7 @@ const styles = StyleSheet.create({
     actions: {
         flexDirection: 'row',
         gap: 12,
+        marginTop: 10,
     },
     cancelBtn: {
         flex: 1,

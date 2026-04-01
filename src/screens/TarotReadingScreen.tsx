@@ -535,7 +535,7 @@ ${moonPhase.energy}`;
                     {isFlipped && cardMeanings.length > 0 && !isLoadingMeanings && (
                         <TouchableOpacity style={styles.doneButton} onPress={resetReading}>
                             <Ionicons name="checkmark-circle-outline" size={20} color={colors.lavender} />
-                            <Text style={styles.doneButtonText}>Zavřítvýklad</Text>
+                            <Text style={styles.doneButtonText}>Zavřít výklad</Text>
                         </TouchableOpacity>
                     )}
 

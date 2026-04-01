@@ -23,6 +23,7 @@ const READING_TYPES = {
     }
 };
 
+// Spread schemas - defines section structure per reading type
 const SPREAD_SCHEMAS = {
     daily: {
         sections: [{ key: 'reading', label: null }]
@@ -32,9 +33,9 @@ const SPREAD_SCHEMAS = {
     },
     love_3_card: {
         sections: [
-            { key: 'ty',      label: 'Ty' },
+            { key: 'ty', label: 'Ty' },
             { key: 'partner', label: 'Partner' },
-            { key: 'vztah',   label: 'Tvůj vztah' }
+            { key: 'vztah', label: 'Tvůj vztah' }
         ]
     },
     moon_phase: {
@@ -45,60 +46,72 @@ const SPREAD_SCHEMAS = {
     }
 };
 
+/**
+ * Parse love reading sections from LLM output.
+ * Expects JSON with ty, partner, vztah fields OR delimiter-separated text.
+ */
 function parseLoveSections(rawText) {
     const schema = SPREAD_SCHEMAS.love_3_card.sections;
-
+    
     try {
+        // Try JSON parsing first
         let cleanText = rawText.trim()
             .replace(/```json\s?/g, '')
             .replace(/```/g, '');
-
+        
         const firstBrace = cleanText.indexOf('{');
-        const lastBrace  = cleanText.lastIndexOf('}');
-
+        const lastBrace = cleanText.lastIndexOf('}');
+        
         if (firstBrace !== -1 && lastBrace !== -1) {
             cleanText = cleanText.substring(firstBrace, lastBrace + 1);
             const parsed = JSON.parse(cleanText);
-
+            
             if (parsed.ty && parsed.partner && parsed.vztah) {
                 console.log('✅ Parsed love sections from JSON');
                 return [
-                    { key: 'ty',      label: 'Ty',          text: parsed.ty.trim()      },
-                    { key: 'partner', label: 'Partner',      text: parsed.partner.trim() },
-                    { key: 'vztah',   label: 'Tvůj vztah',  text: parsed.vztah.trim()   }
+                    { key: 'ty', label: 'Ty', text: parsed.ty.trim() },
+                    { key: 'partner', label: 'Partner', text: parsed.partner.trim() },
+                    { key: 'vztah', label: 'Tvůj vztah', text: parsed.vztah.trim() }
                 ];
             }
         }
     } catch (e) {
         console.log('⚠️ JSON parse failed, trying delimiter fallback');
     }
-
+    
+    // Fallback: delimiter-separated text
     const paragraphs = rawText.split('---').map(p => p.trim()).filter(p => p.length > 0);
-
+    
     if (paragraphs.length >= 3) {
         console.log('✅ Parsed love sections from delimiters');
         return [
-            { key: 'ty',      label: 'Ty',         text: paragraphs[0] },
-            { key: 'partner', label: 'Partner',     text: paragraphs[1] },
-            { key: 'vztah',   label: 'Tvůj vztah', text: paragraphs[2] }
+            { key: 'ty', label: 'Ty', text: paragraphs[0] },
+            { key: 'partner', label: 'Partner', text: paragraphs[1] },
+            { key: 'vztah', label: 'Tvůj vztah', text: paragraphs[2] }
         ];
     }
-
+    
+    // Last resort: return as single section
     console.warn('⚠️ Could not parse love sections, returning as single block');
     return [{ key: 'reading', label: null, text: rawText.trim() }];
 }
 
+/**
+ * Build structured response per architecture.md.
+ * Backend owns structure, LLM provides meaning.
+ */
 function buildStructuredResponse(mode, rawText, cards) {
     const schema = SPREAD_SCHEMAS[mode] || SPREAD_SCHEMAS.daily;
-
+    
     let sections;
     if (mode === 'love_3_card') {
         sections = parseLoveSections(rawText);
     } else {
+        // Simple readings: single section with full text
         const label = schema.sections[0]?.label || null;
         sections = [{ key: 'reading', label, text: rawText.trim() }];
     }
-
+    
     return {
         readingType: mode,
         sections,
@@ -106,87 +119,9 @@ function buildStructuredResponse(mode, rawText, cards) {
             cardCount: cards.length,
             timestamp: new Date().toISOString()
         },
+        // Keep answer for backward compatibility during transition
         answer: rawText.trim()
     };
-}
-
-/**
- * Builds the gender instruction block injected into the system prompt.
- *
- * Czech past tense and adjectives are grammatically gendered — there is no
- * neutral verb form. We handle this three ways:
- *
- *   masculine / feminine → instruct Claude to use those forms consistently,
- *     with concrete before/after examples so it knows exactly what "correct" looks like.
- *
- *   neutral (Páže) → instruct Claude to restructure sentences to sidestep
- *     gendered constructions entirely. Czech allows impersonal forms that read
- *     naturally and even slightly more poetic — fitting for a tarot context.
- *
- * This function returns an empty string if userContext is missing, so all
- * existing callers without gender data are completely unaffected.
- */
-function buildGenderBlock(userContext) {
-    const gender = userContext?.genderPreference;
-    if (!gender) return '';
-
-    if (gender === 'feminine') {
-        return `
----
-
-## GRAMATICKÝ ROD: ŽENSKÝ
-
-Uživatelka si zvolila Královnu. Používej důsledně ženský rod v celé odpovědi.
-
-Správně:
-- "byla jsi", "cítila jsi", "viděla jsi", "rozhodla ses"
-- "unavená", "připravená", "otevřená", "silná", "klidná"
-
-Nikdy ne:
-- "byl jsi", "připravený", "unavený"
-
-Každá věta s minulým časem nebo přídavným jménem musí být v ženském rodě.
-Toto platí i pro love_3_card sekci "ty".
-`.trim();
-    }
-
-    if (gender === 'masculine') {
-        return `
----
-
-## GRAMATICKÝ ROD: MUŽSKÝ
-
-Uživatel si zvolil Krále. Používej důsledně mužský rod v celé odpovědi.
-
-Správně:
-- "byl jsi", "cítil jsi", "viděl jsi", "rozhodl ses"
-- "unavený", "připravený", "otevřený", "silný", "klidný"
-
-Nikdy ne:
-- "byla jsi", "připravená", "unavená"
-
-Každá věta s minulým časem nebo přídavným jménem musí být v mužském rodě.
-Toto platí i pro love_3_card sekci "ty".
-`.trim();
-    }
-
-    // neutral — Páže. Restructure rather than pick a gender.
-    return `
----
-
-## GRAMATICKÝ ROD: NEUTRÁLNÍ
-
-Uživatel si zvolil Páže. Vyhýbej se gendrově specifickým tvarům — přepisuj věty
-do neosobních nebo bezrodých konstrukcí.
-
-Místo:                          Piš raději:
-"byl/a jsi unavený/á"     →    "únava je přirozená"
-"cítil/a jsi"              →    "přichází pocit" / "je možné cítit"
-"byl/a jsi připravený/á"   →    "příprava proběhla" / "čas je správný"
-
-Věty přepisuj tak, aby zněly přirozeně česky — neosobní formy v tarotovém
-kontextu působí poněkud poetičtěji, což je výhoda.
-`.trim();
 }
 
 /**
@@ -198,18 +133,11 @@ export default async function handler(req, res) {
     }
 
     try {
-        // userContext arrives from universe.ts — contains only genderPreference
-        // and zodiacSign. Name and birthDate are never sent (stay on device).
-        const { question, cards, mode = 'daily', spreadName, moonPhase, userContext } = req.body;
-
+        const { question, cards, mode = 'daily', spreadName, moonPhase } = req.body;
         console.log(`--- API Request: ${mode} ---`);
-        console.log('Cards:', JSON.stringify(cards));
-        if (moonPhase)    console.log('Moon Phase Context:', moonPhase);
-        if (userContext)  console.log('User Context:', JSON.stringify(userContext));
-
-        // Safety: log a warning if name somehow appears — should never happen.
-        if (userContext?.name || userContext?.displayName) {
-            console.warn('⚠️  PRIVACY: user name reached backend — remove from userContext in universe.ts');
+        console.log("Cards:", JSON.stringify(cards));
+        if (moonPhase) {
+            console.log("Moon Phase Context:", moonPhase);
         }
 
         if (!cards || !Array.isArray(cards)) {
@@ -227,10 +155,8 @@ export default async function handler(req, res) {
             apiKey: process.env.ANTHROPIC_API_KEY,
         });
 
-        // Pass userContext into buildSystemPrompt so gender instruction
-        // is woven into the prompt before Claude sees anything else.
-        const systemPrompt = buildSystemPrompt(mode, moonPhase, userContext);
-        const userPrompt   = buildUserPrompt(question, cards, spreadName, mode, moonPhase);
+        const systemPrompt = buildSystemPrompt(mode, moonPhase);
+        const userPrompt = buildUserPrompt(question, cards, spreadName, mode, moonPhase);
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-20250514',
@@ -243,10 +169,12 @@ export default async function handler(req, res) {
         });
 
         const rawAnswer = response.content[0].text;
-        console.log('AI Raw Output (first 100 chars):', rawAnswer.substring(0, 100));
+        console.log("AI Raw Output (first 100 chars):", rawAnswer.substring(0, 100));
 
+        // Build structured response per architecture.md
+        // Backend owns structure, LLM provides meaning
         const structuredResponse = buildStructuredResponse(mode, rawAnswer, cards);
-
+        
         console.log(`✅ Structured response: ${structuredResponse.sections.length} sections for ${mode}`);
         structuredResponse.sections.forEach((s, i) => {
             console.log(`  Section ${i}: ${s.key} (${s.text.substring(0, 40)}...)`);
@@ -256,9 +184,9 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('=== ERROR DETAILS ===');
-        console.error('Error name:',    error.name);
+        console.error('Error name:', error.name);
         console.error('Error message:', error.message);
-        console.error('Error stack:',   error.stack);
+        console.error('Error stack:', error.stack);
 
         return res.status(500).json({
             answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?'
@@ -266,6 +194,22 @@ export default async function handler(req, res) {
     }
 }
 
+/**
+ * Builds a structured user prompt based on the card(s) and question.
+ *
+ * CHANGE 1 of 2 — moon phase context in the user prompt.
+ *
+ * Previously the full moonPhase string (name + theme + description + energy
+ * question, ~4 lines) was appended here. But the same full string is already
+ * injected into the system prompt via moonPhaseContext in buildSystemPrompt().
+ * Sending it twice gave the LLM two reasons to restate it — and Section A of
+ * the old shaper added a third by explicitly asking it to "acknowledge" the phase.
+ *
+ * Now we only pass the first line (e.g. "Aktuální fáze měsíce: 🌒 Dorůstající srpek")
+ * as a short label. Think of it like a meeting agenda: the full briefing document
+ * was already emailed to everyone (system prompt), so here we just say
+ * "re: Tuesday's item" rather than re-reading the whole memo out loud.
+ */
 function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
     const cardsInfo = cards.map((c, idx) => {
         const labelStr = c.label ? ` (${c.label})` : '';
@@ -278,8 +222,12 @@ function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
         prompt += `\n\nTYP VÝKLADU: ${spreadName}`;
     }
 
+    // Only pass the first line of moonPhase here (the name + icon).
+    // The full context — theme, description, energy question — is already in
+    // the system prompt. Repeating it here caused the LLM to over-emphasise
+    // the phase name and restate it multiple times in its output.
     if (mode === 'moon_phase' && moonPhase) {
-        const phaseName = moonPhase.split('\n')[0];
+        const phaseName = moonPhase.split('\n')[0]; // e.g. "Aktuální fáze měsíce: 🌒 Dorůstající srpek"
         prompt += `\n\nFÁZE: ${phaseName}`;
     }
 
@@ -287,18 +235,10 @@ function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
 }
 
 /**
- * Builds the system prompt with gender instruction, shaper, and mode context.
- *
- * Gender is injected in two places intentionally:
- *   1. Early in the identity block — Claude's attention is strongest at the
- *      start, so the rule lands before any reading logic is processed.
- *   2. In the final output checklist — a reminder right before generation
- *      starts, which reduces drift in longer responses.
+ * Builds the system prompt with specific shaper instructions.
  */
-function buildSystemPrompt(mode, moonPhase, userContext) {
-    const readingType  = READING_TYPES[mode] || READING_TYPES.daily;
-    const genderBlock  = buildGenderBlock(userContext);
-    const genderGender = userContext?.genderPreference ?? 'neutral';
+function buildSystemPrompt(mode, moonPhase) {
+    const readingType = READING_TYPES[mode] || READING_TYPES.daily;
 
     const dailyShaper = `
 ## 1️⃣ DAILY / SINGLE CARD STRUCTURE:
@@ -388,6 +328,23 @@ VERIFICATION CHECKLIST (before responding):
 If ANY check fails → fix it before responding.
 `;
 
+    // -------------------------------------------------------------------------
+    // CHANGE 2 of 2 — moonPhaseShaper rewritten to eliminate repetition.
+    //
+    // The old shaper had a Section A that said "briefly acknowledge the moon
+    // phase and its current energy". That instruction, combined with the phase
+    // context arriving twice (system prompt + user prompt), caused the LLM to
+    // restate the phase name and emoji 2-3 times inside a 160-word response.
+    //
+    // The fix has three parts:
+    //   1. Section A is removed entirely. The phase is already visible to the
+    //      user in the UI badge — restating it in the reading text adds no value.
+    //   2. An explicit DO NOT rule is added, with a concrete before/after example.
+    //      LLMs respond much better to "here is exactly what bad looks like,
+    //      never do this" than to abstract rules like "avoid repetition".
+    //   3. The structure is trimmed from 4 sections to 3, which also helps the
+    //      LLM stay within the 160-word limit without padding.
+    // -------------------------------------------------------------------------
     const moonPhaseShaper = `
 ## 🌙 MOON PHASE READING STRUCTURE:
 
@@ -430,24 +387,28 @@ LENGTH: 140–160 words MAX. 3 short paragraphs.
 `;
 
     let responseShaper;
-    if (mode === 'daily')           responseShaper = dailyShaper;
-    else if (mode === 'reading-screen')  responseShaper = readingScreenShaper;
-    else if (mode === 'custom_question') responseShaper = customQuestionShaper;
-    else if (mode === 'love_3_card')     responseShaper = love3CardShaper;
-    else if (mode === 'moon_phase')      responseShaper = moonPhaseShaper;
-    else                                 responseShaper = dailyShaper;
+    if (mode === 'daily') {
+        responseShaper = dailyShaper;
+    } else if (mode === 'reading-screen') {
+        responseShaper = readingScreenShaper;
+    } else if (mode === 'custom_question') {
+        responseShaper = customQuestionShaper;
+    } else if (mode === 'love_3_card') {
+        responseShaper = love3CardShaper;
+    } else if (mode === 'moon_phase') {
+        responseShaper = moonPhaseShaper;
+    } else {
+        responseShaper = dailyShaper;
+    }
 
+    // The full moon phase context (name + theme + description + energy question)
+    // is injected here, into the system prompt, exactly once. This is the single
+    // authoritative place the LLM reads it. The user prompt only carries the
+    // short phase name as a label (see buildUserPrompt above).
     let moonPhaseContext = '';
     if (mode === 'moon_phase' && moonPhase) {
         moonPhaseContext = `\n\n🌙 MOON PHASE CONTEXT (important!):\n${moonPhase}\n\nThis reading must interpret the card through the lens of this moon phase energy.`;
     }
-
-    // Gender checklist item — appended to the final output check only when
-    // a gender preference exists. Empty string when neutral/missing so the
-    // checklist stays clean for users who haven't set a preference.
-    const genderCheckItem = genderGender !== 'neutral'
-        ? `7. ✅ Gramatický rod ${genderGender === 'feminine' ? 'ženský' : 'mužský'} — každý minulý čas a přídavné jméno?`
-        : '';
 
     return `
 🔮 TAROTKA – CORE SYSTEM PROMPT (v5)
@@ -462,8 +423,6 @@ Tarotka speaks like a real person having coffee with a friend:
 - NOT a system or AI
 
 Tarotka explains tarot in a clear, relatable, and everyday way, connecting card meanings to real life.
-
-${genderBlock}
 
 ---
 
@@ -518,7 +477,6 @@ Before sending every response, verify:
 5. ✅ Specific to the card drawn?
 6. ✅ Natural Czech?
 ${mode === 'moon_phase' ? '7. ✅ Moon phase woven in — but NOT restated by name?' : ''}
-${genderCheckItem}
 
 If ANY check fails → rewrite.
 

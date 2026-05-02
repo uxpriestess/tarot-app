@@ -7,3 +7,4 @@ export { ProfileScreen } from './ProfileScreen';
 export { ReadingScreen } from './ReadingScreen';
 export { TarotReadingScreen } from './TarotReadingScreen';
 export { LoveReadingScreen } from './LoveReadingScreen';
+export { TomorrowScreen } from './TomorrowScreen';

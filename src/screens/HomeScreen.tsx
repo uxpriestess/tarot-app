@@ -29,34 +29,8 @@ interface HomeScreenProps {
   onOpenMystic?: () => void;
   onSingleCard?: () => void;
   onThreeCards?: () => void;
+  onTomorrowReading?: () => void;
 }
-
-const carouselItems: CarouselItem[] = [
-  {
-    id: 'daily',
-    title: 'Karta dne',
-    subtitle: '',
-    greeting: 'Vyložíme karty na stůl?',
-    icon: require('../../assets/home_icons/sun_icon.png'),
-    action: 'daily',
-  },
-  {
-    id: 'custom',
-    title: 'Tvoje otázka',
-    subtitle: '',
-    greeting: 'Zeptej se cokoliv',
-    icon: require('../../assets/home_icons/crystal_ball_icon.png'),
-    action: 'custom',
-  },
-  {
-    id: 'night',
-    title: 'Na dobrou noc',
-    subtitle: '',
-    greeting: 'Chvilka jen pro tebe.',
-    icon: require('../../assets/home_icons/moon_icon.png'),
-    action: 'night',
-  },
-];
 
 export function HomeScreen({
   onDrawCard,
@@ -67,6 +41,7 @@ export function HomeScreen({
   onOpenMystic,
   onSingleCard,
   onThreeCards,
+  onTomorrowReading,
 }: HomeScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(1);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -95,6 +70,44 @@ export function HomeScreen({
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  const isEvening = currentTime.getHours() >= 14;
+
+  const carouselItems: CarouselItem[] = [
+    isEvening
+      ? {
+          id: 'night',
+          title: 'Večerní reflexe',
+          subtitle: '',
+          greeting: 'Chvilka jen pro tebe.',
+          icon: require('../../assets/home_icons/moon_icon.png'),
+          action: 'night',
+        }
+      : {
+          id: 'daily',
+          title: 'Karta dne',
+          subtitle: '',
+          greeting: 'Vyložíme karty na stůl?',
+          icon: require('../../assets/home_icons/sun_icon.png'),
+          action: 'daily',
+        },
+    {
+      id: 'custom',
+      title: 'Tvoje otázka',
+      subtitle: '',
+      greeting: 'Zeptej se cokoliv',
+      icon: require('../../assets/home_icons/crystal_ball_icon.png'),
+      action: 'custom',
+    },
+    {
+      id: 'tomorrow',
+      title: 'Co přinese zítřek?',
+      subtitle: '',
+      greeting: 'Nahlédni za oponu času',
+      icon: require('../../assets/home_icons/sun_icon.png'),
+      action: 'tomorrow',
+    },
+  ];
  
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -106,15 +119,11 @@ export function HomeScreen({
   const greeting = getGreeting();
   const moon = getMoonPhase(currentTime);
 
-  const handleMainDrawPress = () => {
-    const item = carouselItems[currentIndex];
-    if (item.action === 'custom') {
-      setIsModalVisible(true);
-    } else if (item.action === 'daily') {
-      onDrawCard();
-    } else {
-      onDrawCard(MYSTERY_CARD_IDS);
-    }
+  const handleItemPress = (id: string) => {
+    if (id === 'daily') onDrawCard();
+    if (id === 'custom') setIsModalVisible(true);
+    if (id === 'night') onDrawCard(MYSTERY_CARD_IDS);
+    if (id === 'tomorrow') onTomorrowReading?.();
   };
 
   const currentItem = carouselItems[currentIndex];
@@ -146,11 +155,7 @@ export function HomeScreen({
               items={carouselItems}
               onIndexChange={setCurrentIndex}
               currentIndex={currentIndex}
-              onItemPress={(id) => {
-                if (id === 'daily') onDrawCard();
-                if (id === 'custom') setIsModalVisible(true);
-                if (id === 'night') onOpenMystic?.();
-              }}
+              onItemPress={handleItemPress}
             />
           </View>
         </Animated.View>

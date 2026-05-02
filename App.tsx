@@ -20,7 +20,7 @@ import { useAppStore, JournalEntry } from './src/store/appStore';
 import { useOnboardingStore } from './src/store/onboardingStore';
 import { askUniverse } from './src/services/universe';
 import { colors } from './src/theme/colors';
-import { TarotReadingScreen, LoveReadingScreen } from './src/screens';
+import { TarotReadingScreen, LoveReadingScreen, TomorrowScreen } from './src/screens';
 import { supabase } from './src/services/supabase';
 
 export default function App() {
@@ -29,6 +29,7 @@ export default function App() {
     'welcome' | 'name' | 'birthDate' | 'zodiacReveal' | 'firstCard' | 'signUp' | 'login' | ''
   >('welcome');
   const [isLoveReadingOpen, setIsLoveReadingOpen] = useState(false);
+  const [isTomorrowScreenOpen, setIsTomorrowScreenOpen] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [isFirstCardDraw, setIsFirstCardDraw] = useState(false);
 
@@ -184,7 +185,6 @@ export default function App() {
       // Save profile to local store
       useAppStore.getState().setUserProfile(
         onboardingData.displayName,
-        onboardingData.birthDate,
         onboardingData.zodiacSign,
       );
 
@@ -228,7 +228,6 @@ export default function App() {
       if (profile) {
         useAppStore.getState().setUserProfile(
           profile.display_name,
-          profile.birth_date,
           profile.zodiac_sign,
         );
       }
@@ -317,6 +316,7 @@ export default function App() {
               onOpenMystic={() => setIsMysticOpen(true)}
               onOpenLoveReading={() => setIsLoveReadingOpen(true)}
               onShowAuth={() => setOnboardingStep('login')}
+              onTomorrowReading={() => setIsTomorrowScreenOpen(true)}
             />
           </>
         )}
@@ -338,6 +338,22 @@ export default function App() {
               isOnboarding={onboardingStep === 'firstCard'}
             />
           )}
+        </Modal>
+
+        {/* TomorrowScreen Modal */}
+        <Modal
+          visible={isTomorrowScreenOpen}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setIsTomorrowScreenOpen(false)}
+        >
+          <TomorrowScreen
+            onBack={() => setIsTomorrowScreenOpen(false)}
+            onDrawCard={() => {
+              setIsTomorrowScreenOpen(false);
+              handleDrawCard();
+            }}
+          />
         </Modal>
 
         <StatusBar style="auto" />

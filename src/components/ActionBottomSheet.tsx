@@ -158,7 +158,7 @@ export function ActionBottomSheet({
                                 onPress={handleDraw}
                                 disabled={question.length < 3}
                             >
-                                <Text style={styles.submitText}>✨ Vylozit kartu</Text>
+                                <Text style={styles.submitText}>✨ Vyložit kartu</Text>
                             </TouchableOpacity>
                         </View>
                     </Animated.View>

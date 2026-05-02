@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { useAppStore } from '../store/appStore';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { TarotReadingScreen } from '../screens/TarotReadingScreen';
@@ -17,9 +18,16 @@ interface TabNavigatorProps {
     onOpenMystic?: () => void;
     onOpenLoveReading?: () => void;
     onShowAuth?: () => void;
+    onTomorrowReading?: () => void;
 }
 
-export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLoveReading, onShowAuth }: TabNavigatorProps) {
+export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLoveReading, onShowAuth, onTomorrowReading }: TabNavigatorProps) {
+    const journalHistory = useAppStore((state) => state.journalHistory);
+    const streakDays = useAppStore((state) => state.streakDays);
+
+    // Check if user has drawn a card today
+    const today = new Date().toISOString().split('T')[0];
+    const hasReadToday = journalHistory.some((entry) => entry.date.split('T')[0] === today);
     return (
         <Tab.Navigator
             screenOptions={{
@@ -54,8 +62,9 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLo
                         onDrawCard={onDrawCard}
                         onAskUniverse={onAskUniverse}
                         onOpenMystic={onOpenMystic}
-                        hasReadToday={false}
-                        streak={3}
+                        hasReadToday={hasReadToday}
+                        streak={streakDays}
+                        onTomorrowReading={onTomorrowReading}
                     />
                 )}
             </Tab.Screen>

@@ -6,6 +6,11 @@ const READING_TYPES = {
         maxWords: 130,
         paragraphs: '4 short'
     },
+    tomorrow: {
+        name: 'tomorrow',
+        maxWords: 130,
+        paragraphs: '4 short'
+    },
     'reading-screen': {
         name: 'reading-screen',
         maxWords: 180,
@@ -25,6 +30,9 @@ const READING_TYPES = {
 
 const SPREAD_SCHEMAS = {
     daily: {
+        sections: [{ key: 'reading', label: null }]
+    },
+    tomorrow: {
         sections: [{ key: 'reading', label: null }]
     },
     'reading-screen': {
@@ -278,6 +286,11 @@ function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
         prompt += `\n\nTYP VÝKLADU: ${spreadName}`;
     }
 
+    // For tomorrow readings, make it crystal clear in the user prompt too
+    if (mode === 'tomorrow') {
+        prompt += `\n\n⚠️ DŮLEŽITÉ: Toto je výklad pro ZÍTŘEK. Vše musí být ve future tense. Nikdy nepoužívej slova dnes, dneska, dnešní.`;
+    }
+
     if (mode === 'moon_phase' && moonPhase) {
         const phaseName = moonPhase.split('\n')[0];
         prompt += `\n\nFÁZE: ${phaseName}`;
@@ -314,6 +327,51 @@ One practical thing to do or a specific perspective to take.
 
 LENGTH: 110–130 words MAX. 4 short paragraphs.
 TONE: Empathetic, direct, human – like a friend who gets it.
+`;
+
+    // ✨ NEW: Tomorrow shaper — forward-looking, future tense only
+    const tomorrowShaper = `
+## 🔮 TOMORROW CARD STRUCTURE:
+
+🚨 ABSOLUTE RULE: Every single word of this response is about TOMORROW, not today.
+If you use "dnes" or "dneska" or "dnešní" in ANY form, the user will see WRONG output.
+Read through your entire response BEFORE sending and replace every reference to "today" with "tomorrow".
+
+FORBIDDEN words — NEVER use these UNDER ANY CIRCUMSTANCE: 
+  dnes, dneska, dnešní, tento den, dnes ráno, dnes večer, dnešek, dnešního
+  
+REQUIRED framing — ALWAYS use these instead: 
+  zítra, zítřek, zítřejší, čeká tě, přijde, nastane, zítra ráno, zítra večer, zítřejší den
+
+A. OPENING (1 sentence)
+Name the card and immediately signal tomorrow with crystal clarity.
+✅ "Zítra tě čeká Věž — může být divoce."
+✅ "Na zítřek ti vyšel Mág — zajímavý den před tebou."
+❌ NEVER START WITH "Dnes" or "Dnešní" — this is WRONG for tomorrow readings
+❌ "Dnes ti vyšel..." / "Dnešní karta je..." — REWRITE every time
+
+B. TOMORROW'S ENERGY (1-2 sentences)
+What kind of day is coming? What will tomorrow feel like?
+Use future tense: bude, přijde, nastane, čeká tě.
+✅ "Zítřek bude nabitý energií a impulzy."
+✅ "Zítřejší atmosféra bude klidnější — ideální na přemýšlení."
+
+C. WHAT TOMORROW MIGHT BRING (1 sentence)
+Opportunity or challenge to anticipate — framed as possibility, not certainty.
+✅ "Může přijít nečekaná situace, která tě donutí reagovat rychle."
+✅ "Zítra se možná otevře příležitost, na kterou čekáš."
+
+D. HOW TO PREPARE (1 sentence)
+Simple mindset or intention to carry into tomorrow.
+✅ "Jdi do zítřka s otevřenou hlavou a nečekej, že víš, jak to dopadne."
+✅ "Pomůže, když si zítra ráno dáš chvilku pro sebe."
+
+LENGTH: 110–130 words MAX. 4 short paragraphs.
+TONE: Anticipatory, warm, slightly mysterious — like a friend who peeked around
+the corner and is giving you a heads up about what's coming.
+
+FINAL CHECK: Before responding, scan your text for dnes/dneska/dnešní.
+If you find any → rewrite that sentence in future tense before sending.
 `;
 
     const readingScreenShaper = `
@@ -429,8 +487,10 @@ TONE:
 LENGTH: 140–160 words MAX. 3 short paragraphs.
 `;
 
+    // Shaper selector — tomorrow now has its own dedicated shaper
     let responseShaper;
-    if (mode === 'daily')           responseShaper = dailyShaper;
+    if (mode === 'daily')                responseShaper = dailyShaper;
+    else if (mode === 'tomorrow')        responseShaper = tomorrowShaper;       // ✨ new
     else if (mode === 'reading-screen')  responseShaper = readingScreenShaper;
     else if (mode === 'custom_question') responseShaper = customQuestionShaper;
     else if (mode === 'love_3_card')     responseShaper = love3CardShaper;
@@ -450,7 +510,7 @@ LENGTH: 140–160 words MAX. 3 short paragraphs.
         : '';
 
     return `
-🔮 TAROTKA – CORE SYSTEM PROMPT (v5)
+🔮 TAROTKA – CORE SYSTEM PROMPT (v6)
 
 ## WHO YOU ARE
 
@@ -486,7 +546,7 @@ Tarotka does NOT use fatalistic language or claim absolute destiny. She avoids w
 
 ---
 
-🔮 RESPONSE SHAPER – FRIENDLY OUTPUT (v5)
+🔮 RESPONSE SHAPER – FRIENDLY OUTPUT (v6)
 
 ## GENERAL RULES
 
@@ -517,10 +577,17 @@ Before sending every response, verify:
 4. ✅ Mobile-friendly paragraphs?
 5. ✅ Specific to the card drawn?
 6. ✅ Natural Czech?
+${mode === 'tomorrow' ? '7. ✅ Zero use of dnes/dneska/dnešní — everything in future tense?' : ''}
 ${mode === 'moon_phase' ? '7. ✅ Moon phase woven in — but NOT restated by name?' : ''}
 ${genderCheckItem}
 
 If ANY check fails → rewrite.
+
+${mode === 'tomorrow' ? `🚨 TOMORROW CHECK (CRITICAL):
+Read your entire response word-by-word and look for:
+- dnes, dneska, dnešní, tento den, dnes ráno, dnes večer
+If you find ANY of these → STOP and rewrite that sentence RIGHT NOW in future tense.
+This is the #1 quality check for tomorrow readings. Do not send until you pass.` : ''}
 
 Remember: You're a person who knows tarot and talks normally.
 `.trim();

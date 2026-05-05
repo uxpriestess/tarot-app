@@ -67,14 +67,14 @@ export default function App() {
 
   const addJournalEntry = useAppStore((state) => state.addJournalEntry);
 
-  const handleDrawCard = async (subsetIds?: string[]) => {
+  const handleDrawCard = async (subsetIds?: string[], mode: string = 'daily') => {
     const drawn = drawCard(subsetIds);
     setCurrentCard({ ...drawn, aiMeaning: undefined });
 
     try {
       const response = await askUniverse(
         `Výklad pro kartu: ${drawn.card.nameCzech || drawn.card.name} (${drawn.position === 'upright' ? 'vzpřímená' : 'obrácená'})`,
-        'daily',
+        mode,
         [{
           name: drawn.card.name,
           nameCzech: drawn.card.nameCzech || drawn.card.name,
@@ -351,7 +351,7 @@ export default function App() {
             onBack={() => setIsTomorrowScreenOpen(false)}
             onDrawCard={() => {
               setIsTomorrowScreenOpen(false);
-              handleDrawCard();
+              handleDrawCard(undefined, 'tomorrow');
             }}
           />
         </Modal>

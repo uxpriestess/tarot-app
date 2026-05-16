@@ -7,15 +7,15 @@ A mindful tarot app for daily reflection and deep insights, built with React Nat
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript)](https://www.typescriptlang.org/)
 [![Zustand](https://img.shields.io/badge/Zustand-5.0-orange)](https://github.com/pmndrs/zustand)
 
-## ✨ Features
+## Features
 
-### 🎴 Daily Card Readings
+### Daily Card Readings
 - **Contextual draws**: Morning routine, evening reflection, or deeper questions
 - **Beautiful card reveals** with smooth animations
 - **Czech tarot deck** with complete Major Arcana and four suits
 - **Daily streak tracking** to build a consistent practice
 
-### 🤖 AI-Powered Insights
+### AI-Powered Insights
 - **Personalized interpretations** powered by Claude AI
 - **Authentic Czech responses** tailored to each reading context
 - **Multiple reading modes**:
@@ -24,24 +24,24 @@ A mindful tarot app for daily reflection and deep insights, built with React Nat
   - Sophisticated spreads (love readings, complex multi-card layouts)
 - Responses adapt to your spread type and question
 
-### 📊 Progress Tracking
+### Progress Tracking
 - **Persistent storage** using AsyncStorage
 - Track journal entries and draw history
 - Streak counter with visual milestones
 - All progress syncs automatically across app sessions
 
-### 💡 Smart Reading History
+### Smart Reading History
 - View past draws and their interpretations
 - Build patterns in your reading journey
 - Collection of all cards for reference
 
-### 🎨 Beautiful Design
+### Beautiful Design
 - Soft color palette (lavender, sage, rose, bronze)
 - Smooth animations and transitions
 - Responsive layouts
 - Glass morphism effects
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: React Native 0.81 + Expo ~54.0
 - **Language**: TypeScript 5.9
@@ -90,7 +90,7 @@ tarotapp-fresh/
 └── package.json
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v16 or higher)
@@ -136,7 +136,7 @@ tarotapp-fresh/
 - **Spreads**: Multi-card layouts (including love spreads) with structured AI responses
 - **Collection**: Browse all cards in your deck with their meanings
 
-## 🎯 Key Features
+## Key Features
 
 ### Intelligent State Management
 - Zustand store with TypeScript for type-safe state

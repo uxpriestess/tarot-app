@@ -1,4 +1,4 @@
-# 🔮 Tarot App
+# 🔮 Tarotka
 
 A mindful tarot app for daily reflection and deep insights, built with React Native & Expo. Draw beautifully illustrated Czech tarot cards and receive personalized AI interpretations.
 

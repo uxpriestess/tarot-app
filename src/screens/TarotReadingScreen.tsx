@@ -169,7 +169,7 @@ interface Spread {
 const SPREADS: Spread[] = [
     { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3, labels: ['Ty', 'Partner', 'Tvůj vztah'] },
     { id: 'finance', name: 'Finance', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnes', 'Výzva', 'Výsledek'] },
-    { id: 'body', name: 'Tělo a mysl', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3, labels: ['Tělo', 'Mysl', 'Duch'] },
+    { id: 'body', name: 'Mysl, tělo a duše', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3, labels: ['Mysl', 'Tělo', 'Duše'] },
     { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 1, labels: ['Vzkaz luny'] },
     { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3, labels: ['Cesta A', 'Cesta B', 'Rada'] },
     { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7, labels: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'] },
@@ -335,6 +335,39 @@ ${moonPhase.energy}`;
         }
     };
 
+    // ✅ Pre-fetch for Body Mind Spirit spread
+    const preFetchBodyMindSpirit = async (cards: any[], spread: Spread) => {
+        console.log('=== PRE-FETCHING BODY MIND SPIRIT MEANINGS ===');
+        setIsLoadingMeanings(true);
+
+        try {
+            const reading = await performReading({
+                spreadName: spread.name,
+                cards: cards.map((dc, idx) => ({
+                    name: dc.card.name,
+                    nameCzech: dc.card.nameCzech,
+                    position: dc.position,
+                    label: spread.labels![idx]
+                })),
+                question: 'Jak se teď cítím v mysli, těle a duši?',
+                mode: 'body_mind_spirit'
+            });
+
+            console.log('✅ Body mind spirit reading received:', reading.sections.length, 'sections');
+            reading.sections.forEach((s, i) => {
+                console.log(`  Section ${i}: ${s.key} - ${s.text.substring(0, 40)}...`);
+            });
+
+            setCardMeanings(reading.sections);
+
+        } catch (error) {
+            console.error('❌ Body mind spirit API error:', error);
+            setCardMeanings([{ key: 'error', label: null, text: 'Něco se pokazilo. Zkus to znovu.' }]);
+        } finally {
+            setIsLoadingMeanings(false);
+        }
+    };
+
     const startReading = (spread: Spread) => {
         console.log("=== START READING CALLED ===");
         console.log("Spread ID:", spread.id);
@@ -392,6 +425,12 @@ ${moonPhase.energy}`;
         if (spread.id === 'moon') {
             console.log('🌙 Triggering pre-fetch for Moon spread');
             preFetchMoonMeaning(cards, spread);
+        }
+
+        // ✅ Pre-fetch for Body Mind Spirit spread
+        if (spread.id === 'body') {
+            console.log('🌿 Triggering pre-fetch for Body Mind Spirit spread');
+            preFetchBodyMindSpirit(cards, spread);
         }
     };
 

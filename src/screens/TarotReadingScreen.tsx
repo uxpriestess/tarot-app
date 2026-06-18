@@ -30,11 +30,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../theme/colors';
+import { spreadStyles } from '../theme/spreadStyles';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
+import { ModernSpreadLayout } from '../components/ModernSpreadLayout';
 import { drawCard } from '../data';
 import { CardImage } from '../components/CardImage';
 import { performReading, ReadingSection } from '../services/universe';
 import { getMoonPhase } from '../utils/moonPhase';
+import { SPREAD_TEMPLATES, isModernSpread, isLegacySpread } from '../types/spreads';
 
 const { width } = Dimensions.get('window');
 
@@ -205,6 +208,7 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     const [revealedCount, setRevealedCount] = useState(0);
     const [cardMeanings, setCardMeanings] = useState<ReadingSection[]>([]);
     const [isLoadingMeanings, setIsLoadingMeanings] = useState(false);
+    const [loadingIndices, setLoadingIndices] = useState<number[]>([]); // For fetch-on-flip
     const [stage, setStage] = useState<Stage>('welcome');
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -244,6 +248,15 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     // Helper to strip markdown headers (## text)
     const stripMarkdownHeader = (text: string): string => {
         return text.replace(/^##\s*.+?\n/gm, '').trim();
+    };
+
+    // Convert sections array to meanings object indexed by card
+    const getMeaningsObject = (): Record<number, string> => {
+        const obj: Record<number, string> = {};
+        cardMeanings.forEach((section, idx) => {
+            obj[idx] = section.text || '';
+        });
+        return obj;
     };
 
     const flipCard = (idx: number) => {
@@ -584,16 +597,45 @@ ${moonPhase.energy}`;
         );
     };
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // All other spreads — completely unchanged
-    // ─────────────────────────────────────────────────────────────────────────
-    const renderReading = () => {
+    // ───────────────────────────────────────────────────────────────────────────
+    // renderModernSpread — Uses ModernSpreadLayout for body, moon, and future spreads
+    // ───────────────────────────────────────────────────────────────────────────
+    const renderModernSpread = () => {
         if (!selectedSpread) return null;
 
-        // 🌙 Moon spread gets its own clean layout
-        if (selectedSpread.id === 'moon') {
-            return renderMoonReading();
-        }
+        const template = SPREAD_TEMPLATES[selectedSpread.id as SpreadId];
+        if (!template || template.layout !== 'modern') return null;
+
+        return (
+            <Animated.View style={[styles.readingContainer, { opacity: fadeAnim }]}>
+                <TouchableOpacity onPress={resetReading} style={styles.readingBackButton}>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
+
+                <ModernSpreadLayout
+                    mode={selectedSpread.id as SpreadId}
+                    cards={drawnCards}
+                    meanings={cardMeanings}
+                    flippedCards={flippedCards}
+                    isLoading={isLoadingMeanings && cardMeanings.length === 0}
+                    loadingIndices={loadingIndices}
+                    labels={selectedSpread.labels || []}
+                    onCardFlip={flipCard}
+                    onDone={resetReading}
+                    headerTitle={selectedSpread.name}
+                    headerSubtitle={template.headerSubtitle || 'Ponořte se do své otázky...'}
+                    showKeywords={template.keywords !== false}
+                    showPositionBadge={template.positionBadge !== false}
+                />
+            </Animated.View>
+        );
+    };
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // renderLegacyReading — For love, finance, decision, week spreads (unchanged)
+    // ───────────────────────────────────────────────────────────────────────────
+    const renderLegacyReading = () => {
+        if (!selectedSpread) return null;
 
         const subtitle =
             selectedSpread.id === 'love' ? 'Co je mezi vámi?' :
@@ -693,6 +735,26 @@ ${moonPhase.energy}`;
                 </ScrollView>
             </Animated.View>
         );
+    };
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // renderReading — Master router based on spread template layout
+    // ───────────────────────────────────────────────────────────────────────────
+    const renderReading = () => {
+        if (!selectedSpread) return null;
+
+        // Route modern spreads (body, future spreads)
+        if (isModernSpread(selectedSpread.id as any)) {
+            return renderModernSpread();
+        }
+
+        // Route moon spread to its special single-scroll layout
+        if (selectedSpread.id === 'moon') {
+            return renderMoonReading();
+        }
+
+        // All other legacy spreads (love, finance, decision, week)
+        return renderLegacyReading();
     };
 
     return (

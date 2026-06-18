@@ -175,7 +175,9 @@ function parseReading(rawText, cards, mode) {
         answer: rawText.trim()
     };
 }
-
+function buildStructuredResponse(mode, rawText, cards) {
+    return parseReading(rawText, cards, mode);
+}
 /**
  * Builds the gender instruction block injected into the system prompt.
  *

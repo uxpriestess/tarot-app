@@ -24,7 +24,7 @@ export const spreadStyles = StyleSheet.create({
   // Used by: ModernSpreadLayout, CardRevealScreen, JournalScreen, etc.
   // Change here → affects all keyword displays globally
 
-  keywordBadge: {
+ keywordBadge: {
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -33,6 +33,7 @@ export const spreadStyles = StyleSheet.create({
     marginBottom: spacing.xs,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    flexShrink: 0,        // ← prevents badge from shrinking
   },
 
   keywordBadgeText: {
@@ -40,6 +41,7 @@ export const spreadStyles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    flexShrink: 0,        // ← keeps text on one line within badge
   },
 
   // ─────────────────────────────────────────────────────────────────────

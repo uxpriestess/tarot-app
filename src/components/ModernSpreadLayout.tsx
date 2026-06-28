@@ -388,7 +388,7 @@ function CardDisplay({
               width: cardWidth,
               height: cardHeight,
               transform: [{ rotateY: backInterpolate }],
-              backgroundColor: `rgba(0,0,0,${0.1 + (1 - glowAnim)})`,
+              backgroundColor: 'rgba(0,0,0,0.1)',
             },
           ]}
         >
@@ -625,12 +625,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    flexShrink: 0,
   },
   keywordText: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontWeight: '500',
+    flexShrink: 0,
   },
 
   // ── Meanings Section ──

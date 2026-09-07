@@ -6,32 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "newArchEnabled": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "newArchEnabled": true,
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-asset",
-      "expo-font",
-      "expo-sqlite"
-    ],
     "extra": {
       "eas": {
         "projectId": "b8c24243-2145-4d19-b639-d89afe4c972f"
@@ -43,6 +17,38 @@
     "updates": {
       "url": "https://u.expo.dev/b8c24243-2145-4d19-b639-d89afe4c972f"
     },
-    "owner": "forkingfortune"
-  }
+    "android": {},
+    "ios": {}
+  },
+  "ios": {
+    "supportsTablet": true
+  },
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#ffffff"
+    },
+    "predictiveBackGestureEnabled": false
+  },
+  "web": {
+    "favicon": "./assets/favicon.png"
+  },
+  "plugins": [
+    "expo-asset",
+    "expo-font",
+    "expo-sqlite",
+    "expo-status-bar"
+  ],
+  "extra": {
+    "eas": {
+      "projectId": "b8c24243-2145-4d19-b639-d89afe4c972f"
+    }
+  },
+  "runtimeVersion": {
+    "policy": "appVersion"
+  },
+  "updates": {
+    "url": "https://u.expo.dev/b8c24243-2145-4d19-b639-d89afe4c972f"
+  },
+  "owner": "forkingfortune"
 }

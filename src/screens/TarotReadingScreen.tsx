@@ -14,6 +14,7 @@
 //    - All other spreads completely unchanged
 
 import React, { useState, useEffect, useRef } from 'react';
+import { YesNoScreen } from './YesNoScreen';
 import {
     View,
     Text,
@@ -210,6 +211,7 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     const [isLoadingMeanings, setIsLoadingMeanings] = useState(false);
     const [loadingIndices, setLoadingIndices] = useState<number[]>([]); // For fetch-on-flip
     const [stage, setStage] = useState<Stage>('welcome');
+    const [isYesNoOpen, setIsYesNoOpen] = useState(false);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -385,7 +387,10 @@ ${moonPhase.energy}`;
         console.log("=== START READING CALLED ===");
         console.log("Spread ID:", spread.id);
         console.log("Spread name:", spread.name);
-
+        if (spread.id === 'decision') {
+    setIsYesNoOpen(true);
+    return;
+}
         // CRITICAL: Intercept love spread immediately
         if (spread.id === 'love') {
             console.log('🔴 LOVE SPREAD DETECTED!');
@@ -756,7 +761,13 @@ ${moonPhase.energy}`;
         // All other legacy spreads (love, finance, decision, week)
         return renderLegacyReading();
     };
-
+if (isYesNoOpen) {
+    return (
+        <YesNoScreen
+            onClose={() => setIsYesNoOpen(false)}
+        />
+    );
+}
     return (
         <ImmersiveScreen screenName="reading">
             <View style={styles.safeArea}>

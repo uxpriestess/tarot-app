@@ -13,6 +13,7 @@ export interface JournalEntry {
     date: string; // ISO string
     position: 'upright' | 'reversed';
     note?: string;
+    aiMeaning?: string;
 }
 
 interface AppState {

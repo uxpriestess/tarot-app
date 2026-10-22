@@ -14,6 +14,8 @@ import { CardImage } from './CardImage';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { TarotCard } from '../types/tarot';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { DAILY_CARD_BACKS, DailyCardBack, DailyCardBackId } from './DailyCardBack';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -48,6 +50,10 @@ interface RevealableCardProps {
   cardHeight?: number;
   disabled?: boolean; // For locked progression (can't reveal yet)
   showPosition?: boolean; // Show position label above card
+  dailyRitual?: boolean;
+  meaningLoading?: boolean;
+  meaningError?: string | null;
+  onRetryMeaning?: () => void;
 }
 
 export function RevealableCard({
@@ -61,6 +67,10 @@ export function RevealableCard({
   cardHeight = 420,
   disabled = false,
   showPosition = false,
+  dailyRitual = false,
+  meaningLoading = false,
+  meaningError,
+  onRetryMeaning,
 }: RevealableCardProps) {
   const [meaning, setMeaning] = useState<string | null>(aiMeaning || null);
   const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +79,8 @@ export function RevealableCard({
   // Animation values
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const flipAnim = useRef(new Animated.Value(0)).current;
+  const [selectedBack, setSelectedBack] = useState<DailyCardBackId>(DAILY_CARD_BACKS[0].id);
 
   // Sync aiMeaning prop with internal state
   useEffect(() => {
@@ -83,6 +95,23 @@ export function RevealableCard({
       fetchMeaning();
     }
   }, [isRevealed]);
+
+  useEffect(() => {
+    if (!dailyRitual) return;
+    Animated.timing(flipAnim, {
+      toValue: isRevealed ? 1 : 0,
+      duration: 650,
+      useNativeDriver: true,
+    }).start();
+  }, [dailyRitual, flipAnim, isRevealed]);
+
+  const triggerDailyHaptic = (style: Haptics.ImpactFeedbackStyle) => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(style).catch((error) => {
+        console.warn('Daily reveal haptic failed:', error);
+      });
+    }
+  };
 
   const fetchMeaning = async () => {
     if (!onReveal) return;
@@ -102,6 +131,7 @@ export function RevealableCard({
   };
 
   const handlePress = () => {
+    if (dailyRitual && isRevealed) return;
     if (disabled) {
       // Shake animation for locked cards
       Animated.sequence([
@@ -122,6 +152,10 @@ export function RevealableCard({
     );
 
     onToggleReveal();
+
+    if (dailyRitual) {
+      triggerDailyHaptic(Haptics.ImpactFeedbackStyle.Light);
+    }
 
     // Glow effect when revealing
     if (!isRevealed) {
@@ -149,7 +183,7 @@ export function RevealableCard({
       {/* Card Container */}
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={handlePress}
+        onPress={() => handlePress()}
         disabled={disabled && !isRevealed}
         style={styles.touchable}
       >
@@ -164,13 +198,51 @@ export function RevealableCard({
           ]}
         >
           {/* Card Image */}
-          <View style={styles.cardImageWrapper}>
+          <View style={[styles.cardImageWrapper, dailyRitual && { width: cardWidth, height: cardHeight }]}>
+            {dailyRitual ? (
+              <>
+                <Animated.View
+                  style={[
+                    styles.dailyCardFace,
+                    {
+                      opacity: flipAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0, 0] }),
+                      transform: [
+                        { perspective: 1000 },
+                        { rotateY: flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) },
+                      ],
+                    },
+                  ]}
+                >
+                  <DailyCardBack designId={selectedBack} width={cardWidth} height={cardHeight} />
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    styles.dailyCardFace,
+                    {
+                      opacity: flipAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] }),
+                      transform: [
+                        { perspective: 1000 },
+                        { rotateY: flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['-180deg', '0deg'] }) },
+                      ],
+                    },
+                  ]}
+                >
+                    <CardImage
+                      imageName={card.imageName}
+                      width={cardWidth}
+                      height={cardHeight}
+                      resizeMode="cover"
+                    />
+                </Animated.View>
+              </>
+            ) : (
             <CardImage
               imageName={card.imageName}
               width={cardWidth}
               height={cardHeight}
               resizeMode="cover"
             />
+            )}
             
             {/* Disabled Overlay */}
             {disabled && !isRevealed && (
@@ -181,10 +253,16 @@ export function RevealableCard({
 
             {/* Tap Indicator (when not revealed) */}
             {!isRevealed && !disabled && (
-              <View style={styles.tapIndicator}>
-                <Ionicons name="hand-left-outline" size={24} color={colors.lavender} />
-                <Text style={styles.tapText}>Ťukni pro odhalení</Text>
-              </View>
+              dailyRitual ? (
+                <View pointerEvents="none" style={styles.dailyTapHint}>
+                  <Text style={styles.dailyTapHintText}>Ťukni na kartu</Text>
+                </View>
+              ) : (
+                <View style={styles.tapIndicator}>
+                  <Ionicons name="hand-left-outline" size={24} color={colors.lavender} />
+                  <Text style={styles.tapText}>Ťukni pro odhalení</Text>
+                </View>
+              )
             )}
           </View>
 
@@ -200,7 +278,8 @@ export function RevealableCard({
               </View>
 
               {/* Loading State - show when loading OR when revealed but no meaning yet */}
-              {(isLoading || !meaning) && !error && (
+              {(dailyRitual ? (meaningLoading || !aiMeaning) : (isLoading || !meaning)) &&
+                !(dailyRitual ? meaningError : error) && (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color={colors.lavender} />
                   <Text style={styles.loadingText}>Vesmír skládá tvůj příběh...</Text>
@@ -208,28 +287,31 @@ export function RevealableCard({
               )}
 
               {/* Error State */}
-              {error && (
+              {(dailyRitual ? meaningError : error) && (
                 <View style={styles.errorContainer}>
                   <Ionicons name="alert-circle-outline" size={24} color={colors.error} />
-                  <Text style={styles.errorText}>{error}</Text>
-                  <TouchableOpacity style={styles.retryButton} onPress={fetchMeaning}>
+                  <Text style={styles.errorText}>{dailyRitual ? meaningError : error}</Text>
+                  <TouchableOpacity
+                    style={styles.retryButton}
+                    onPress={dailyRitual ? onRetryMeaning : fetchMeaning}
+                  >
                     <Text style={styles.retryButtonText}>Zkusit znovu</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               {/* Meaning Text */}
-              {meaning && !isLoading && (
+              {(dailyRitual ? aiMeaning : meaning) && !(dailyRitual ? meaningLoading : isLoading) && (
                 <View style={styles.meaningContent}>
                   <Text style={styles.meaningText}>
-                    {parseMeaningText(meaning)}
+                    {parseMeaningText((dailyRitual ? aiMeaning : meaning) || '')}
                   </Text>
                 </View>
               )}
 
               {/* Collapse Indicator - only show if card can actually be toggled */}
-              {disabled === false && onToggleReveal.toString() !== '() => {}' && (
-                <TouchableOpacity style={styles.collapseButton} onPress={handlePress}>
+              {!dailyRitual && disabled === false && onToggleReveal.toString() !== '() => {}' && (
+                <TouchableOpacity style={styles.collapseButton} onPress={() => handlePress()}>
                   <Ionicons name="chevron-up" size={20} color={colors.textLight} />
                   <Text style={styles.collapseText}>Skrýt</Text>
                 </TouchableOpacity>
@@ -238,6 +320,37 @@ export function RevealableCard({
           )}
         </Animated.View>
       </TouchableOpacity>
+      {dailyRitual && !isRevealed && (
+        <View style={styles.backPicker}>
+          <Text style={styles.backPickerTitle}>Vyber si rub karty</Text>
+          <View style={styles.backOptions}>
+            {DAILY_CARD_BACKS.map((design) => (
+              <TouchableOpacity
+                key={design.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Zvolit rub karty: ${design.label}`}
+                accessibilityState={{ selected: selectedBack === design.id }}
+                onPress={() => setSelectedBack(design.id)}
+                style={[
+                  styles.backOption,
+                  selectedBack === design.id && { borderColor: design.accent, opacity: 1 },
+                ]}
+                activeOpacity={0.8}
+              >
+                <DailyCardBack designId={design.id} width={56} height={84} />
+                <Text
+                  style={[
+                    styles.backOptionLabel,
+                    selectedBack === design.id && { color: design.accent },
+                  ]}
+                >
+                  {design.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -279,6 +392,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dailyCardFace: {
+    ...StyleSheet.absoluteFill,
+    backfaceVisibility: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   disabledOverlay: {
 ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -306,6 +425,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
+  },
+  dailyTapHint: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+  },
+  dailyTapHintText: {
+    color: '#f4e7cf',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  backPicker: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  backPickerTitle: {
+    color: '#e8dfd2',
+    fontSize: 13,
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+  },
+  backOptions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  backOption: {
+    alignItems: 'center',
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 10,
+    opacity: 0.72,
+  },
+  backOptionLabel: {
+    color: '#d6ccbf',
+    fontSize: 11,
+    marginTop: 5,
   },
   meaningSection: {
     padding: spacing.lg,

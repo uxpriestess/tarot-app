@@ -26,6 +26,12 @@ interface CardRevealScreenProps {
   onUpdateNote?: (text: string) => void;
   isJournalMode?: boolean;
   isOnboarding?: boolean;
+  dailyRitual?: boolean;
+  isMeaningLoading?: boolean;
+  meaningError?: string | null;
+  onRetryMeaning?: () => void;
+  isReadingSaved?: boolean;
+  canSaveReading?: boolean;
 }
 
 const { width } = Dimensions.get('window');
@@ -42,6 +48,12 @@ export function CardRevealScreen({
   onUpdateNote,
   isJournalMode = false,
   isOnboarding = false,
+  dailyRitual = false,
+  isMeaningLoading = false,
+  meaningError,
+  onRetryMeaning,
+  isReadingSaved = false,
+  canSaveReading = true,
 }: CardRevealScreenProps) {
   const [isRevealed, setIsRevealed] = useState(false);
   const [localNote, setLocalNote] = useState(note || '');
@@ -60,29 +72,48 @@ export function CardRevealScreen({
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(30)).current;
+  const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasMeaningHapticFired = useRef(false);
+
+  useEffect(() => {
+    if (!dailyRitual || !showContent || !aiMeaning || hasMeaningHapticFired.current || Platform.OS === 'web') {
+      return;
+    }
+    hasMeaningHapticFired.current = true;
+    void import('expo-haptics')
+      .then((Haptics) => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success))
+      .catch((error) => console.warn('Daily meaning haptic failed:', error));
+  }, [aiMeaning, dailyRitual, showContent]);
 
   // Trigger content animations when card is manually revealed by user
   useEffect(() => {
-    if (isRevealed) {
-      // Show content section after card reveals
-      setTimeout(() => {
-        setShowContent(true);
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.spring(slideUp, {
-            toValue: 0,
-            tension: 40,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, 600); // Wait for card expansion to complete
-    }
-  }, [isRevealed]);
+    if (!isRevealed) return;
+
+    contentTimer.current = setTimeout(() => {
+      setShowContent(true);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideUp, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      contentTimer.current = null;
+    }, 600);
+
+    return () => {
+      if (contentTimer.current) {
+        clearTimeout(contentTimer.current);
+        contentTimer.current = null;
+      }
+    };
+  }, [fadeAnim, isRevealed, slideUp]);
 
   return (
     <View style={styles.modalOverlay}>
@@ -113,6 +144,10 @@ export function CardRevealScreen({
             cardHeight={CARD_HEIGHT}
             showPosition={true}
             disabled={false}
+            dailyRitual={dailyRitual}
+            meaningLoading={isMeaningLoading}
+            meaningError={meaningError}
+            onRetryMeaning={onRetryMeaning}
           />
 
           {/* Keywords - show after card reveals */}
@@ -168,9 +203,12 @@ export function CardRevealScreen({
                 style={styles.saveButton}
                 onPress={onSaveReading}
                 activeOpacity={0.8}
+                disabled={!canSaveReading || isReadingSaved}
               >
                 <Ionicons name="bookmark-outline" size={20} color="#fff" style={{ marginRight: spacing.xs }} />
-                <Text style={styles.saveButtonText}>Uložit výklad</Text>
+                <Text style={styles.saveButtonText}>
+                  {isReadingSaved ? 'Uloženo' : 'Uložit výklad'}
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -192,9 +230,7 @@ export function CardRevealScreen({
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+  modalOverlay: { flex: 1, backgroundColor: '#0b0a12'
   },
   scrollContent: {
     flexGrow: 1,

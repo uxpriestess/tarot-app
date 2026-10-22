@@ -14,6 +14,7 @@ const Tab = createBottomTabNavigator();
 
 interface TabNavigatorProps {
     onDrawCard: (subsetIds?: string[]) => void;
+    onDrawDaily?: () => void;
     onAskUniverse: (question: string) => Promise<void>;
     onOpenMystic?: () => void;
     onOpenLoveReading?: () => void;
@@ -21,7 +22,7 @@ interface TabNavigatorProps {
     onTomorrowReading?: () => void;
 }
 
-export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLoveReading, onShowAuth, onTomorrowReading }: TabNavigatorProps) {
+export function TabNavigator({ onDrawCard, onDrawDaily, onAskUniverse, onOpenMystic, onOpenLoveReading, onShowAuth, onTomorrowReading }: TabNavigatorProps) {
     const journalHistory = useAppStore((state) => state.journalHistory);
     const streakDays = useAppStore((state) => state.streakDays);
 
@@ -60,6 +61,7 @@ export function TabNavigator({ onDrawCard, onAskUniverse, onOpenMystic, onOpenLo
                 {() => (
                     <HomeScreen
                         onDrawCard={onDrawCard}
+                        onDrawDaily={onDrawDaily}
                         onAskUniverse={onAskUniverse}
                         onOpenMystic={onOpenMystic}
                         hasReadToday={hasReadToday}

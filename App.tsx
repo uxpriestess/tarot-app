@@ -22,6 +22,7 @@ import { askUniverse } from './src/services/universe';
 import { colors } from './src/theme/colors';
 import { TarotReadingScreen, LoveReadingScreen, TomorrowScreen } from './src/screens';
 import { supabase } from './src/services/supabase';
+import { useDailyDraw } from './src/hooks/useDailyDraw';
 
 export default function App() {
   const [isMysticOpen, setIsMysticOpen] = useState(false);
@@ -66,8 +67,10 @@ export default function App() {
   const [isLoadingUniverse, setIsLoadingUniverse] = useState(false);
 
   const addJournalEntry = useAppStore((state) => state.addJournalEntry);
+  const dailyDraw = useDailyDraw();
 
   const handleDrawCard = async (subsetIds?: string[], mode: string = 'daily') => {
+    dailyDraw.reset();
     const drawn = drawCard(subsetIds);
     setCurrentCard({ ...drawn, aiMeaning: undefined });
 
@@ -87,8 +90,14 @@ export default function App() {
     }
   };
 
+  const handleDailyDraw = () => {
+    setCurrentCard(null);
+    dailyDraw.drawDailyCard();
+  };
+
   const handleClose = () => {
     setCurrentCard(null);
+    dailyDraw.reset();
     if (isFirstCardDraw && onboardingStep === 'firstCard') {
       setIsFirstCardDraw(false);
       setOnboardingStep('signUp');
@@ -103,10 +112,17 @@ export default function App() {
       cardId: currentCard.card.id,
       date: new Date().toISOString(),
       position: currentCard.position,
+      aiMeaning: currentCard.aiMeaning,
     };
 
     addJournalEntry(entry);
     Alert.alert("Uloženo!", "Tvůj výklad byl uložen do deníku.");
+  };
+
+  const handleSaveDailyReading = () => {
+    if (dailyDraw.saveReading()) {
+      Alert.alert("Uloženo!", "Tvůj výklad byl uložen do deníku.");
+    }
   };
 
   const handleAskUniverse = async (question: string) => {
@@ -249,6 +265,9 @@ export default function App() {
     setOnboardingStep('');
   };
 
+  const revealCard = dailyDraw.currentCard ?? currentCard;
+  const isDailyReveal = dailyDraw.currentCard !== null;
+
   if (isCheckingOnboarding) {
     return (
       <SafeAreaProvider>
@@ -312,6 +331,7 @@ export default function App() {
           <>
             <TabNavigator
               onDrawCard={handleDrawCard}
+              onDrawDaily={handleDailyDraw}
               onAskUniverse={handleAskUniverse}
               onOpenMystic={() => setIsMysticOpen(true)}
               onOpenLoveReading={() => setIsLoveReadingOpen(true)}
@@ -323,19 +343,28 @@ export default function App() {
 
         {/* CardRevealScreen Modal - always available regardless of onboarding state */}
         <Modal
-          visible={!!currentCard}
+          visible={!!revealCard}
           animationType="fade"
           transparent={true}
           onRequestClose={handleClose}
         >
-          {currentCard && (
+          {revealCard && (
             <CardRevealScreen
-              card={currentCard.card}
-              position={currentCard.position}
-              aiMeaning={currentCard.aiMeaning}
+              card={revealCard.card}
+              position={revealCard.position}
+              aiMeaning={revealCard.aiMeaning}
               onClose={handleClose}
-              onSaveReading={handleSaveReading}
+              onSaveReading={isDailyReveal ? handleSaveDailyReading : handleSaveReading}
               isOnboarding={onboardingStep === 'firstCard'}
+              dailyRitual={isDailyReveal}
+              isMeaningLoading={isDailyReveal && dailyDraw.isLoadingMeaning}
+              meaningError={isDailyReveal ? dailyDraw.meaningError : undefined}
+              onRetryMeaning={isDailyReveal ? dailyDraw.retryMeaning : undefined}
+              isReadingSaved={isDailyReveal && dailyDraw.isSaved}
+              canSaveReading={
+                !isDailyReveal ||
+                (Boolean(dailyDraw.currentCard?.aiMeaning) && !dailyDraw.isLoadingMeaning)
+              }
             />
           )}
         </Modal>

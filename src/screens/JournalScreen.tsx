@@ -264,7 +264,7 @@ export function JournalScreen() {
 
                                     {/* Meaning */}
                                     <View style={styles.detailMeaningBox}>
-                                        <Text style={styles.detailMeaningText}>{meaning}</Text>
+                                        <Text style={styles.detailMeaningText}>{selectedEntry.aiMeaning ?? meaning}</Text>
                                     </View>
 
                                     {/* Note Section - Always visible and editable */}

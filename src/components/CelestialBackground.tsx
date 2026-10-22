@@ -1,11 +1,16 @@
-import { View, StyleSheet, ImageBackground, Animated } from 'react-native';
+import { View, StyleSheet, ImageBackground, ImageSourcePropType } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-export function CelestialBackground({ children }: { children?: React.ReactNode }) {
+interface CelestialBackgroundProps {
+    children?: React.ReactNode;
+    backgroundImage?: ImageSourcePropType;
+}
+
+export function CelestialBackground({ children, backgroundImage }: CelestialBackgroundProps) {
     return (
         <View style={styles.container}>
             <ImageBackground
-                source={require('../../assets/screens/home_vibrant.jpg')}
+                source={backgroundImage ?? require('../../assets/screens/home_vibrant.jpg')}
                 style={StyleSheet.absoluteFill}
                 resizeMode="cover"
             >

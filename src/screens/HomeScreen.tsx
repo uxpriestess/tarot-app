@@ -22,6 +22,7 @@ const { width } = Dimensions.get('window');
 
 interface HomeScreenProps {
   onDrawCard: (subsetIds?: string[]) => void;
+  onDrawDaily?: () => void;
   onAskUniverse?: (question: string) => Promise<void>;
   hasReadToday: boolean;
   streak: number;
@@ -34,6 +35,7 @@ interface HomeScreenProps {
 
 export function HomeScreen({
   onDrawCard,
+  onDrawDaily,
   onAskUniverse,
   hasReadToday,
   streak,
@@ -71,7 +73,7 @@ export function HomeScreen({
     return () => clearInterval(timer);
   }, []);
 
-  const isEvening = currentTime.getHours() >= 14;
+  const isEvening = currentTime.getHours() >= 18;
 
   const carouselItems: CarouselItem[] = [
     isEvening
@@ -120,7 +122,10 @@ export function HomeScreen({
   const moon = getMoonPhase(currentTime);
 
   const handleItemPress = (id: string) => {
-    if (id === 'daily') onDrawCard();
+    if (id === 'daily') {
+      if (onDrawDaily) onDrawDaily();
+      else onDrawCard();
+    }
     if (id === 'custom') setIsModalVisible(true);
     if (id === 'night') onDrawCard(MYSTERY_CARD_IDS);
     if (id === 'tomorrow') onTomorrowReading?.();
@@ -129,7 +134,7 @@ export function HomeScreen({
   const currentItem = carouselItems[currentIndex];
 
   return (
-    <CelestialBackground>
+    <CelestialBackground backgroundImage={require('../../assets/screens/home_ritual.jpg')}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

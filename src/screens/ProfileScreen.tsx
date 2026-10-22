@@ -19,13 +19,11 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ onShowAuth }: ProfileScreenProps) {
     const displayName = useAppStore((s) => s.displayName);
-    const birthDate = useAppStore((s) => s.birthDate);
     const zodiacSign = useAppStore((s) => s.zodiacSign);
     const streakDays = useAppStore((s) => s.streakDays);
     const journalEntries = useAppStore((s) => s.journalEntries);
     const drawHistory = useAppStore((s) => s.drawHistory);
-    const setUserProfile = useAppStore((s) => s.setUserProfile);
-
+const clearUserProfile = useAppStore((s) => s.clearUserProfile);
     const handleResetOnboarding = async () => {
         Alert.alert(
             'Reset Onboarding',
@@ -59,7 +57,7 @@ export function ProfileScreen({ onShowAuth }: ProfileScreenProps) {
                     style: 'destructive',
                     onPress: async () => {
                         await supabase.auth.signOut();
-                        setUserProfile('', '', '');
+                        clearUserProfile();
                     },
                 },
             ]
@@ -112,10 +110,7 @@ export function ProfileScreen({ onShowAuth }: ProfileScreenProps) {
                             <Text style={styles.profileLabel}>Jméno</Text>
                             <Text style={styles.profileValue}>{displayName}</Text>
                         </View>
-                        <View style={[styles.profileRow, styles.profileRowBorder]}>
-                            <Text style={styles.profileLabel}>Narozen(a)</Text>
-                            <Text style={styles.profileValue}>{birthDate}</Text>
-                        </View>
+    
                         <View style={styles.profileRow}>
                             <Text style={styles.profileLabel}>Znamení</Text>
                             <Text style={styles.profileValue}>{zodiacSign}</Text>

@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
 
     // ===== TIMELINE VIEW =====
     timelineOverlay: {
-        ...StyleSheet.absoluteFillObject,
+       ...StyleSheet.absoluteFill,
         backgroundColor: 'rgba(255, 192, 203, 0.92)', // Pink overlay for readability
         zIndex: 0,
     },

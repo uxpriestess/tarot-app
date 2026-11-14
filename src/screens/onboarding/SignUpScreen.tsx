@@ -15,12 +15,13 @@ import { ImmersiveScreen } from '../../components/ImmersiveScreen';
 import { spacing } from '../../theme/colors';
 
 interface SignUpScreenProps {
-    onSignUp: (email: string, password: string) => void;
+    onSignUp: (email: string, password: string) => Promise<void>;
+    onRecover?: () => Promise<void>;
     onGoToLogin: () => void;
     onSkip: () => void;
 }
 
-export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProps) {
+export function SignUpScreen({ onSignUp, onGoToLogin, onSkip, onRecover }: SignUpScreenProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +54,11 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
     }, []);
 
     const handleSignUp = async () => {
+        if (onRecover) {
+            setIsLoading(true);
+            try { await onRecover(); } finally { setIsLoading(false); }
+            return;
+        }
         // Validation
         if (!email.trim()) {
             Alert.alert('Chyba', 'Zadej svůj e-mail.');
@@ -99,7 +105,7 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                 {/* Email & Password Form */}
                 <Animated.View style={[{ opacity: formAnim, width: '100%' }, styles.formContainer]}>
                     {/* Email Input */}
-                    <View style={styles.inputWrapper}>
+                    {!onRecover && <View style={styles.inputWrapper}>
                         <Ionicons name="mail" size={18} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
@@ -112,10 +118,10 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                             autoCapitalize="none"
                             autoCorrect={false}
                         />
-                    </View>
+                    </View>}
 
                     {/* Password Input */}
-                    <View style={styles.inputWrapper}>
+                    {!onRecover && <View style={styles.inputWrapper}>
                         <Ionicons name="lock-closed" size={18} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
@@ -138,7 +144,7 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                                 color="rgba(255, 255, 255, 0.6)"
                             />
                         </TouchableOpacity>
-                    </View>
+                    </View>}
 
                     {/* Sign Up Button */}
                     <TouchableOpacity
@@ -152,7 +158,7 @@ export function SignUpScreen({ onSignUp, onGoToLogin, onSkip }: SignUpScreenProp
                         ) : (
                             <>
                                 <Ionicons name="checkmark-circle" size={20} color="rgba(255, 255, 255, 0.95)" />
-                                <Text style={styles.buttonText}>Vytvořit účet</Text>
+                                <Text style={styles.buttonText}>{onRecover ? 'Dokončit profil' : 'Vytvořit účet'}</Text>
                             </>
                         )}
                     </TouchableOpacity>

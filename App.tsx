@@ -23,6 +23,8 @@ import { colors } from './src/theme/colors';
 import { TarotReadingScreen, LoveReadingScreen, TomorrowScreen } from './src/screens';
 import { supabase } from './src/services/supabase';
 import { useDailyDraw } from './src/hooks/useDailyDraw';
+import type { Session } from '@supabase/supabase-js';
+import { normalizeEmail, readOwnProfile, recoverRegistration, RegistrationError } from './src/services/registration';
 
 export default function App() {
   const [isMysticOpen, setIsMysticOpen] = useState(false);
@@ -33,23 +35,53 @@ export default function App() {
   const [isTomorrowScreenOpen, setIsTomorrowScreenOpen] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [isFirstCardDraw, setIsFirstCardDraw] = useState(false);
+  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [isRecoveringProfile, setIsRecoveringProfile] = useState(false);
 
-  // Check if user has already completed onboarding
+  // A previous app version could mark onboarding complete without saving a profile.
   useEffect(() => {
+    let active = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setAuthSession(session);
+    });
     const checkOnboardingStatus = async () => {
+      setIsCheckingOnboarding(true);
       try {
+        await useOnboardingStore.getState().restoreDraft();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!active) return;
+        setAuthSession(data.session);
         const hasCompleted = await AsyncStorage.getItem('onboarding_complete');
-        if (hasCompleted === 'true') {
-          setOnboardingStep('');
+        if (!active) return;
+        if (data.session) {
+          const profile = await readOwnProfile(data.session.user.id);
+          if (!active) return;
+          if (profile) {
+            await finishRegistration();
+          } else {
+            await AsyncStorage.removeItem('onboarding_complete');
+            setIsRecoveringProfile(true);
+            setOnboardingStep('signUp');
+          }
+        } else {
+          const pending = useOnboardingStore.getState().data.email;
+          setOnboardingStep(pending ? 'login' : hasCompleted === 'true' ? '' : 'welcome');
         }
-      } catch (error) {
-        console.error('Error checking onboarding status:', error);
+      } catch {
+        if (!active) return;
+        setOnboardingStep('login');
+        Alert.alert('Připojení k účtu', 'Stav účtu se nepodařilo ověřit. Zkus to znovu.', [
+          { text: 'Zkusit znovu', onPress: () => { void checkOnboardingStatus(); } },
+          { text: 'Přihlásit se', style: 'cancel' },
+        ]);
       } finally {
-        setIsCheckingOnboarding(false);
+        if (active) setIsCheckingOnboarding(false);
       }
     };
 
     checkOnboardingStatus();
+    return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   const [currentCard, setCurrentCard] = useState<{
@@ -154,109 +186,112 @@ export default function App() {
     setIsFirstCardDraw(true);
   };
 
-  // Sign up with email and password
-  const handleSignUp = async (email: string, password: string) => {
+  const finishRegistration = async () => {
+    const profile = await recoverRegistration(useOnboardingStore.getState().data);
+    await AsyncStorage.setItem('onboarding_complete', 'true');
+    useAppStore.getState().setUserProfile(profile.display_name ?? '', profile.zodiac_sign ?? '');
+    await useOnboardingStore.getState().clearDraft();
+    setIsRecoveringProfile(false);
+    setOnboardingStep('');
+  };
+
+  const showRecoveryError = (error: unknown) => {
+    if (error instanceof RegistrationError && error.kind === 'details') {
+      setIsRecoveringProfile(true);
+      Alert.alert('Dokončení profilu', error.message, [
+        { text: 'Doplnit údaje', onPress: () => setOnboardingStep('name') },
+        { text: 'Později', style: 'cancel' },
+      ]);
+      return;
+    }
+    if (error instanceof RegistrationError && error.kind === 'session') {
+      setOnboardingStep('login');
+    } else {
+      setIsRecoveringProfile(true);
+      setOnboardingStep('signUp');
+    }
+    Alert.alert('Dokončení účtu', error instanceof RegistrationError
+      ? error.message
+      : 'Dokončení účtu se nepodařilo. Zkontroluj připojení a zkus to znovu. Tvoje údaje zůstaly uložené.');
+  };
+
+  const handleRecoverProfile = async () => {
     try {
-      const onboardingData = useOnboardingStore.getState().data;
-
-      const { data, error } = await supabase.auth.signUp({ email, password });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          Alert.alert('Účet již existuje', 'Tento e-mail je již registrován. Přihlaš se.');
-        } else {
-          Alert.alert('Chyba', error.message);
-        }
-        return;
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session) {
+        throw new RegistrationError('session', 'Přihlas se pro dokončení profilu.');
       }
-
-      const user = data.user;
-      if (!user) return;
-
-      // Force sign in to guarantee an active session before RLS-protected insert
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        console.error('Auto sign-in after signup failed:', signInError);
+      const draft = useOnboardingStore.getState().data;
+      if (!draft.email && data.session.user.email) {
+        await useOnboardingStore.getState().saveDraft(data.session.user.email);
       }
-
-      // Now insert profile — session is guaranteed
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          display_name: onboardingData.displayName,
-          birth_date: onboardingData.birthDate,
-          zodiac_sign: onboardingData.zodiacSign,
-        });
-
-      if (profileError && profileError.code !== '23505') {
-        // 23505 = unique violation, profile already exists — that's fine
-        console.error('Profile insert error:', profileError);
-      }
-
-      // Save profile to local store
-      useAppStore.getState().setUserProfile(
-        onboardingData.displayName,
-        onboardingData.zodiacSign,
-      );
-
-      await AsyncStorage.setItem('onboarding_complete', 'true');
-      useOnboardingStore.getState().reset();
-      setOnboardingStep('');
+      await finishRegistration();
     } catch (error) {
-      Alert.alert('Chyba', 'Něco se pokazilo. Zkus to znovu.');
+      showRecoveryError(error);
     }
   };
 
-  // Log in with email and password
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const showAuthError = (code?: string) => {
+    const message = code === 'email_not_confirmed'
+      ? 'Nejdřív potvrď e-mail pomocí odkazu v doručené poště. Potom se tady přihlas a dokonči profil.'
+      : code === 'invalid_credentials'
+        ? 'E-mail nebo heslo nesouhlasí. Pokud účet už existuje, použij jeho původní heslo.'
+        : 'Přihlášení se nepodařilo. Zkontroluj připojení a přihlašovací údaje a zkus to znovu.';
+    Alert.alert('Přihlášení', message);
+  };
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          Alert.alert('Chyba', 'Špatný e-mail nebo heslo.');
-        } else {
-          Alert.alert('Chyba', error.message);
-        }
+  const handleSignUp = async (email: string, password: string) => {
+    const normalizedEmail = normalizeEmail(email);
+    try {
+      const { data: current, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (current.session) {
+        await handleRecoverProfile();
         return;
       }
-
-      const user = data.user;
-      if (!user) return;
-
-      // Try to load existing profile, don't crash if missing (PGRST116)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
+      await useOnboardingStore.getState().saveDraft(normalizedEmail);
+      const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password });
+      if (error) {
+        setOnboardingStep('login');
+        Alert.alert('Registrace', error.code === 'user_already_exists'
+          ? 'Účet už existuje. Přihlas se a dokonči profil.'
+          : 'Registraci se nepodařilo dokončit. Pokud účet už vznikl, přihlas se pro dokončení profilu. Jinak můžeš registraci zkusit znovu.');
+        return;
       }
-
-      // Load profile into local store if it exists
-      if (profile) {
-        useAppStore.getState().setUserProfile(
-          profile.display_name,
-          profile.zodiac_sign,
-        );
+      if (!data.session) {
+        setOnboardingStep('login');
+        Alert.alert('Zkontroluj e-mail', 'Pokud je potřeba potvrdit e-mail, otevři odkaz v doručené poště. Potom se přihlas původním heslem. Údaje pro profil zůstaly uložené.');
+        return;
       }
-
-      await AsyncStorage.setItem('onboarding_complete', 'true');
-      setOnboardingStep('');
+      setAuthSession(data.session);
+      await finishRegistration();
     } catch (error) {
-      Alert.alert('Chyba', 'Něco se pokazilo. Zkus to znovu.');
+      showRecoveryError(error);
+    }
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizeEmail(email), password,
+      });
+      if (error || !data.session) {
+        showAuthError(error?.code);
+        return;
+      }
+      setAuthSession(data.session);
+      await finishRegistration();
+    } catch (error) {
+      showRecoveryError(error);
     }
   };
 
   // Skip auth entirely
   const handleSignUpSkip = async () => {
+    if (isRecoveringProfile || authSession || useOnboardingStore.getState().data.email) {
+      Alert.alert('Dokončení účtu', 'Nejdřív dokonči profil nebo se přihlas k rozpracovanému účtu.');
+      return;
+    }
     try {
       await AsyncStorage.setItem('onboarding_complete', 'true');
     } catch (error) {
@@ -288,7 +323,21 @@ export default function App() {
         ) : onboardingStep === 'birthDate' ? (
           <BirthDateScreen onContinue={() => setOnboardingStep('zodiacReveal')} />
         ) : onboardingStep === 'zodiacReveal' ? (
-          <ZodiacRevealScreen onContinue={() => setOnboardingStep('firstCard')} />
+          <ZodiacRevealScreen onContinue={async () => {
+            if (isRecoveringProfile) {
+              // Bind newly entered details only after the user confirms them.
+              try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error || !data.session?.user.email) {
+                  throw new RegistrationError('session', 'Přihlas se pro dokončení profilu.');
+                }
+                await useOnboardingStore.getState().saveDraft(data.session.user.email);
+                setOnboardingStep('signUp');
+              } catch (error) { showRecoveryError(error); }
+            } else {
+              setOnboardingStep('firstCard');
+            }
+          }} />
         ) : onboardingStep === 'firstCard' ? (
           <FirstCardScreen onDrawCard={() => {
             handleDrawCard();
@@ -299,6 +348,7 @@ export default function App() {
             onSignUp={handleSignUp}
             onGoToLogin={() => setOnboardingStep('login')}
             onSkip={handleSignUpSkip}
+            onRecover={authSession ? handleRecoverProfile : undefined}
           />
         ) : onboardingStep === 'login' ? (
           <LoginScreen

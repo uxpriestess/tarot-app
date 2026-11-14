@@ -48,7 +48,7 @@ export function ImmersiveScreen({
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" />
 
       <ImageBackground
         source={layoutConfig.backgroundImage}

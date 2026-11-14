@@ -27,9 +27,9 @@ export function BirthDateScreen({ onContinue }: BirthDateScreenProps) {
     const setBirthDate = useOnboardingStore((state) => state.setBirthDate);
     const setZodiacSign = useOnboardingStore((state) => state.setZodiacSign);
 
-    const monthScrollRef = useRef<ScrollView>(null);
-    const dayScrollRef = useRef<ScrollView>(null);
-    const yearScrollRef = useRef<ScrollView>(null);
+    const monthScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+    const dayScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+    const yearScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
     // Animations
     const questionAnim = useRef(new Animated.Value(0)).current;
@@ -73,10 +73,23 @@ export function BirthDateScreen({ onContinue }: BirthDateScreenProps) {
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
     
-    const days = Array.from({ length: 31 }, (_, i) => i + 1);
+    const daysInMonth = new Date(years[selectedYear], selectedMonth + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    const validDayIndex = Math.min(selectedDay, daysInMonth - 1);
 
     const ITEM_HEIGHT = 50;
     const PICKER_HEIGHT = ITEM_HEIGHT * 5; // Show 5 items at once
+
+    useEffect(() => {
+        if (selectedDay <= daysInMonth - 1) return;
+
+        // Keep the selected day and visible picker aligned when the month gets shorter.
+        setSelectedDay(daysInMonth - 1);
+        dayScrollRef.current?.scrollTo({
+            y: (daysInMonth - 1) * ITEM_HEIGHT,
+            animated: false,
+        });
+    }, [daysInMonth, selectedDay]);
 
     const handleMonthScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const y = event.nativeEvent.contentOffset.y;
@@ -98,13 +111,14 @@ export function BirthDateScreen({ onContinue }: BirthDateScreenProps) {
 
     const handleContinue = () => {
         const month = selectedMonth + 1;
-        const day = selectedDay + 1;
+        const day = validDayIndex + 1;
         const year = years[selectedYear];
 
         const date = new Date(year, month - 1, day);
-        const isoString = date.toISOString().split('T')[0];
+        // A birthday is a calendar date, so do not shift it through UTC.
+        const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        setBirthDate(isoString);
+        setBirthDate(dateString);
         const zodiac = getZodiacSign(date);
         setZodiacSign(zodiac.name);
         onContinue();
@@ -167,7 +181,7 @@ export function BirthDateScreen({ onContinue }: BirthDateScreenProps) {
                                 <View key={day} style={{height: ITEM_HEIGHT, justifyContent: 'center'}}>
                                     <Text style={[
                                         styles.pickerItem,
-                                        selectedDay === day - 1 && styles.pickerItemSelected
+                                        validDayIndex === day - 1 && styles.pickerItemSelected
                                     ]}>
                                         {String(day).padStart(2, '0')}
                                     </Text>

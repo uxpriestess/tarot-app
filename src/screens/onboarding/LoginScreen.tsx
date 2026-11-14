@@ -15,7 +15,7 @@ import { ImmersiveScreen } from '../../components/ImmersiveScreen';
 import { spacing } from '../../theme/colors';
 
 interface LoginScreenProps {
-    onLogin: (email: string, password: string) => void;
+    onLogin: (email: string, password: string) => Promise<void>;
     onBackToSignUp: () => void;
     onSkip: () => void;
 }

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import {
     View,
     Text,
@@ -23,7 +24,25 @@ export function ProfileScreen({ onShowAuth }: ProfileScreenProps) {
     const streakDays = useAppStore((s) => s.streakDays);
     const journalEntries = useAppStore((s) => s.journalEntries);
     const drawHistory = useAppStore((s) => s.drawHistory);
-const clearUserProfile = useAppStore((s) => s.clearUserProfile);
+    const clearUserProfile = useAppStore((s) => s.clearUserProfile);
+    const [session, setSession] = useState<Session | null>(null);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+    useEffect(() => {
+        let active = true;
+        let authChanged = false;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+            authChanged = true;
+            if (active) { setSession(nextSession); setIsCheckingAuth(false); }
+        });
+        void supabase.auth.getSession().then(({ data, error }) => {
+            if (active && !authChanged) {
+                setSession(error ? null : data.session);
+                setIsCheckingAuth(false);
+            }
+        }).catch(() => { if (active) setIsCheckingAuth(false); });
+        return () => { active = false; subscription.unsubscribe(); };
+    }, []);
     const handleResetOnboarding = async () => {
         Alert.alert(
             'Reset Onboarding',
@@ -56,15 +75,20 @@ const clearUserProfile = useAppStore((s) => s.clearUserProfile);
                     text: 'Odhlásit',
                     style: 'destructive',
                     onPress: async () => {
-                        await supabase.auth.signOut();
-                        clearUserProfile();
+                        try {
+                            const { error } = await supabase.auth.signOut();
+                            if (error) throw error;
+                            clearUserProfile();
+                        } catch {
+                            Alert.alert('Odhlášení', 'Odhlášení se nepodařilo. Zkus to znovu.');
+                        }
                     },
                 },
             ]
         );
     };
 
-    const isLoggedIn = !!displayName;
+    const isLoggedIn = !!session;
 
     const stats = [
         { icon: 'flame', label: 'Série', value: streakDays, color: colors.bronze },
@@ -88,7 +112,7 @@ const clearUserProfile = useAppStore((s) => s.clearUserProfile);
                 </View>
 
                 {/* Auth card — shown when not logged in */}
-                {!isLoggedIn && (
+                {!isCheckingAuth && !isLoggedIn && (
                     <TouchableOpacity
                         style={styles.authCard}
                         onPress={onShowAuth}

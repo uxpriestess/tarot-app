@@ -15,7 +15,7 @@ import { colors, spacing, borderRadius } from '../theme/colors';
 import { TarotCard } from '../types/tarot';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { DAILY_CARD_BACKS, DailyCardBack, DailyCardBackId } from './DailyCardBack';
+import { DailyCardBack } from './DailyCardBack';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -80,7 +80,6 @@ export function RevealableCard({
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const flipAnim = useRef(new Animated.Value(0)).current;
-  const [selectedBack, setSelectedBack] = useState<DailyCardBackId>(DAILY_CARD_BACKS[0].id);
 
   // Sync aiMeaning prop with internal state
   useEffect(() => {
@@ -190,6 +189,7 @@ export function RevealableCard({
         <Animated.View
           style={[
             styles.cardContainer,
+            dailyRitual && { width: cardWidth, maxWidth: cardWidth },
             { 
               shadowColor: glowColor,
               shadowOpacity: 1,
@@ -213,7 +213,7 @@ export function RevealableCard({
                     },
                   ]}
                 >
-                  <DailyCardBack designId={selectedBack} width={cardWidth} height={cardHeight} />
+                  <DailyCardBack designId="moonlight" width={cardWidth} height={cardHeight} />
                 </Animated.View>
                 <Animated.View
                   style={[
@@ -252,17 +252,11 @@ export function RevealableCard({
             )}
 
             {/* Tap Indicator (when not revealed) */}
-            {!isRevealed && !disabled && (
-              dailyRitual ? (
-                <View pointerEvents="none" style={styles.dailyTapHint}>
-                  <Text style={styles.dailyTapHintText}>Ťukni na kartu</Text>
-                </View>
-              ) : (
+            {!dailyRitual && !isRevealed && !disabled && (
                 <View style={styles.tapIndicator}>
                   <Ionicons name="hand-left-outline" size={24} color={colors.lavender} />
                   <Text style={styles.tapText}>Ťukni pro odhalení</Text>
                 </View>
-              )
             )}
           </View>
 
@@ -319,38 +313,12 @@ export function RevealableCard({
             </View>
           )}
         </Animated.View>
-      </TouchableOpacity>
-      {dailyRitual && !isRevealed && (
-        <View style={styles.backPicker}>
-          <Text style={styles.backPickerTitle}>Vyber si rub karty</Text>
-          <View style={styles.backOptions}>
-            {DAILY_CARD_BACKS.map((design) => (
-              <TouchableOpacity
-                key={design.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Zvolit rub karty: ${design.label}`}
-                accessibilityState={{ selected: selectedBack === design.id }}
-                onPress={() => setSelectedBack(design.id)}
-                style={[
-                  styles.backOption,
-                  selectedBack === design.id && { borderColor: design.accent, opacity: 1 },
-                ]}
-                activeOpacity={0.8}
-              >
-                <DailyCardBack designId={design.id} width={56} height={84} />
-                <Text
-                  style={[
-                    styles.backOptionLabel,
-                    selectedBack === design.id && { color: design.accent },
-                  ]}
-                >
-                  {design.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {dailyRitual && !isRevealed && !disabled && (
+          <View pointerEvents="none" style={[styles.dailyTapHint, { width: cardWidth }]}>
+            <Text style={styles.dailyTapHintText}>Ťukni na kartu</Text>
           </View>
-        </View>
-      )}
+        )}
+      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -427,11 +395,12 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   dailyTapHint: {
-    position: 'absolute',
-    bottom: 16,
-    alignSelf: 'center',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
   },
   dailyTapHintText: {
+    textAlign: 'center',
     color: '#f4e7cf',
     fontSize: 12,
     letterSpacing: 1.2,
@@ -439,35 +408,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
-  },
-  backPicker: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: spacing.md,
-  },
-  backPickerTitle: {
-    color: '#e8dfd2',
-    fontSize: 13,
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
-  },
-  backOptions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  backOption: {
-    alignItems: 'center',
-    padding: 4,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: 10,
-    opacity: 0.72,
-  },
-  backOptionLabel: {
-    color: '#d6ccbf',
-    fontSize: 11,
-    marginTop: 5,
   },
   meaningSection: {
     padding: spacing.lg,

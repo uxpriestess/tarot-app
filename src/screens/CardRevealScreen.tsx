@@ -7,12 +7,14 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  useWindowDimensions,
   TouchableOpacity,
   ScrollView,
   TextInput,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { TarotCard } from '../types/tarot';
 
@@ -55,6 +57,13 @@ export function CardRevealScreen({
   isReadingSaved = false,
   canSaveReading = true,
 }: CardRevealScreenProps) {
+  const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const dailyCardWidth = Math.round(Math.min(
+    340,
+    window.width * 0.85,
+    window.width - insets.left - insets.right - spacing.lg * 2,
+  ));
   const [isRevealed, setIsRevealed] = useState(false);
   const [localNote, setLocalNote] = useState(note || '');
   const [showContent, setShowContent] = useState(false);
@@ -116,13 +125,34 @@ export function CardRevealScreen({
   }, [fadeAnim, isRevealed, slideUp]);
 
   return (
-    <View style={styles.modalOverlay}>
+    <View style={[
+      styles.modalOverlay,
+      dailyRitual && {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      },
+    ]}>
+      {dailyRitual && !isOnboarding && (
+        <View style={styles.dailyHeader}>
+          <TouchableOpacity
+            style={[styles.closeButton, styles.dailyCloseButton]}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Zavřít výklad"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, dailyRitual && styles.dailyScrollContent]}
         showsVerticalScrollIndicator={false}
       >
         {/* Close button - hidden during onboarding */}
-        {!isOnboarding && (
+        {!isOnboarding && !dailyRitual && (
           <TouchableOpacity
             style={styles.closeButton}
             onPress={onClose}
@@ -140,8 +170,8 @@ export function CardRevealScreen({
             isRevealed={isRevealed}
             onToggleReveal={() => setIsRevealed(true)} // Enable manual reveal via tap
             aiMeaning={aiMeaning} // Don't fallback to static meaning
-            cardWidth={CARD_WIDTH}
-            cardHeight={CARD_HEIGHT}
+            cardWidth={dailyRitual ? dailyCardWidth : CARD_WIDTH}
+            cardHeight={dailyRitual ? Math.round(dailyCardWidth * 1.5) : CARD_HEIGHT}
             showPosition={true}
             disabled={false}
             dailyRitual={dailyRitual}
@@ -237,6 +267,20 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     paddingBottom: 40,
     paddingHorizontal: spacing.lg,
+  },
+  dailyHeader: {
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  dailyCloseButton: {
+    position: 'relative',
+    top: 0,
+    right: 0,
+  },
+  dailyScrollContent: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
   closeButton: {
     position: 'absolute',

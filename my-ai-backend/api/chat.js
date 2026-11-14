@@ -71,44 +71,32 @@ const SPREAD_SCHEMAS = {
 };
 
 function parseLoveSections(rawText) {
+    const invalid = () => {
+        const error = new Error('Invalid love reading structure');
+        error.code = 'INVALID_LOVE_READING';
+        return error;
+    };
+    let parsed;
     try {
-        let cleanText = rawText.trim()
-            .replace(/```json\s?/g, '')
-            .replace(/```/g, '');
-
-        const firstBrace = cleanText.indexOf('{');
-        const lastBrace  = cleanText.lastIndexOf('}');
-
-        if (firstBrace !== -1 && lastBrace !== -1) {
-            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-            const parsed = JSON.parse(cleanText);
-
-            if (parsed.ty && parsed.partner && parsed.vztah) {
-                console.log('✅ Parsed love sections from JSON');
-                return [
-                    { key: 'ty',      label: 'Ty',          text: parsed.ty.trim()      },
-                    { key: 'partner', label: 'Partner',      text: parsed.partner.trim() },
-                    { key: 'vztah',   label: 'Tvůj vztah',  text: parsed.vztah.trim()   }
-                ];
-            }
-        }
-    } catch (e) {
-        console.log('⚠️ JSON parse failed, trying delimiter fallback');
+        parsed = JSON.parse(rawText);
+    } catch {
+        throw invalid();
     }
-
-    const paragraphs = rawText.split('---').map(p => p.trim()).filter(p => p.length > 0);
-
-    if (paragraphs.length >= 3) {
-        console.log('✅ Parsed love sections from delimiters');
-        return [
-            { key: 'ty',      label: 'Ty',         text: paragraphs[0] },
-            { key: 'partner', label: 'Partner',     text: paragraphs[1] },
-            { key: 'vztah',   label: 'Tvůj vztah', text: paragraphs[2] }
-        ];
+    const keys = ['ty', 'partner', 'vztah'];
+    const labels = { ty: 'Ty', partner: 'Partner', vztah: 'Vaše pouto' };
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
+        Object.keys(parsed).length !== 1 || !Array.isArray(parsed.sections) ||
+        parsed.sections.length !== 3) throw invalid();
+    const sections = new Map();
+    for (const section of parsed.sections) {
+        if (!section || typeof section !== 'object' || Array.isArray(section) ||
+            Object.keys(section).length !== 2 || !keys.includes(section.key) ||
+            sections.has(section.key) || typeof section.text !== 'string' ||
+            !section.text.trim()) throw invalid();
+        sections.set(section.key, section.text.trim());
     }
-
-    console.warn('⚠️ Could not parse love sections, returning as single block');
-    return [{ key: 'reading', label: null, text: rawText.trim() }];
+    if (!keys.every(key => sections.has(key))) throw invalid();
+    return keys.map(key => ({ key, label: labels[key], text: sections.get(key) }));
 }
 
 function parseBodyMindSpiritSections(rawText) {
@@ -353,6 +341,15 @@ export default async function handler(req, res) {
             temperature: 0.7,
         });
 
+        if (mode === 'love_3_card' && (response.stop_reason !== 'end_turn' ||
+            !Array.isArray(response.content) || response.content.length !== 1 ||
+            response.content[0]?.type !== 'text' || typeof response.content[0].text !== 'string')) {
+            return res.status(502).json({
+                code: 'INVALID_LOVE_READING',
+                answer: 'Výklad se nepodařilo načíst celý. Zkus to prosím znovu.'
+            });
+        }
+
         // Handle refusal stop reason (new in Sonnet 4.6)
         if (response.stop_reason === 'refusal') {
             console.warn('⚠️ Model refused the request');
@@ -376,6 +373,12 @@ export default async function handler(req, res) {
         return res.status(200).json(structuredResponse);
 
     } catch (error) {
+        if (error.code === 'INVALID_LOVE_READING') {
+            return res.status(502).json({
+                code: 'INVALID_LOVE_READING',
+                answer: 'Výklad se nepodařilo načíst celý. Zkus to prosím znovu.'
+            });
+        }
         console.error('=== ERROR DETAILS ===');
         console.error('Error name:',    error.name);
         console.error('Error message:', error.message);
@@ -632,5 +635,16 @@ Read your entire response word-by-word and look for:
 - dnes, dneska, dnešní, tento den, dnes ráno, dnes večer
 If you find ANY of these → STOP and rewrite that sentence RIGHT NOW in future tense.
 This is the #1 quality check for tomorrow readings. Do not send until you pass.` : ''}
-`.trim();
+`.trim() + (mode === 'love_3_card' ? `
+
+<love_output_contract>
+Toto pravidlo formátu přenosu má přednost před požadavkem na prostou prózu.
+Vrať pouze platný JSON bez markdown obalu, bez textu před nebo za JSON:
+{"sections":[{"key":"ty","text":"..."},{"key":"partner","text":"..."},{"key":"vztah","text":"..."}]}
+Přesně tři sekce, každý klíč právě jednou, žádné další vlastnosti.
+ty = první karta TY (otevření a tvá energie); partner = druhá karta PARTNER; vztah = třetí karta VAŠE POUTO (propojení, směr a společná rada).
+Každý text je neprázdná česká próza ve stávajícím hlasu Tarotky, bez nadpisů.
+Zachovej skutečnou orientaci každé karty. Slovní limit platí celkem pro texty sekcí.
+I bezpečnou reakci na krizovou otázku vrať v tomto formátu, bez humoru a věštění.
+</love_output_contract>` : '');
 }

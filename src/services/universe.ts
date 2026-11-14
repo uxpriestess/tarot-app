@@ -1,6 +1,7 @@
 import { drawCard } from '../data';
 import { TarotCard } from '../types/tarot';
 import { useAppStore } from '../store/appStore';
+import { getLoveSections, LoveReadingError, withLoveReadingTimeout } from './loveReading';
 
 const API_URL = 'https://my-ai-backend-dun.vercel.app/api/chat';
 
@@ -40,16 +41,17 @@ export interface StructuredReading {
     answer?: string;
 }
 
-export async function performReading(request: ReadingRequest): Promise<StructuredReading> {
+export async function performReading(request: ReadingRequest, options: { signal?: AbortSignal } = {}): Promise<StructuredReading> {
     // getUserContext() returns only zodiac + gender — never name, never birthDate.
     // Returns undefined if the user hasn't completed onboarding yet, which is
     // safe: the backend treats missing userContext as neutral mode.
     const userContext = useAppStore.getState().getUserContext();
 
-    try {
+    const load = async (signal?: AbortSignal): Promise<StructuredReading> => {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            ...(signal ? { signal } : {}),
             body: JSON.stringify({
                 spreadName: request.spreadName,
                 cards:      request.cards,
@@ -60,11 +62,22 @@ export async function performReading(request: ReadingRequest): Promise<Structure
             }),
         });
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (error) {
+            if (request.mode === 'love_3_card') throw new LoveReadingError('invalid');
+            throw error;
+        }
 
         if (!response.ok) {
+            if (request.mode === 'love_3_card') {
+                throw new LoveReadingError(data?.code === 'INVALID_LOVE_READING' ? 'invalid' : 'server');
+            }
             throw new Error(data.answer || `API error: ${response.status}`);
         }
+
+        if (request.mode === 'love_3_card') getLoveSections(data);
 
         return {
             readingType: data.readingType || request.mode || 'reading-screen',
@@ -72,7 +85,15 @@ export async function performReading(request: ReadingRequest): Promise<Structure
             meta:     data.meta,
             answer:   data.answer,
         };
+    };
+    try {
+        return request.mode === 'love_3_card'
+            ? await withLoveReadingTimeout(load, options.signal)
+            : await load();
     } catch (error) {
+        if (request.mode === 'love_3_card') {
+            throw error instanceof LoveReadingError ? error : new LoveReadingError('network');
+        }
         console.error('Reading service error:', error);
 
         const errorMessage = error instanceof Error && error.message

@@ -3,7 +3,7 @@
  * 
  * ✨ Beautiful flower background
  * ✨ Custom fonts (Caveat + Cormorant)
- * ✨ Fixed API parser (handles all label variations)
+ * ✨ Validated interpretations mapped by stable section keys
  * ✨ Loading messages
  * ✨ Card names showing everywhere
  * ✨ Proper button sizes
@@ -25,9 +25,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { CardImage } from '../components/CardImage';
-import { performReading } from '../services/universe';
+import { performReading, ReadingRequest } from '../services/universe';
+import { getLoveSections, LoveReadingError } from '../services/loveReading';
 import { colors, spacing, borderRadius } from '../theme/colors';
-import { drawCard } from '../data';
+import { allCards, drawCard } from '../data';
 import { TarotCard } from '../types/tarot';
 import { useFonts } from '../hooks/useFonts';
 
@@ -38,7 +39,7 @@ try {
 } catch (e) {
 }
 
-type Stage = 'ritual' | 'loading' | 'ty' | 'partner' | 'pouto' | 'timeline';
+type Stage = 'ritual' | 'loading' | 'error' | 'ty' | 'partner' | 'pouto' | 'timeline';
 
 interface CardData {
     card: TarotCard;
@@ -53,10 +54,10 @@ interface LoveReadingScreenProps {
 
 // Position data
 const POSITIONS = [
-    { label: 'TY', subheadline: 'Tvá očekávání a emoce', apiLabel: 'TY' },
-    { label: 'PARTNER', subheadline: 'Druhá strana mince', apiLabel: 'PARTNER' },
-    { label: 'VAŠE POUTO', subheadline: 'Jak vám to funguje', apiLabel: 'VAŠE POUTO' }
-];
+    { key: 'ty', label: 'TY', subheadline: 'Tvá očekávání a emoce', apiLabel: 'TY' },
+    { key: 'partner', label: 'PARTNER', subheadline: 'Druhá strana mince', apiLabel: 'PARTNER' },
+    { key: 'vztah', label: 'VAŠE POUTO', subheadline: 'Jak vám to funguje', apiLabel: 'VAŠE POUTO' }
+] as const;
 
 const LOADING_MESSAGES = [
     'Připravuju karty',
@@ -86,6 +87,32 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     const [stage, setStage] = useState<Stage>('ritual');
     const [cardsData, setCardsData] = useState<CardData[]>([]);
     const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+    const [readingError, setReadingError] = useState('');
+    const pendingReading = useRef<{ cards: TarotCard[]; request: ReadingRequest } | null>(null);
+    const requestId = useRef(0);
+    const activeRequest = useRef<AbortController | null>(null);
+    const mounted = useRef(true);
+
+    const cancelReading = () => {
+        requestId.current += 1;
+        activeRequest.current?.abort();
+        activeRequest.current = null;
+    };
+    const disposeReading = () => {
+        mounted.current = false;
+        cancelReading();
+    };
+    const handleCancelReading = () => {
+        cancelReading();
+        if (!mounted.current) return;
+        setReadingError(new LoveReadingError('aborted').message);
+        setStage('error');
+        onClose?.();
+    };
+    useEffect(() => {
+        mounted.current = true;
+        return disposeReading;
+    }, []);
     
     // Individual flip states
     const [tyFlipped, setTyFlipped] = useState(false);
@@ -115,93 +142,70 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
         }
     }, [stage]);
 
-    // Draw cards and fetch meanings
-    const handleStartReading = async () => {
+    const runStoredReading = async () => {
+        if (!mounted.current || !pendingReading.current) return;
+        cancelReading();
+        const id = requestId.current;
+        const controller = new AbortController();
+        activeRequest.current = controller;
+        const { cards, request } = pendingReading.current;
+        const isCurrent = () => mounted.current && requestId.current === id && !controller.signal.aborted;
+        setReadingError('');
         setStage('loading');
-
-        const draw1 = drawCard();
-        const draw2 = drawCard([draw1.card.name]);
-        const draw3 = drawCard([draw1.card.name, draw2.card.name]);
-
-        const cards = [draw1.card, draw2.card, draw3.card];
-
         try {
-            const reading = await performReading({
+            const reading = await performReading(request, { signal: controller.signal });
+            if (!isCurrent()) return;
+            const meanings = getLoveSections(reading);
+            const cardsWithMeanings: CardData[] = cards.map((card, idx) => ({
+                card,
+                position: POSITIONS[idx].label,
+                subheadline: POSITIONS[idx].subheadline,
+                meaning: meanings[POSITIONS[idx].key]
+            }));
+            setCardsData(cardsWithMeanings);
+            setStage('ty');
+        } catch (error) {
+            if (!isCurrent()) return;
+            setReadingError(error instanceof LoveReadingError ? error.message : 'Výklad se nepodařilo načíst. Zkus to prosím znovu.');
+            setStage('error');
+        } finally {
+            if (requestId.current === id) activeRequest.current = null;
+        }
+    };
+
+    const handleRetryReading = () => runStoredReading();
+
+    // Only a new ritual draws cards; retries reuse this exact request snapshot.
+    const handleStartReading = async () => {
+        if (!mounted.current) return;
+
+        const draws: ReturnType<typeof drawCard>[] = [];
+        for (let i = 0; i < POSITIONS.length; i++) {
+            const remainingIds = allCards
+                .filter(card => !draws.some(draw => draw.card.id === card.id))
+                .map(card => card.id);
+            draws.push(drawCard(remainingIds));
+        }
+        const cards = draws.map(draw => draw.card);
+
+        pendingReading.current = {
+            cards,
+            request: {
                 spreadName: 'Láska a vztahy',
                 cards: cards.map((card, idx) => ({
                     name: card.name,
                     nameCzech: card.nameCzech,
-                    position: 'upright',
+                    position: draws[idx].position,
                     label: POSITIONS[idx].apiLabel
                 })),
                 question: 'Co je mezi námi?',
-                mode: 'love'
-            });
-
-            // Parse response - handle ALL variations
-            let meanings: string[] = [];
-            
-            if (reading?.sections?.length === 3) {
-                meanings = reading.sections.map((s: any) => s.text);
-            } else if (reading?.sections?.length === 1) {
-                const combinedText = reading.sections[0].text;
-                
-                const sections = combinedText.split(/\*\*/);
-                
-                // Search for ALL possible label variations
-                const tyIndex = sections.findIndex(s => {
-                    const upper = s.toUpperCase();
-                    return upper.includes('TY –') || upper.includes('TY:') ||
-                           upper.includes('TVOJE ENERGIE') || upper.includes('TVÁ ENERGIE');
-                });
-                
-                const partnerIndex = sections.findIndex(s => {
-                    const upper = s.toUpperCase();
-                    return upper.includes('PARTNER –') || upper.includes('PARTNER:') || 
-                           upper.includes('ON/ONA –') || upper.includes('ON/ONA:') ||
-                           upper.includes('JEHO ENERGIE') || upper.includes('ONO ENERGIE');
-                });
-                
-                const poutoIndex = sections.findIndex(s => {
-                    const upper = s.toUpperCase();
-                    return upper.includes('VAŠE POUTO –') || upper.includes('VAŠE POUTO:') ||
-                           upper.includes('VÁŠ VZTAH –') || upper.includes('VÁŠ VZTAH:') ||
-                           upper.includes('CO JE MEZI VÁMI') || upper.includes('MEZI VÁMI');
-                });
-
-                
-                const tyText = tyIndex >= 0 && partnerIndex > tyIndex 
-                    ? sections.slice(tyIndex + 1, partnerIndex).join('**').trim() 
-                    : '';
-                const partnerText = partnerIndex >= 0 && poutoIndex > partnerIndex 
-                    ? sections.slice(partnerIndex + 1, poutoIndex).join('**').trim() 
-                    : '';
-                const poutoText = poutoIndex >= 0 
-                    ? sections.slice(poutoIndex + 1).join('**').split(/\*\*(CO TO ZNAMENÁ|Celkově|Můj tip|Realita)/i)[0].trim() 
-                    : '';
-                
-                meanings = [
-                    tyText || 'Význam nedostupný',
-                    partnerText || 'Význam nedostupný',
-                    poutoText || 'Význam nedostupný'
-                ];
+                mode: 'love_3_card'
             }
-            
-            if (meanings.length === 3 && meanings[0] !== 'Význam nedostupný') {
-                const cardsWithMeanings: CardData[] = cards.map((card, idx) => ({
-                    card,
-                    position: POSITIONS[idx].label,
-                    subheadline: POSITIONS[idx].subheadline,
-                    meaning: meanings[idx]
-                }));
-                setCardsData(cardsWithMeanings);
-                setStage('ty');
-            } else {
-                console.error('Could not parse meanings from API response');
-            }
-        } catch (error) {
-            console.error('Error fetching meanings:', error);
-        }
+        };
+        setTyFlipped(false);
+        setPartnerFlipped(false);
+        setPoutoFlipped(false);
+        await runStoredReading();
     };
 
     // Wait for fonts
@@ -220,7 +224,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     // ===============================
     // RITUAL SCREEN
     // ===============================
-    if (stage === 'ritual') {
+    if (stage === 'ritual' || stage === 'error') {
         return (
             <ImmersiveScreen screenName="LoveReading">
                 <SafeAreaView style={styles.container}>
@@ -230,14 +234,17 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
 
                         {/* Subtitle */}
                         <Text style={styles.subtitle}>ty · partner · vaše pouto</Text>
+                        {stage === 'error' && (
+                            <Text accessibilityRole="alert" style={styles.subtitle}>{readingError}</Text>
+                        )}
 
                         {/* Button */}
                         <TouchableOpacity
                             style={styles.button}
-                            onPress={handleStartReading}
+                            onPress={stage === 'error' ? handleRetryReading : handleStartReading}
                             activeOpacity={0.8}
                         >
-                            <Text style={styles.buttonText}>Odhal karty</Text>
+                            <Text style={styles.buttonText}>{stage === 'error' ? 'Zkusit znovu se stejnými kartami' : 'Odhal karty'}</Text>
                         </TouchableOpacity>
                     </Animated.View>
 
@@ -262,6 +269,9 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                             {LOADING_MESSAGES[loadingMessageIndex]}
                         </Text>
                     </View>
+                    <TouchableOpacity style={styles.closeButton} onPress={handleCancelReading}>
+                        <Ionicons name="close" size={24} color="#fff" />
+                    </TouchableOpacity>
                 </SafeAreaView>
             </ImmersiveScreen>
         );

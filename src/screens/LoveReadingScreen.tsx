@@ -39,13 +39,13 @@ try {
 } catch (e) {
 }
 
-type Stage = 'ritual' | 'loading' | 'error' | 'ty' | 'partner' | 'pouto' | 'timeline';
+type Stage = 'ritual' | 'error' | 'ty' | 'partner' | 'pouto' | 'timeline';
 
 interface CardData {
     card: TarotCard;
     position: string;
     subheadline: string;
-    meaning: string;
+    meaning?: string;
 }
 
 interface LoveReadingScreenProps {
@@ -89,6 +89,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     const [synthesis, setSynthesis] = useState<string | undefined>();
     const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
     const [readingError, setReadingError] = useState('');
+    const [isReadingPending, setIsReadingPending] = useState(false);
+    const retryAllowed = useRef(false);
     const pendingReading = useRef<{ cards: TarotCard[]; request: ReadingRequest } | null>(null);
     const requestId = useRef(0);
     const activeRequest = useRef<AbortController | null>(null);
@@ -106,6 +108,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     const handleCancelReading = () => {
         cancelReading();
         if (!mounted.current) return;
+        retryAllowed.current = true;
+        setIsReadingPending(false);
         setReadingError(new LoveReadingError('aborted').message);
         setStage('error');
         onClose?.();
@@ -135,16 +139,17 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
 
     // Cycle loading messages
     useEffect(() => {
-        if (stage === 'loading') {
+        if (isReadingPending) {
             const interval = setInterval(() => {
                 setLoadingMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length);
             }, 2000);
             return () => clearInterval(interval);
         }
-    }, [stage]);
+    }, [isReadingPending]);
 
     const runStoredReading = async () => {
-        if (!mounted.current || !pendingReading.current) return;
+        if (!mounted.current || !pendingReading.current || activeRequest.current) return;
+        retryAllowed.current = false;
         cancelReading();
         const id = requestId.current;
         const controller = new AbortController();
@@ -152,7 +157,8 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
         const { cards, request } = pendingReading.current;
         const isCurrent = () => mounted.current && requestId.current === id && !controller.signal.aborted;
         setReadingError('');
-        setStage('loading');
+        setIsReadingPending(true);
+        setStage('ty');
         try {
             const reading = await performReading(request, { signal: controller.signal });
             if (!isCurrent()) return;
@@ -165,21 +171,27 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
             }));
             setCardsData(cardsWithMeanings);
             setSynthesis(normalizeReadingSynthesis(reading.synthesis));
-            setStage('ty');
         } catch (error) {
             if (!isCurrent()) return;
+            retryAllowed.current = true;
             setReadingError(error instanceof LoveReadingError ? error.message : 'Výklad se nepodařilo načíst. Zkus to prosím znovu.');
             setStage('error');
         } finally {
-            if (requestId.current === id) activeRequest.current = null;
+            if (requestId.current === id) {
+                activeRequest.current = null;
+                if (mounted.current) setIsReadingPending(false);
+            }
         }
     };
 
-    const handleRetryReading = () => runStoredReading();
+    const handleRetryReading = () => {
+        if (!retryAllowed.current) return;
+        return runStoredReading();
+    };
 
     // Only a new ritual draws cards; retries reuse this exact request snapshot.
     const handleStartReading = async () => {
-        if (!mounted.current) return;
+        if (!mounted.current || pendingReading.current || activeRequest.current) return;
 
         const draws: ReturnType<typeof drawCard>[] = [];
         for (let i = 0; i < POSITIONS.length; i++) {
@@ -188,7 +200,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 .map(card => card.id);
             draws.push(drawCard(remainingIds));
         }
-        const cards = draws.map(draw => draw.card);
+        const cards = draws.map(draw => Object.freeze({ ...draw.card }));
 
         pendingReading.current = {
             cards,
@@ -204,6 +216,16 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 mode: 'love_3_card'
             }
         };
+        // Freeze the payload once. Retries reuse this exact snapshot.
+        pendingReading.current.request.cards.forEach(Object.freeze);
+        Object.freeze(pendingReading.current.request.cards);
+        Object.freeze(pendingReading.current.request);
+        Object.freeze(cards);
+        Object.freeze(pendingReading.current);
+        setCardsData(cards.map((card, idx) => ({
+            card, position: POSITIONS[idx].label, subheadline: POSITIONS[idx].subheadline,
+        })));
+        setSynthesis(undefined);
         setTyFlipped(false);
         setPartnerFlipped(false);
         setPoutoFlipped(false);
@@ -259,27 +281,6 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     }
 
     // ===============================
-    // LOADING SCREEN
-    // ===============================
-    if (stage === 'loading') {
-        return (
-            <ImmersiveScreen screenName="LoveReading">
-                <SafeAreaView style={styles.container}>
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#BA94F0" />
-                        <Text style={styles.loadingMessage}>
-                            {LOADING_MESSAGES[loadingMessageIndex]}
-                        </Text>
-                    </View>
-                    <TouchableOpacity style={styles.closeButton} onPress={handleCancelReading}>
-                        <Ionicons name="close" size={24} color="#fff" />
-                    </TouchableOpacity>
-                </SafeAreaView>
-            </ImmersiveScreen>
-        );
-    }
-
-    // ===============================
     // CARD SCREENS (TY/PARTNER/POUTO)
     // ===============================
     if (stage === 'ty' || stage === 'partner' || stage === 'pouto') {
@@ -297,9 +298,10 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 cardData={currentCard}
                 isFlipped={isFlipped}
                 onFlip={() => setFlipped(true)}
-                onNext={() => setStage(nextStage as Stage)}
+                onNext={() => { if (isFlipped && currentCard.meaning) setStage(nextStage as Stage); }}
                 nextButtonText={nextButtonText}
-                onClose={onClose}
+                loadingMessage={LOADING_MESSAGES[loadingMessageIndex]}
+                onClose={handleCancelReading}
             />
         );
     }
@@ -352,7 +354,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                                 {/* Meaning */}
                                 <View style={styles.timelineMeaningContainer}>
                                     <Text style={styles.timelineMeaningText}>
-                                        {parseMeaningText(cardData.meaning)}
+                                        {parseMeaningText(cardData.meaning || '')}
                                     </Text>
                                 </View>
 
@@ -408,6 +410,7 @@ interface CardReadingDisplayProps {
     onFlip: () => void;
     onNext: () => void;
     nextButtonText: string;
+    loadingMessage: string;
     onClose?: () => void;
 }
 
@@ -417,6 +420,7 @@ const CardReadingDisplay = ({
     onFlip,
     onNext,
     nextButtonText,
+    loadingMessage,
     onClose
 }: CardReadingDisplayProps) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -515,15 +519,20 @@ const CardReadingDisplay = ({
                             </Text>
                             <View style={styles.divider} />
                             <View style={styles.meaningContainer}>
-                                <Text style={styles.meaningText}>
-                                    {parseMeaningText(cardData.meaning)}
-                                </Text>
+                                {cardData.meaning ? (
+                                    <Text style={styles.meaningText}>{parseMeaningText(cardData.meaning)}</Text>
+                                ) : (
+                                    <View accessibilityRole="progressbar" accessibilityLabel={loadingMessage}>
+                                        <ActivityIndicator size="small" color="#BA94F0" />
+                                        <Text style={styles.loadingMessage}>{loadingMessage}</Text>
+                                    </View>
+                                )}
                             </View>
                         </Animated.View>
                     )}
 
                     {/* Next button (appears after flip) */}
-                    {isFlipped && (
+                    {isFlipped && !!cardData.meaning && (
                         <Animated.View style={{ opacity: meaningFadeAnim }}>
                             <TouchableOpacity
                                 style={styles.nextButton}

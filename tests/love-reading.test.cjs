@@ -35,6 +35,7 @@ function screenCallback(globals) {
   const api = evaluate(`${declarations.join('\n')}\nexport { handleStartReading, handleRetryReading, disposeReading, handleCancelReading };`,
     forbiddenImport, { console, ...loveContract,
       pendingReading: { current: null }, requestId: { current: 0 },
+      retryAllowed: { current: false }, setIsReadingPending() {},
       activeRequest: { current: null }, mounted: { current: true },
       setTyFlipped() {}, setPartnerFlipped() {}, setPoutoFlipped() {},
       setReadingError() {}, setSynthesis() {}, onClose: undefined, ...globals });
@@ -95,10 +96,10 @@ async function runReading(random, responseSections, success = true, responseOpti
   });
   await start();
   assert.equal(requests.length, 1);
-  assert.deepEqual(stages, success ? ['loading', 'ty'] : ['loading', 'error']);
-  assert.equal(displayed.length, success ? 1 : 0);
+  assert.deepEqual(stages, success ? ['ty'] : ['ty', 'error']);
+  assert.equal(displayed.length, success ? 2 : 1);
   assert.equal(errors.length, success ? 0 : 1);
-  return { request: requests[0], pools: allowedPools, displayed: displayed[0], allCards, synthesis: syntheses[0] };
+  return { request: requests[0], pools: allowedPools, displayed: displayed.at(-1), allCards, synthesis: syntheses.at(-1) };
 }
 
 test('active love callback sends love_3_card and preserves spread positions through the service', async () => {
@@ -401,14 +402,14 @@ for (const failure of ['network', 'timeout', 'invalid']) {
       return validReading();
     });
     await session.start();
-    assert.deepEqual(session.stages, ['loading', 'error']);
+    assert.deepEqual(session.stages, ['ty', 'error']);
     assert.ok(session.errors.at(-1));
     await session.start.retry();
     assert.equal(session.draws, 3);
     assert.equal(session.calls[0].input, session.calls[1].input);
     assert.deepEqual(session.calls[0].input, session.calls[1].input);
-    assert.deepEqual(session.stages, ['loading', 'error', 'loading', 'ty']);
-    assert.equal(session.displayed.length, 1);
+    assert.deepEqual(session.stages, ['ty', 'error', 'ty']);
+    assert.equal(session.displayed.length, 2);
   });
 }
 
@@ -418,7 +419,8 @@ for (const oldFailure of [false, true]) {
     let calls = 0;
     const session = screenSession(() => ++calls === 1 ? old.promise : Promise.resolve(validReading()));
     const first = session.start();
-    await session.start();
+    session.start.cancel();
+    await session.start.retry();
     assert.equal(session.calls[0].signal.aborted, true);
     const snapshot = JSON.stringify([session.stages, session.errors, session.displayed]);
     if (oldFailure) old.reject(new Error('Mock late failure'));
@@ -452,10 +454,10 @@ test('cancel exits loading even without onClose, ignores late output and permits
   const running = session.start();
   session.start.cancel();
   assert.equal(session.calls[0].signal.aborted, true);
-  assert.deepEqual(session.stages, ['loading', 'error']);
+  assert.deepEqual(session.stages, ['ty', 'error']);
   pending.resolve(validReading());
   await running;
-  assert.equal(session.displayed.length, 0);
+  assert.equal(session.displayed.length, 1);
   await session.start.retry();
   assert.equal(session.draws, 3);
   assert.equal(session.calls[0].input, session.calls[1].input);
@@ -542,7 +544,7 @@ test('successful love request clears its timer; other modes get no timeout or ab
 // This checks where synthesis appears without an emulator or any network request.
 function loveScreenHarness(reading) {
   const states = [], refs = [];
-  let stateIndex = 0, refIndex = 0, calls = 0;
+  let stateIndex = 0, refIndex = 0, calls = 0, closes = 0;
   const jsx = (type, props) => ({ type, props: props || {} });
   const react = {
     useState(initial) {
@@ -570,7 +572,7 @@ function loveScreenHarness(reading) {
     if (name === 'expo-linear-gradient') return { LinearGradient: 'LinearGradient' };
     if (name === '../components/ImmersiveScreen') return { ImmersiveScreen: 'ImmersiveScreen' };
     if (name === '../components/CardImage') return { CardImage: 'CardImage' };
-    if (name === '../services/universe') return { performReading: async () => { calls++; return reading; } };
+    if (name === '../services/universe') return { performReading: async () => { calls++; return typeof reading === 'function' ? reading() : reading; } };
     if (name === '../services/loveReading') return loveContract;
     if (name === '../theme/colors') return theme;
     if (name === '../data') return data;
@@ -579,7 +581,9 @@ function loveScreenHarness(reading) {
     return forbiddenImport(name);
   }).LoveReadingScreen;
   return {
-    render() { stateIndex = 0; refIndex = 0; return screen({ onClose() {} }); },
+    render() { stateIndex = 0; refIndex = 0; return screen({ onClose() { closes++; } }); },
+    get closes() { return closes; },
+    renderCard() { const tree = this.render(); return tree.type(tree.props); },
     get calls() { return calls; },
   };
 }
@@ -762,4 +766,104 @@ test('successful backend diagnostics contain metadata only; other modes keep the
   const nonLove = await clientProbe({ mode: 'daily', body: { answer: 'Mock daily' } });
   assert.equal(nonLove.result.answer, 'Mock daily');
   assert.equal(nonLove.diagnostics.length, 0);
+});
+
+for (const arrival of ['before', 'during', 'after']) {
+  test('deferred response ' + arrival + ' reveal preserves card state and gates Next', async () => {
+    const response = deferred();
+    const harness = loveScreenHarness(() => response.promise);
+    const start = nodes(harness.render(), n => n.type === 'TouchableOpacity').find(n =>
+      nodes(n, n => n.type === 'Text' && n.props.children === 'Odhal karty').length);
+    assert.equal(harness.calls, 0);
+    const running = start.props.onPress();
+    let card = harness.render();
+    assert.equal(card.props.cardData.position, 'TY');
+    assert.equal(card.props.isFlipped, false);
+    assert.equal(card.props.cardData.meaning, undefined);
+    assert.equal(harness.calls, 1);
+    card.props.onNext();
+    assert.equal(harness.render().props.cardData.position, 'TY');
+    if (arrival === 'before') { response.resolve(validReading()); await running; }
+    card = harness.render();
+    assert.equal(card.props.isFlipped, false);
+    card.props.onFlip();
+    if (arrival === 'during') { response.resolve(validReading()); await running; }
+    card = harness.render();
+    assert.equal(card.props.isFlipped, true);
+    if (arrival === 'after') {
+      const view = harness.renderCard();
+      assert.equal(nodes(view, n => n.props.accessibilityRole === 'progressbar').length, 1);
+      assert.equal(nodes(view, n => n.type === 'Text' && n.props.children === card.props.nextButtonText).length, 0);
+      card.props.onNext();
+      assert.equal(harness.render().props.cardData.position, 'TY');
+      response.resolve(validReading()); await running;
+    }
+    card = harness.render();
+    assert.equal(card.props.isFlipped, true);
+    assert.equal(card.props.cardData.meaning, 'Text ty');
+    const view = harness.renderCard();
+    assert.equal(nodes(view, n => n.props.accessibilityRole === 'progressbar').length, 0);
+    assert.equal(nodes(view, n => n.type === 'Text' && n.props.children === card.props.nextButtonText).length, 1);
+    card.props.onNext();
+    assert.equal(harness.render().props.cardData.position, 'PARTNER');
+    assert.equal(harness.calls, 1);
+  });
+}
+
+test('rapid start and retry taps reuse one frozen snapshot and one active request', async () => {
+  const first = deferred(), second = deferred();
+  let attempt = 0;
+  const session = screenSession(() => ++attempt === 1 ? first.promise : second.promise);
+  const running = session.start();
+  await session.start();
+  await session.start.retry();
+  assert.equal(session.draws, 3);
+  assert.equal(session.calls.length, 1);
+  const snapshot = session.calls[0].input;
+  assert.ok(Object.isFrozen(snapshot));
+  assert.ok(Object.isFrozen(snapshot.cards));
+  assert.ok(snapshot.cards.every(Object.isFrozen));
+  first.reject(new loveContract.LoveReadingError('timeout'));
+  await running;
+  const retry = session.start.retry();
+  await session.start.retry();
+  await session.start();
+  assert.equal(session.calls.length, 2);
+  assert.equal(session.calls[1].input, snapshot);
+  second.resolve(validReading()); await retry;
+  await session.start.retry();
+  assert.equal(session.calls.length, 2);
+  assert.equal(session.draws, 3);
+});
+
+test('pending card close invokes navigation and ignores late completion', async () => {
+  const response = deferred();
+  const harness = loveScreenHarness(() => response.promise);
+  const start = nodes(harness.render(), n => n.type === 'TouchableOpacity')[0];
+  const running = start.props.onPress();
+  harness.render().props.onClose();
+  assert.equal(harness.closes, 1);
+  const cancelled = JSON.stringify(harness.render());
+  response.resolve(validReading());
+  await running;
+  assert.equal(JSON.stringify(harness.render()), cancelled);
+  assert.equal(harness.calls, 1);
+});
+
+test('timeout after flip retries the same card without resetting its reveal', async () => {
+  const response = deferred();
+  let attempt = 0;
+  const harness = loveScreenHarness(() => ++attempt === 1 ? response.promise : validReading());
+  const running = nodes(harness.render(), n => n.type === 'TouchableOpacity')[0].props.onPress();
+  const pendingCard = harness.render();
+  pendingCard.props.onFlip();
+  response.reject(new loveContract.LoveReadingError('timeout'));
+  await running;
+  const retry = nodes(harness.render(), n => n.type === 'TouchableOpacity')[0];
+  await retry.props.onPress();
+  const readyCard = harness.render();
+  assert.equal(readyCard.props.isFlipped, true);
+  assert.equal(readyCard.props.cardData.card.id, pendingCard.props.cardData.card.id);
+  assert.equal(readyCard.props.cardData.meaning, 'Text ty');
+  assert.equal(harness.calls, 2);
 });

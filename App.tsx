@@ -165,7 +165,7 @@ export default function App() {
 
     setIsLoadingUniverse(true);
     try {
-      const response = await askUniverse(question);
+      const response = await askUniverse(question, 'custom_question');
       setUniverseResponse({
         question,
         answer: response.answer,

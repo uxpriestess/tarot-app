@@ -3,6 +3,11 @@
 export const LOVE_SECTION_KEYS = ['ty', 'partner', 'vztah'] as const;
 export type LoveSectionKey = typeof LOVE_SECTION_KEYS[number];
 
+// Optional narrative fields must never invalidate the three required sections.
+export function normalizeReadingSynthesis(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 export const LOVE_READING_TIMEOUT_MS = 45_000;
 export type LoveReadingErrorCode = 'network' | 'timeout' | 'invalid' | 'server' | 'aborted';
 const ERROR_MESSAGES: Record<LoveReadingErrorCode, string> = {

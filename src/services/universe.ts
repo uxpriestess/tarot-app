@@ -1,7 +1,7 @@
 import { drawCard } from '../data';
 import { TarotCard } from '../types/tarot';
 import { useAppStore } from '../store/appStore';
-import { getLoveSections, LoveReadingError, withLoveReadingTimeout } from './loveReading';
+import { getLoveSections, LoveReadingError, withLoveReadingTimeout, normalizeReadingSynthesis } from './loveReading';
 
 const API_URL = 'https://my-ai-backend-dun.vercel.app/api/chat';
 
@@ -34,6 +34,7 @@ export interface ReadingSection {
 export interface StructuredReading {
     readingType: string;
     sections: ReadingSection[];
+    synthesis?: string;
     meta?: {
         cardCount: number;
         timestamp: string;
@@ -46,6 +47,9 @@ export async function performReading(request: ReadingRequest, options: { signal?
     // Returns undefined if the user hasn't completed onboarding yet, which is
     // safe: the backend treats missing userContext as neutral mode.
     const userContext = useAppStore.getState().getUserContext();
+    const startedAt = Date.now();
+    let httpStatus: number | null = null;
+    let category = 'success';
 
     const load = async (signal?: AbortSignal): Promise<StructuredReading> => {
         const response = await fetch(API_URL, {
@@ -62,18 +66,33 @@ export async function performReading(request: ReadingRequest, options: { signal?
             }),
         });
 
+        if (request.mode === 'love_3_card') {
+            httpStatus = response.status;
+            // HTTP failures are not malformed successful readings. Only 502 may
+            // carry our specific validation error; never log the error body.
+            if (!response.ok) {
+                if (response.status === 408 || response.status === 504) throw new LoveReadingError('timeout');
+                if (response.status === 502) {
+                    let errorData;
+                    try { errorData = await response.json(); } catch { /* Keep the known HTTP failure. */ }
+                    if (errorData?.code === 'INVALID_LOVE_READING') throw new LoveReadingError('invalid');
+                }
+                throw new LoveReadingError('server');
+            }
+        }
+
         let data;
         try {
             data = await response.json();
         } catch (error) {
-            if (request.mode === 'love_3_card') throw new LoveReadingError('invalid');
+            if (request.mode === 'love_3_card') {
+                const name = error && typeof error === 'object' && 'name' in error ? error.name : undefined;
+                throw new LoveReadingError(signal?.aborted ? 'aborted' : name === 'SyntaxError' ? 'invalid' : 'network');
+            }
             throw error;
         }
 
         if (!response.ok) {
-            if (request.mode === 'love_3_card') {
-                throw new LoveReadingError(data?.code === 'INVALID_LOVE_READING' ? 'invalid' : 'server');
-            }
             throw new Error(data.answer || `API error: ${response.status}`);
         }
 
@@ -84,6 +103,8 @@ export async function performReading(request: ReadingRequest, options: { signal?
             sections: data.sections || [{ key: 'reading', label: null, text: data.answer || '' }],
             meta:     data.meta,
             answer:   data.answer,
+            ...(request.mode === 'love_3_card' && normalizeReadingSynthesis(data.synthesis)
+                ? { synthesis: normalizeReadingSynthesis(data.synthesis) } : {}),
         };
     };
     try {
@@ -92,7 +113,9 @@ export async function performReading(request: ReadingRequest, options: { signal?
             : await load();
     } catch (error) {
         if (request.mode === 'love_3_card') {
-            throw error instanceof LoveReadingError ? error : new LoveReadingError('network');
+            const readingError = error instanceof LoveReadingError ? error : new LoveReadingError('network');
+            category = readingError.code;
+            throw readingError;
         }
         console.error('Reading service error:', error);
 
@@ -105,6 +128,10 @@ export async function performReading(request: ReadingRequest, options: { signal?
             sections: [{ key: 'error', label: null, text: errorMessage }],
             answer: errorMessage,
         };
+    } finally {
+        if (request.mode === 'love_3_card') {
+            console.info('[love-reading:client]', { durationMs: Math.max(0, Date.now() - startedAt), httpStatus, category });
+        }
     }
 }
 

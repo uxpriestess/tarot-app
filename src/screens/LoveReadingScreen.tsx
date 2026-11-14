@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ImmersiveScreen } from '../components/ImmersiveScreen';
 import { CardImage } from '../components/CardImage';
 import { performReading, ReadingRequest } from '../services/universe';
-import { getLoveSections, LoveReadingError } from '../services/loveReading';
+import { getLoveSections, LoveReadingError, normalizeReadingSynthesis } from '../services/loveReading';
 import { colors, spacing, borderRadius } from '../theme/colors';
 import { allCards, drawCard } from '../data';
 import { TarotCard } from '../types/tarot';
@@ -86,6 +86,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
     const fontsLoaded = useFonts();
     const [stage, setStage] = useState<Stage>('ritual');
     const [cardsData, setCardsData] = useState<CardData[]>([]);
+    const [synthesis, setSynthesis] = useState<string | undefined>();
     const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
     const [readingError, setReadingError] = useState('');
     const pendingReading = useRef<{ cards: TarotCard[]; request: ReadingRequest } | null>(null);
@@ -163,6 +164,7 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                 meaning: meanings[POSITIONS[idx].key]
             }));
             setCardsData(cardsWithMeanings);
+            setSynthesis(normalizeReadingSynthesis(reading.synthesis));
             setStage('ty');
         } catch (error) {
             if (!isCurrent()) return;
@@ -360,6 +362,15 @@ export const LoveReadingScreen = ({ onClose }: LoveReadingScreenProps) => {
                                 )}
                             </View>
                         ))}
+
+                        {synthesis && (
+                            <View style={styles.timelineCard}>
+                                <Text style={styles.timelinePosition}>Co ti karty říkají společně</Text>
+                                <View style={styles.timelineMeaningContainer}>
+                                    <Text style={styles.timelineMeaningText}>{parseMeaningText(synthesis)}</Text>
+                                </View>
+                            </View>
+                        )}
 
                         {/* Done button */}
                         <TouchableOpacity

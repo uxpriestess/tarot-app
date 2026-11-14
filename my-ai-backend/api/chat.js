@@ -70,33 +70,39 @@ const SPREAD_SCHEMAS = {
     }
 };
 
-function parseLoveSections(rawText) {
-    const invalid = () => {
+function parseLoveReading(rawText) {
+    const invalid = (category) => {
         const error = new Error('Invalid love reading structure');
         error.code = 'INVALID_LOVE_READING';
+        error.validationCategory = category;
         return error;
     };
     let parsed;
     try {
         parsed = JSON.parse(rawText);
     } catch {
-        throw invalid();
+        throw invalid('json_parse');
     }
     const keys = ['ty', 'partner', 'vztah'];
     const labels = { ty: 'Ty', partner: 'Partner', vztah: 'Vaše pouto' };
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
-        Object.keys(parsed).length !== 1 || !Array.isArray(parsed.sections) ||
-        parsed.sections.length !== 3) throw invalid();
+        Object.keys(parsed).some(key => !['sections', 'synthesis'].includes(key)) || !Array.isArray(parsed.sections)) throw invalid('root_shape');
+    if (parsed.sections.length !== 3) throw invalid('section_count');
     const sections = new Map();
     for (const section of parsed.sections) {
         if (!section || typeof section !== 'object' || Array.isArray(section) ||
-            Object.keys(section).length !== 2 || !keys.includes(section.key) ||
-            sections.has(section.key) || typeof section.text !== 'string' ||
-            !section.text.trim()) throw invalid();
+            Object.keys(section).length !== 2) throw invalid('section_shape');
+        if (!keys.includes(section.key)) throw invalid('section_key');
+        if (sections.has(section.key)) throw invalid('duplicate_key');
+        if (typeof section.text !== 'string' || !section.text.trim()) throw invalid('section_text');
         sections.set(section.key, section.text.trim());
     }
-    if (!keys.every(key => sections.has(key))) throw invalid();
-    return keys.map(key => ({ key, label: labels[key], text: sections.get(key) }));
+    if (!keys.every(key => sections.has(key))) throw invalid('missing_section');
+    const synthesis = typeof parsed.synthesis === 'string' ? parsed.synthesis.trim() : '';
+    return {
+        sections: keys.map(key => ({ key, label: labels[key], text: sections.get(key) })),
+        ...(synthesis ? { synthesis } : {}),
+    };
 }
 
 function parseBodyMindSpiritSections(rawText) {
@@ -144,8 +150,11 @@ function parseReading(rawText, cards, mode) {
     const schema = SPREAD_SCHEMAS[mode] || SPREAD_SCHEMAS.daily;
 
     let sections;
+    let synthesis;
     if (mode === 'love_3_card') {
-        sections = parseLoveSections(rawText);
+        const loveReading = parseLoveReading(rawText);
+        sections = loveReading.sections;
+        synthesis = loveReading.synthesis;
     } else if (mode === 'body_mind_spirit') {
         sections = parseBodyMindSpiritSections(rawText);
     } else {
@@ -156,6 +165,7 @@ function parseReading(rawText, cards, mode) {
     return {
         readingType: mode,
         sections,
+        ...(synthesis ? { synthesis } : {}),
         meta: {
             cardCount: cards.length,
             timestamp: new Date().toISOString()
@@ -296,15 +306,16 @@ export default async function handler(req, res) {
         return res.status(405).json({ answer: 'Method not allowed' });
     }
 
+    const startedAt = Date.now();
+    const isLoveReading = req.body?.mode === 'love_3_card';
+    let category = 'success';
+    let validationFailure = null;
+    let stopReason = null;
+    let outputTokens = null;
     try {
         // userContext arrives from universe.ts — contains only genderPreference
         // and zodiacSign. Name and birthDate are never sent (stay on device).
         const { question, cards, mode = 'daily', spreadName, moonPhase, userContext } = req.body;
-
-        console.log(`--- API Request: ${mode} ---`);
-        console.log('Cards:', JSON.stringify(cards));
-        if (moonPhase)    console.log('Moon Phase Context:', moonPhase);
-        if (userContext)  console.log('User Context:', JSON.stringify(userContext));
 
         // Safety: log a warning if name somehow appears — should never happen.
         if (userContext?.name || userContext?.displayName) {
@@ -312,10 +323,13 @@ export default async function handler(req, res) {
         }
 
         if (!cards || !Array.isArray(cards)) {
+            category = 'invalid_request';
+            validationFailure = 'cards_array';
             return res.status(400).json({ answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' });
         }
 
         if (!process.env.ANTHROPIC_API_KEY) {
+            category = 'configuration';
             console.error('FATAL: ANTHROPIC_API_KEY is not set!');
             return res.status(500).json({
                 answer: 'Chyba konfigurace serveru. Zkuste to prosím později.'
@@ -333,7 +347,7 @@ export default async function handler(req, res) {
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',  // ✅ updated from claude-sonnet-4-20250514
-            max_tokens: 1024,
+            max_tokens: mode === 'love_3_card' ? 2048 : 1024,
             system: systemPrompt,
             messages: [
                 { role: 'user', content: userPrompt }
@@ -341,9 +355,17 @@ export default async function handler(req, res) {
             temperature: 0.7,
         });
 
+        if (isLoveReading) {
+            const knownReasons = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal'];
+            stopReason = knownReasons.includes(response.stop_reason) ? response.stop_reason : 'unknown';
+            const tokens = response.usage?.output_tokens;
+            outputTokens = Number.isFinite(tokens) && tokens >= 0 ? tokens : null;
+        }
         if (mode === 'love_3_card' && (response.stop_reason !== 'end_turn' ||
             !Array.isArray(response.content) || response.content.length !== 1 ||
             response.content[0]?.type !== 'text' || typeof response.content[0].text !== 'string')) {
+            category = 'invalid';
+            validationFailure = response.stop_reason !== 'end_turn' ? 'stop_reason' : 'content_shape';
             return res.status(502).json({
                 code: 'INVALID_LOVE_READING',
                 answer: 'Výklad se nepodařilo načíst celý. Zkus to prosím znovu.'
@@ -361,32 +383,34 @@ export default async function handler(req, res) {
         }
 
         const rawAnswer = response.content[0].text;
-        console.log('AI Raw Output (first 100 chars):', rawAnswer.substring(0, 100));
 
         const structuredResponse = buildStructuredResponse(mode, rawAnswer, cards);
-
-        console.log(`✅ Structured response: ${structuredResponse.sections.length} sections for ${mode}`);
-        structuredResponse.sections.forEach((s, i) => {
-            console.log(`  Section ${i}: ${s.key} (${s.text.substring(0, 40)}...)`);
-        });
 
         return res.status(200).json(structuredResponse);
 
     } catch (error) {
         if (error.code === 'INVALID_LOVE_READING') {
+            category = 'invalid';
+            validationFailure = error.validationCategory;
             return res.status(502).json({
                 code: 'INVALID_LOVE_READING',
                 answer: 'Výklad se nepodařilo načíst celý. Zkus to prosím znovu.'
             });
         }
-        console.error('=== ERROR DETAILS ===');
-        console.error('Error name:',    error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:',   error.stack);
+        category = error.name === 'APIConnectionTimeoutError' ? 'provider_timeout'
+            : error.name === 'APIConnectionError' ? 'provider_network' : 'provider_error';
+        if (!isLoveReading) console.error('Reading request failed');
 
         return res.status(500).json({
             answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?'
         });
+    } finally {
+        if (isLoveReading) {
+            console.info('[love-reading:backend]', {
+                durationMs: Math.max(0, Date.now() - startedAt), httpStatus: res.statusCode,
+                category, validationFailure, stopReason, outputTokens,
+            });
+        }
     }
 }
 
@@ -534,12 +558,21 @@ ${mode === 'love_3_card' ? `
 <love_output_contract>
 Toto pravidlo formátu přenosu má přednost před požadavkem na prostou prózu.
 Vrať pouze platný JSON bez markdown obalu, bez textu před nebo za JSON:
-{"sections":[{"key":"ty","text":"..."},{"key":"partner","text":"..."},{"key":"vztah","text":"..."}]}
-Přesně tři sekce, každý klíč právě jednou, žádné další vlastnosti.
+{"sections":[{"key":"ty","text":"..."},{"key":"partner","text":"..."},{"key":"vztah","text":"..."}],"synthesis":"..."}
+Přesně tři sekce, každý klíč právě jednou. Vedle sections přidej pouze volitelné textové pole synthesis.
 ty = první karta TY; partner = druhá karta PARTNER; vztah = třetí karta VAŠE POUTO.
 Každý text je neprázdná česká próza ve stávajícím hlasu Tarotky, bez nadpisů.
 Zachovej skutečnou orientaci každé karty. Délka je orientační a platí pro texty sekcí; rada není povinná.
 I bezpečnou reakci na krizovou otázku vrať v tomto formátu, bez humoru a věštění.
+<synthesis_guidance>
+Ve stejném výstupu vytvoř synthesis: Co ti karty říkají společně. Není to rekapitulace tří významů.
+Všimni si vztahu, který je vidět až mezi všemi třemi kartami: společného tématu, napětí, kontrastu, vývoje nebo nečekané souvislosti.
+Vycházej ze všech tří skutečných karet, jejich vzpřímených či obrácených orientací, přiřazených pozic a dostupné otázky nebo kontextu.
+Piš současnou přirozenou češtinou v hlasu Tarotky v10: vnímavě, intuitivně a přímo bez krutosti, otevřeně symbolice bez předstírání jistoty.
+Obvykle jeden nebo dva přirozené odstavce; nevyžaduj přesný počet slov. Zalomení odstavců v JSON řetězci správně escapuj.
+Neopakuj jednotlivé významy. Žádné vymyšlené skutečnosti o uživateli či partnerovi, jisté předpovědi, povinná KBT, automatická rada, terapeutický úkol ani obecné závěrečné ponaučení.
+Platí stejný gramatický rod, kontext znamení a bezpečnostní hranice. V krizi má skutečná podpora přednost před symbolickým propojováním karet.
+</synthesis_guidance>
 </love_output_contract>` : ''}
 
 ${mode === 'body_mind_spirit' ? `

@@ -223,6 +223,81 @@ test('backend requests synthesis with all three cards in the same AI call', asyn
   assert.equal(api.calls[0].max_tokens, 2048);
 });
 
+test('love structured output uses supported schema constraints and keeps synthesis optional', async () => {
+  const api = backend(JSON.stringify({ sections: validSections() }));
+  const { status, body } = await api.request();
+  assert.equal(status, 200);
+  assert.equal(api.calls.length, 1);
+  const request = api.calls[0];
+  assert.equal(request.model, 'claude-sonnet-4-6');
+  assert.equal(request.temperature, 0.7);
+  assert.equal(request.max_tokens, 2048);
+  assert.equal(request.output_config.format.type, 'json_schema');
+  const schema = JSON.parse(JSON.stringify(request.output_config.format.schema));
+  assert.deepEqual(schema, {
+    type: 'object',
+    properties: {
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            key: { type: 'string', enum: ['ty', 'partner', 'vztah'] },
+            text: { type: 'string' },
+          },
+          required: ['key', 'text'],
+          additionalProperties: false,
+        },
+      },
+      synthesis: { type: 'string' },
+    },
+    required: ['sections'],
+    additionalProperties: false,
+  });
+  // Labels belong to the public response, not the model's stricter key/text input.
+  assert.deepEqual(Array.from(body.sections, section => section.label), ['Ty', 'Partner', 'Vaše pouto']);
+  assert.equal(Object.hasOwn(body, 'synthesis'), false);
+  assert.doesNotMatch(JSON.stringify(api.logs), /Mock question|Text ty|Mock karta|mock-only/);
+});
+
+test('structured output does not repair fenced or syntactically invalid complete love responses', async () => {
+  const valid = JSON.stringify({ sections: validSections(), synthesis: 'PRIVATE_SYNTHESIS_MARKER' });
+  for (const raw of [`\x60\x60\x60json\n${valid}\n\x60\x60\x60`, `Introduction\n${valid}`, valid.replace('PRIVATE_SYNTHESIS_MARKER', 'First\nSecond')]) {
+    const api = backend(raw);
+    const { status, body } = await api.request();
+    assert.equal(status, 502);
+    assert.equal(body.code, 'INVALID_LOVE_READING');
+    assert.equal(api.diagnostics[0].validationFailure, 'json_parse');
+    assert.equal(api.calls.length, 1);
+    assert.ok(api.calls[0].output_config);
+    assert.doesNotMatch(JSON.stringify(api.logs), /PRIVATE_|Mock question|Text ty|Introduction|First/);
+  }
+});
+
+test('installed Anthropic SDK forwards love output_config through a mocked transport', async () => {
+  const api = backend(JSON.stringify({ sections: validSections() }));
+  await api.request();
+  const Anthropic = require('../my-ai-backend/node_modules/@anthropic-ai/sdk').default;
+  let fetchCalls = 0;
+  const client = new Anthropic({
+    apiKey: 'mock-only', maxRetries: 0,
+    fetch: async (_url, init) => {
+      fetchCalls++;
+      const sent = JSON.parse(init.body);
+      assert.deepEqual(sent.output_config, JSON.parse(JSON.stringify(api.calls[0].output_config)));
+      return new Response(JSON.stringify({
+        id: 'mock', type: 'message', role: 'assistant', model: sent.model,
+        content: [{ type: 'text', text: JSON.stringify({ sections: validSections() }) }],
+        stop_reason: 'end_turn', stop_sequence: null,
+        usage: { input_tokens: 1, output_tokens: 1 },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+  });
+  const response = await client.messages.create(api.calls[0]);
+  assert.equal(fetchCalls, 1);
+  assert.equal(response.stop_reason, 'end_turn');
+});
+
 test('legacy love response without synthesis remains valid and has no extra section', async () => {
   const { status, body } = await backend(JSON.stringify({ sections: validSections() })).request();
   assert.equal(status, 200);
@@ -284,6 +359,10 @@ test('other backend modes retain plain text responses without the love contract'
     assert.ok(!api.calls[0].system.includes('<love_output_contract>'));
     assert.equal(body.synthesis, undefined);
     assert.equal(api.calls[0].max_tokens, 1024);
+    assert.equal(Object.hasOwn(api.calls[0], 'output_config'), false);
+    assert.deepEqual(Object.keys(api.calls[0]).sort(), ['max_tokens', 'messages', 'model', 'system', 'temperature']);
+    assert.equal(api.calls[0].model, 'claude-sonnet-4-6');
+    assert.equal(api.calls[0].temperature, 0.7);
   }
 });
 

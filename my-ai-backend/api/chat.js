@@ -1,5 +1,33 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+// Provider schema constrains JSON syntax; parseLoveReading still enforces exactly
+// three unique, nonempty sections and supplies canonical labels for the client.
+// Anthropic does not support exact array lengths or minLength here. Synthesis
+// is optional (listed in properties, omitted from required), not nullable.
+const LOVE_OUTPUT_FORMAT = {
+    type: 'json_schema',
+    schema: {
+        type: 'object',
+        properties: {
+            sections: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        key: { type: 'string', enum: ['ty', 'partner', 'vztah'] },
+                        text: { type: 'string' },
+                    },
+                    required: ['key', 'text'],
+                    additionalProperties: false,
+                },
+            },
+            synthesis: { type: 'string' },
+        },
+        required: ['sections'],
+        additionalProperties: false,
+    },
+};
+
 const READING_TYPES = {
     daily: {
         name: 'daily',
@@ -353,6 +381,7 @@ export default async function handler(req, res) {
                 { role: 'user', content: userPrompt }
             ],
             temperature: 0.7,
+            ...(mode === 'love_3_card' ? { output_config: { format: LOVE_OUTPUT_FORMAT } } : {}),
         });
 
         if (isLoveReading) {

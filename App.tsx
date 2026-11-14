@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NameScreen } from './src/screens/onboarding/NameScreen';
 import { WelcomeScreen } from './src/screens/onboarding/WelcomeScreen';
@@ -100,34 +100,61 @@ export default function App() {
 
   const addJournalEntry = useAppStore((state) => state.addJournalEntry);
   const dailyDraw = useDailyDraw();
+  const singleCardReading = useRef<Readonly<{
+    card: TarotCard;
+    position: 'upright' | 'reversed';
+  }> | null>(null);
+  const singleCardMounted = useRef(true);
+
+  useEffect(() => {
+    singleCardMounted.current = true;
+    return () => {
+      singleCardMounted.current = false;
+      singleCardReading.current = null;
+    };
+  }, []);
 
   const handleDrawCard = async (subsetIds?: string[], mode: string = 'daily') => {
+    if (!singleCardMounted.current || singleCardReading.current) return;
     dailyDraw.reset();
     const drawn = drawCard(subsetIds);
-    setCurrentCard({ ...drawn, aiMeaning: undefined });
+    const card = { ...drawn.card, keywords: [...drawn.card.keywords] };
+    Object.freeze(card.keywords);
+    const snapshot = Object.freeze({ card: Object.freeze(card), position: drawn.position });
+    // Keep ownership until close, including after success/failure. State updates
+    // alone cannot guard queued taps, and old completions must never release it.
+    singleCardReading.current = snapshot;
+    setCurrentCard(snapshot);
 
     try {
       const response = await askUniverse(
-        `Výklad pro kartu: ${drawn.card.nameCzech || drawn.card.name} (${drawn.position === 'upright' ? 'vzpřímená' : 'obrácená'})`,
+        `Výklad pro kartu: ${snapshot.card.nameCzech || snapshot.card.name} (${snapshot.position === 'upright' ? 'vzpřímená' : 'obrácená'})`,
         mode,
         [{
-          name: drawn.card.name,
-          nameCzech: drawn.card.nameCzech || drawn.card.name,
-          position: drawn.position
+          name: snapshot.card.name,
+          nameCzech: snapshot.card.nameCzech || snapshot.card.name,
+          position: snapshot.position
         }]
       );
-      setCurrentCard(prev => prev ? { ...prev, aiMeaning: response.answer } : null);
+      if (singleCardReading.current !== snapshot) return;
+      setCurrentCard(prev => singleCardReading.current === snapshot && prev?.card === snapshot.card
+        ? { ...snapshot, aiMeaning: response.answer }
+        : prev);
     } catch (error) {
-      console.error('Failed to fetch AI meaning:', error);
+      if (singleCardReading.current === snapshot) {
+        console.error('Failed to fetch AI meaning:', error);
+      }
     }
   };
 
   const handleDailyDraw = () => {
+    singleCardReading.current = null;
     setCurrentCard(null);
     dailyDraw.drawDailyCard();
   };
 
   const handleClose = () => {
+    singleCardReading.current = null;
     setCurrentCard(null);
     dailyDraw.reset();
     if (isFirstCardDraw && onboardingStep === 'firstCard') {

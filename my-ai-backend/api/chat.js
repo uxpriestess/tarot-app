@@ -28,6 +28,81 @@ const LOVE_OUTPUT_FORMAT = {
     },
 };
 
+const FINANCE_POSITIONS = [
+    { key: 'dnes', label: 'Dnes' },
+    { key: 'vyzva', label: 'Výzva' },
+    { key: 'vysledek', label: 'Výsledek' },
+];
+const FINANCE_OUTPUT_FORMAT = {
+    type: 'json_schema',
+    schema: {
+        type: 'object',
+        properties: {
+            sections: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        key: { type: 'string', enum: FINANCE_POSITIONS.map(position => position.key) },
+                        text: { type: 'string' },
+                    },
+                    required: ['key', 'text'],
+                    additionalProperties: false,
+                },
+            },
+        },
+        required: ['sections'],
+        additionalProperties: false,
+    },
+};
+
+const FINANCE_PROVIDER_TIMEOUT_MS = 40_000;
+
+async function withFinanceProviderLifecycle(req, res, operation) {
+    const controller = new AbortController();
+    const cleanups = [];
+    let timer;
+    try {
+        const stopped = new Promise((_, reject) => {
+            const stop = (name) => {
+                if (controller.signal.aborted) return;
+                const error = new Error('Finance provider operation stopped');
+                error.name = name;
+                reject(error);
+                controller.abort();
+            };
+            const disconnect = () => stop('APIUserAbortError');
+            const listen = (emitter, event, listener) => {
+                if (typeof emitter?.on !== 'function' || typeof emitter?.removeListener !== 'function') return;
+                emitter.on(event, listener);
+                cleanups.push(() => emitter.removeListener(event, listener));
+            };
+            // Request 'close' may mean normal body completion: never use it.
+            listen(req, 'aborted', disconnect);
+            listen(res, 'close', () => { if (!res.writableEnded) disconnect(); });
+            const signal = req.signal;
+            if (typeof signal?.addEventListener === 'function' && typeof signal?.removeEventListener === 'function') {
+                signal.addEventListener('abort', disconnect, { once: true });
+                cleanups.push(() => signal.removeEventListener('abort', disconnect));
+            }
+            // Vercel may not forward a client disconnect to this legacy handler.
+            // No deployment-wide cancellation opt-in is enabled here.
+            if (req.aborted || signal?.aborted || (res.destroyed && !res.writableEnded)) { disconnect(); return; }
+            timer = setTimeout(() => stop('APIConnectionTimeoutError'), FINANCE_PROVIDER_TIMEOUT_MS);
+        });
+        const work = Promise.resolve().then(() => {
+            if (controller.signal.aborted) return stopped;
+            return operation({ timeout: FINANCE_PROVIDER_TIMEOUT_MS, maxRetries: 0, signal: controller.signal });
+        });
+        // SDK 0.32.1 clears its fetch timeout at headers. This race also bounds
+        // response-body parsing and settles even when a transport ignores abort.
+        return await Promise.race([stopped, work]);
+    } finally {
+        if (timer !== undefined) clearTimeout(timer);
+        for (const cleanup of cleanups) cleanup();
+    }
+}
+
 const READING_TYPES = {
     daily: {
         name: 'daily',
@@ -49,6 +124,11 @@ const READING_TYPES = {
         maxWords: 230,
         paragraphs: '6'
     },
+    finance_3_card: {
+        name: 'finance_3_card',
+        maxWords: 230,
+        paragraphs: '3'
+    },
     moon_phase: {
         name: 'moon_phase',
         maxWords: 150,
@@ -67,6 +147,7 @@ const READING_TYPES = {
 };
 
 const SPREAD_SCHEMAS = {
+    finance_3_card: { sections: FINANCE_POSITIONS },
     daily: {
         sections: [{ key: 'reading', label: null }]
     },
@@ -133,6 +214,31 @@ function parseLoveReading(rawText) {
     };
 }
 
+function parseFinanceReading(rawText) {
+    const invalid = (category) => {
+        const error = new Error('Invalid finance reading structure');
+        error.code = 'INVALID_FINANCE_READING';
+        error.validationCategory = category;
+        return error;
+    };
+    let parsed;
+    try { parsed = JSON.parse(rawText); } catch { throw invalid('json_parse'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
+        Object.keys(parsed).length !== 1 || !Array.isArray(parsed.sections)) throw invalid('root_shape');
+    if (parsed.sections.length !== FINANCE_POSITIONS.length) throw invalid('section_count');
+    const texts = new Map();
+    for (const section of parsed.sections) {
+        if (!section || typeof section !== 'object' || Array.isArray(section) ||
+            Object.keys(section).length !== 2 || !Object.hasOwn(section, 'key') ||
+            !Object.hasOwn(section, 'text')) throw invalid('section_shape');
+        if (!FINANCE_POSITIONS.some(position => position.key === section.key)) throw invalid('section_key');
+        if (texts.has(section.key)) throw invalid('duplicate_key');
+        if (typeof section.text !== 'string' || !section.text.trim()) throw invalid('section_text');
+        texts.set(section.key, section.text.trim());
+    }
+    return { sections: FINANCE_POSITIONS.map(({ key, label }) => ({ key, label, text: texts.get(key) })) };
+}
+
 function parseBodyMindSpiritSections(rawText) {
     try {
         let cleanText = rawText.trim()
@@ -183,6 +289,8 @@ function parseReading(rawText, cards, mode) {
         const loveReading = parseLoveReading(rawText);
         sections = loveReading.sections;
         synthesis = loveReading.synthesis;
+    } else if (mode === 'finance_3_card') {
+        sections = parseFinanceReading(rawText).sections;
     } else if (mode === 'body_mind_spirit') {
         sections = parseBodyMindSpiritSections(rawText);
     } else {
@@ -336,6 +444,9 @@ export default async function handler(req, res) {
 
     const startedAt = Date.now();
     const isLoveReading = req.body?.mode === 'love_3_card';
+    const isFinanceReading = req.body?.mode === 'finance_3_card';
+    const isStrictReading = isLoveReading || isFinanceReading;
+    const invalidReadingCode = isFinanceReading ? 'INVALID_FINANCE_READING' : 'INVALID_LOVE_READING';
     let category = 'success';
     let validationFailure = null;
     let stopReason = null;
@@ -356,6 +467,16 @@ export default async function handler(req, res) {
             return res.status(400).json({ answer: 'Omlouvám se, ale ty karty nevidím jasně. Zkusíš to znovu?' });
         }
 
+        if (isFinanceReading && (cards.length !== 3 || cards.some(card =>
+            !card || typeof card !== 'object' || Array.isArray(card) ||
+            ![card.nameCzech, card.name].some(name => typeof name === 'string' && name.trim()) ||
+            (card.nameCzech !== undefined && (typeof card.nameCzech !== 'string' || !card.nameCzech.trim())) ||
+            !['upright', 'reversed'].includes(card.position)))) {
+            category = 'invalid_request';
+            validationFailure = 'finance_cards';
+            return res.status(400).json({ code: 'INVALID_FINANCE_REQUEST', answer: 'Výklad potřebuje tři karty s platnou orientací.' });
+        }
+
         if (!process.env.ANTHROPIC_API_KEY) {
             category = 'configuration';
             console.error('FATAL: ANTHROPIC_API_KEY is not set!');
@@ -373,30 +494,34 @@ export default async function handler(req, res) {
         const systemPrompt = buildSystemPrompt(mode, moonPhase, userContext);
         const userPrompt   = buildUserPrompt(question, cards, spreadName, mode, moonPhase);
 
-        const response = await anthropic.messages.create({
+        const providerRequest = {
             model: 'claude-sonnet-4-6',  // ✅ updated from claude-sonnet-4-20250514
-            max_tokens: mode === 'love_3_card' ? 2048 : 1024,
+            max_tokens: isStrictReading ? 2048 : 1024,
             system: systemPrompt,
             messages: [
                 { role: 'user', content: userPrompt }
             ],
             temperature: 0.7,
             ...(mode === 'love_3_card' ? { output_config: { format: LOVE_OUTPUT_FORMAT } } : {}),
-        });
+            ...(isFinanceReading ? { output_config: { format: FINANCE_OUTPUT_FORMAT } } : {}),
+        };
+        const response = isFinanceReading
+            ? await withFinanceProviderLifecycle(req, res, options => anthropic.messages.create(providerRequest, options))
+            : await anthropic.messages.create(providerRequest);
 
-        if (isLoveReading) {
+        if (isStrictReading) {
             const knownReasons = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal'];
-            stopReason = knownReasons.includes(response.stop_reason) ? response.stop_reason : 'unknown';
-            const tokens = response.usage?.output_tokens;
+            stopReason = knownReasons.includes(response?.stop_reason) ? response.stop_reason : 'unknown';
+            const tokens = response?.usage?.output_tokens;
             outputTokens = Number.isFinite(tokens) && tokens >= 0 ? tokens : null;
         }
-        if (mode === 'love_3_card' && (response.stop_reason !== 'end_turn' ||
+        if (isStrictReading && (response?.stop_reason !== 'end_turn' ||
             !Array.isArray(response.content) || response.content.length !== 1 ||
             response.content[0]?.type !== 'text' || typeof response.content[0].text !== 'string')) {
             category = 'invalid';
-            validationFailure = response.stop_reason !== 'end_turn' ? 'stop_reason' : 'content_shape';
+            validationFailure = response?.stop_reason !== 'end_turn' ? 'stop_reason' : 'content_shape';
             return res.status(502).json({
-                code: 'INVALID_LOVE_READING',
+                code: invalidReadingCode,
                 answer: 'Výklad se nepodařilo načíst celý. Zkus to prosím znovu.'
             });
         }
@@ -418,24 +543,34 @@ export default async function handler(req, res) {
         return res.status(200).json(structuredResponse);
 
     } catch (error) {
-        if (error.code === 'INVALID_LOVE_READING') {
+        if (isFinanceReading && error.name === 'APIUserAbortError') {
+            category = 'aborted';
+            res.statusCode = 499;
+            if (res.destroyed || res.writableEnded) return;
+            return res.status(499).json({ answer: 'Načítání výkladu bylo zrušeno.' });
+        }
+        if (isFinanceReading && error.name === 'APIConnectionTimeoutError') {
+            category = 'provider_timeout';
+            return res.status(504).json({ answer: 'Výklad trvá příliš dlouho. Zkus to prosím znovu se stejnými kartami.' });
+        }
+        if (error.code === 'INVALID_LOVE_READING' || (isFinanceReading && error.code === 'INVALID_FINANCE_READING')) {
             category = 'invalid';
             validationFailure = error.validationCategory;
             return res.status(502).json({
-                code: 'INVALID_LOVE_READING',
+                code: invalidReadingCode,
                 answer: 'Výklad se nepodařilo načíst celý. Zkus to prosím znovu.'
             });
         }
         category = error.name === 'APIConnectionTimeoutError' ? 'provider_timeout'
             : error.name === 'APIConnectionError' ? 'provider_network' : 'provider_error';
-        if (!isLoveReading) console.error('Reading request failed');
+        if (!isStrictReading) console.error('Reading request failed');
 
         return res.status(500).json({
             answer: 'Spojení se na moment rozostřilo. Zkusíme to vyložit znovu?'
         });
     } finally {
-        if (isLoveReading) {
-            console.info('[love-reading:backend]', {
+        if (isStrictReading) {
+            console.info(isFinanceReading ? '[finance-reading:backend]' : '[love-reading:backend]', {
                 durationMs: Math.max(0, Date.now() - startedAt), httpStatus: res.statusCode,
                 category, validationFailure, stopReason, outputTokens,
             });
@@ -444,6 +579,11 @@ export default async function handler(req, res) {
 }
 
 function buildUserPrompt(question, cards, spreadName, mode, moonPhase) {
+    if (mode === 'finance_3_card') {
+        // Position assignments come from request order, never caller-supplied labels.
+        cards = cards.map((card, index) => ({ ...card, label: FINANCE_POSITIONS[index].label }));
+        spreadName = 'Zázemí';
+    }
     const cardsInfo = cards.map((c, idx) => {
         const labelStr = c.label ? ` (${c.label})` : '';
         return `Karta ${idx + 1}${labelStr}: ${c.nameCzech || c.name} (${c.position === 'reversed' ? 'Obrácená' : 'Vzpřímená'})`;
@@ -476,6 +616,25 @@ function buildSystemPrompt(mode, moonPhase, userContext) {
     const genderBlock = buildGenderBlock(userContext);
     const zodiacBlock = buildZodiacBlock(userContext);
     const guidance = {
+        "finance_3_card": `
+<mode>
+    Zázemí: Peníze, materiální zdroje, bezpečí, stabilita, majetek, zdroje spojené s prací, osobní hodnota, dostatek i nedostatek. Nejde jen o bohatství, příjem nebo finanční úspěch. Vnímej, co podpírá materiální život, co může chybět a co lze rozvíjet. Hodnota nemusí být peněžní. Nepředpokládej ani hojnost, ani nouzi.
+    Piš přirozenou současnou češtinou a tykej. Vylož každou skutečně dodanou kartu a její orientaci. Tři sekce mají tvořit soudržný výklad, ne opakovat stejnou myšlenku. Obvykle 35–65 slov na sekci, podle obsahu; nejde o povinné minimum.
+    dnes — Dnes / Aktuální situace: První karta jako pohled na současné zdroje, materiální okolnosti, priority nebo vztah k bezpečí.
+    vyzva — Výzva / Co vyžaduje pozornost: Druhá karta jako napětí, překážka, opomíjený zdroj, soupeřící priorita nebo slepé místo.
+    vysledek — Výsledek / Možný směr vývoje: Třetí karta jako možný směr, příležitost nebo důsledek voleb ve vztahu ke všem třem kartám. Výsledek nikdy není zaručený.
+    Nevymýšlej fakta o příjmu, dluzích, zaměstnání, bydlení ani úsporách uživatele. Žádné zaručené finanční předpovědi, personalizovaná investiční doporučení ani vydávání výkladu za odborné finanční poradenství. Vynech manifestační jazyk, klišé prosperity a finanční moralizování. Nepřidávej zbytečný terapeutický rámec.
+    Rozlišuj symboliku karet od osobních skutečností: karta není důkaz o životě uživatele. Bez dodaného kontextu netvrď například „Rovnováha zatím funguje.“ ani „Práce proběhla.“; nevíš, zda má uživatel dluhy, úspory, finanční potíže, stabilní příjem, problémy s bydlením či konkrétní zaměstnání.
+    O symbolice a tématu výkladu mluv přímo a konkrétně. Když přecházíš k možným osobním okolnostem, použij podmíněné nebo průzkumné vyjádření: třeba „Šestka pentaklů otevírá téma rovnováhy mezi dáváním a přijímáním.“ nebo „Pokud už do něčeho vkládáš úsilí, sedmička pentaklů nabízí pohled na to, co se může rozvíjet.“ Zachovej vztah ke skutečné kartě a orientaci, soudržnost i emoční přesnost. Nezačínej každou větu slovem „možná“, nepřeváděj celý výklad na otázky a nezaměňuj konkrétní interpretaci za obecné opatrné fráze.
+</mode>
+<finance_output_contract>
+    Pravidlo formátu přenosu má přednost před prostou prózou. Vrať pouze platný JSON bez markdown obalu a bez dalšího textu:
+    {"sections":[{"key":"dnes","text":"..."},{"key":"vyzva","text":"..."},{"key":"vysledek","text":"..."}]}
+    Přesně tři sekce, každý klíč právě jednou, pouze key a text. Žádná synthesis ani čtvrtá sekce. Každý text je neprázdná česká próza bez nadpisů.
+    dnes = první dodaná karta; vyzva = druhá dodaná karta; vysledek = třetí dodaná karta. Zachovej skutečné orientace i při opakování stejné karty.
+    Bezpečnost a gramatický rod mají stejnou prioritu jako ve společných pravidlech. I bezpečnou reakci na krizovou otázku vrať ve třech předepsaných sekcích, bez humoru a věštění.
+</finance_output_contract>
+        `,
         "daily": `
 <mode>
     Denní karta: Interpretuj kartu pro dnešní den. Najdi jednu nosnou myšlenku. Obvykle 35–75 slov, podle obsahu může být méně nebo více.

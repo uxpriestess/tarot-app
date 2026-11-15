@@ -9,7 +9,6 @@ import { canOpenFinanceCard, financeFocusReducer, initialFinanceFocus } from './
 
 type Props = { reading: ReturnType<typeof useFinanceReading>; onReset: () => void };
 const labels = ['Dnešní situace', 'Komplikace', 'Řešení'];
-const descriptions = ['Aktuální situace', 'Co vyžaduje pozornost', 'Možný směr vývoje'];
 const focusCopy = ['Co je teď ve hře', 'Co ti stojí v cestě', 'Co s tím'];
 
 export function FinanceSpread({ reading, onReset }: Props) {
@@ -67,10 +66,9 @@ export function FinanceSpread({ reading, onReset }: Props) {
                     const available = canOpenFinanceCard(progress, draw.key);
                     return <View key={draw.key} style={[styles.position, { width: index === 2 ? '100%' : '50%' }]}>
                         <Text style={styles.label}>{labels[index]}</Text>
-                        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${labels[index]}, ${descriptions[index]}${progress.completed.includes(draw.key) ? ', přečíst výklad znovu' : ', otevřít kartu'}`} accessibilityState={{ disabled: !available }} disabled={!available} onPress={() => dispatch({ type: 'open', key: draw.key })} style={[styles.card, { width: smallWidth, height: smallWidth * 1.5, opacity: available ? 1 : 0.5 }]}>
+                        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${labels[index]}${progress.completed.includes(draw.key) ? ', přečíst výklad znovu' : ', otevřít kartu'}`} accessibilityState={{ disabled: !available }} disabled={!available} onPress={() => dispatch({ type: 'open', key: draw.key })} style={[styles.card, { width: smallWidth, height: smallWidth * 1.5, opacity: available ? 1 : 0.5 }]}>
                             {progress.faces[draw.key] === 'back' ? back : cardArt(index, smallWidth)}
                         </TouchableOpacity>
-                        <Text style={styles.caption}>{descriptions[index]}</Text>
                     </View>;
                 })}
             </View>
@@ -86,7 +84,6 @@ export function FinanceSpread({ reading, onReset }: Props) {
                 >
                     {face === 'back' && <>
                         <Text accessibilityRole="header" style={styles.title}>{labels[focusedIndex]}</Text>
-                        <Text style={styles.description}>{descriptions[focusedIndex]}</Text>
                     </>}
                     {face === 'illustration' && <>
                         <Text accessibilityRole="header" style={styles.cardName}>{focused.card.nameCzech || focused.card.name}</Text>

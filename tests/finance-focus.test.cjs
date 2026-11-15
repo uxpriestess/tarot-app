@@ -184,6 +184,7 @@ test('approved spread copy removes progress instructions while preserving the ne
   const h = harness('ready');
   assert.match(h.text(), /Peníze, práce, stabilita\./);
   assert.doesNotMatch(h.text(), /Pokračuj kartou|Ke kartám se můžeš kdykoli vrátit/);
+  assert.doesNotMatch(JSON.stringify(h.render()), /Aktuální situace|Co vyžaduje pozornost|Možný směr vývoje/);
   const cards = nodes(h.render(), n => n.type === 'TouchableOpacity' && n.props.accessibilityLabel?.includes('otevřít kartu'));
   assert.deepEqual(cards.map(n => n.props.accessibilityLabel.split(',')[0]), ['Dnešní situace', 'Komplikace', 'Řešení']);
   assert.deepEqual(cards.map(n => n.props.disabled), [false, true, true]);
@@ -197,7 +198,8 @@ test('each revealed Focus orders name, orientation, artwork, exact microcopy and
   for (let i = 0; i < 3; i++) {
     h.open(i);
     let modal = nodes(h.render(), n => n.type === 'Modal')[0];
-    assert.ok(nodes(modal, n => n.type === 'Text' && n.props.children === 'Odhalit kartu').length);
+    assert.deepEqual(nodes(modal, n => n.type === 'Text').map(n => n.props.children), ['Zpět ke kartám', labels[i], 'Odhalit kartu']);
+    assert.equal(nodes(modal, n => n.type === 'CardImage').length, 0);
     h.flip('Odhalit kartu');
     modal = nodes(h.render(), n => n.type === 'Modal')[0];
     const content = nodes(modal, n => n.type === 'Text' || n.type === 'CardImage')

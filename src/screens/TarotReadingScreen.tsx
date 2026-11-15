@@ -39,6 +39,7 @@ import { CardImage } from '../components/CardImage';
 import { performReading, ReadingSection } from '../services/universe';
 import { getMoonPhase } from '../utils/moonPhase';
 import { SPREAD_TEMPLATES, isModernSpread, isLegacySpread } from '../types/spreads';
+import { useFinanceReading } from '../hooks/useFinanceReading';
 
 const { width } = Dimensions.get('window');
 
@@ -168,16 +169,21 @@ interface Spread {
     iconImage: any;
     cards: number;
     labels?: string[];
+    description?: string;
 }
 
 const SPREADS: Spread[] = [
     { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3, labels: ['Ty', 'Partner', 'Tvůj vztah'] },
-    { id: 'finance', name: 'Finance', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnes', 'Výzva', 'Výsledek'] },
+    { id: 'finance', name: 'Zázemí', description: 'O penězích, zdrojích, stabilitě a tom, na čem stavíš.', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnes', 'Výzva', 'Výsledek'] },
     { id: 'body', name: 'Mysl, tělo a duše', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3, labels: ['Mysl', 'Tělo', 'Duše'] },
     { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 1, labels: ['Vzkaz luny'] },
     { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3, labels: ['Cesta A', 'Cesta B', 'Rada'] },
     { id: 'week', name: '7 dní', iconImage: require('../../assets/icons/spreads/hourglass.png'), cards: 7, labels: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'] },
 ];
+
+const FINANCE_POSITION_DESCRIPTIONS = [
+    'Aktuální situace', 'Co vyžaduje pozornost', 'Možný směr vývoje',
+] as const;
 
 // UPDATED POSITIONS (used by multi-card spreads only — moon uses flow layout)
 const CARD_POSITIONS: Record<SpreadId, { x: number; y: number }[]> = {
@@ -203,6 +209,7 @@ interface Props {
 }
 
 export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
+    const financeReading = useFinanceReading();
     const [selectedSpread, setSelectedSpread] = useState<Spread | null>(null);
     const [drawnCards, setDrawnCards] = useState<any[]>([]);
     const [flippedCards, setFlippedCards] = useState<number[]>([]);
@@ -262,6 +269,13 @@ export const TarotReadingScreen = ({ onClose, onOpenLoveReading }: Props) => {
     };
 
     const flipCard = (idx: number) => {
+        if (selectedSpread?.id === 'finance') {
+            // Preserve illustration-only progression without shared meaning logs.
+            if (idx !== revealedCount || flippedCards.includes(idx)) return;
+            setFlippedCards(prev => [...prev, idx]);
+            setRevealedCount(prev => prev + 1);
+            return;
+        }
         console.log(`=== FLIP CARD ${idx} ===`);
         console.log(`revealedCount: ${revealedCount}, already flipped: ${flippedCards.includes(idx)}`);
 
@@ -384,6 +398,7 @@ ${moonPhase.energy}`;
     };
 
     const startReading = (spread: Spread) => {
+        if (spread.id !== 'finance') financeReading.reset();
         console.log("=== START READING CALLED ===");
         console.log("Spread ID:", spread.id);
         console.log("Spread name:", spread.name);
@@ -423,10 +438,16 @@ ${moonPhase.energy}`;
 
         // Draw cards (for non-love spreads only)
         const cards = [];
-        for (let i = 0; i < spread.cards; i++) {
-            const drawn = drawCard();
-            console.log(`Card ${i}:`, drawn.card.nameCzech, drawn.position);
-            cards.push(drawn);
+        if (spread.id === 'finance') {
+            const snapshot = financeReading.start();
+            if (!snapshot) return;
+            cards.push(...snapshot.cards);
+        } else {
+            for (let i = 0; i < spread.cards; i++) {
+                const drawn = drawCard();
+                console.log(`Card ${i}:`, drawn.card.nameCzech, drawn.position);
+                cards.push(drawn);
+            }
         }
 
         setDrawnCards(cards);
@@ -453,6 +474,7 @@ ${moonPhase.energy}`;
     };
 
     const resetReading = () => {
+        financeReading.reset();
         setStage('welcome');
         setSelectedSpread(null);
         setFlippedCards([]);
@@ -655,7 +677,11 @@ ${moonPhase.energy}`;
                 {/* Header */}
                 <View style={styles.readingHeader}>
                     <Text style={styles.readingTitle}>{selectedSpread.name}</Text>
-                    <Text style={styles.readingSubtitle}>{subtitle}</Text>
+                    {selectedSpread.id === 'finance' ? (
+                        <Text style={styles.readingSubtitle}>{selectedSpread.description}</Text>
+                    ) : (
+                        <Text style={styles.readingSubtitle}>{subtitle}</Text>
+                    )}
                 </View>
 
                 <View style={styles.spreadArea}>
@@ -668,6 +694,7 @@ ${moonPhase.energy}`;
                             onFlip={() => flipCard(idx)}
                             cardData={dc}
                             label={selectedSpread.labels?.[idx]}
+                            description={selectedSpread.id === 'finance' ? FINANCE_POSITION_DESCRIPTIONS[idx] : undefined}
                             isLocked={idx !== revealedCount}
                             isMoonSpread={false}
                         />
@@ -675,7 +702,7 @@ ${moonPhase.energy}`;
                 </View>
 
                 {/* Meanings Area */}
-                <ScrollView
+                {selectedSpread.id !== 'finance' && <ScrollView
                     style={styles.meaningsScroll}
                     contentContainerStyle={styles.meaningsContent}
                 >
@@ -737,7 +764,7 @@ ${moonPhase.energy}`;
                                 <View style={styles.softEnding} />
                             </>
                         )}
-                </ScrollView>
+                </ScrollView>}
             </Animated.View>
         );
     };
@@ -912,7 +939,7 @@ const MoonCardFlow = ({
 // ─────────────────────────────────────────────────────────────────────────────
 // CardComponent — used by all non-moon spreads (absolute positioned, unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
-const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, isLocked, isMoonSpread }: any) => {
+const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, description, isLocked, isMoonSpread }: any) => {
     const rotateAnim = useRef(new Animated.Value(0)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const glowAnim = useRef(new Animated.Value(0.7)).current;
@@ -1018,6 +1045,9 @@ const CardComponent = ({ index, position, isFlipped, onFlip, cardData, label, is
                     )}
                 </Animated.View>
             </TouchableOpacity>
+            {description && (
+                <Text style={[styles.financePositionDescription, { top: cardHeight + 34 }]}>{description}</Text>
+            )}
         </View>
     );
 };
@@ -1044,6 +1074,7 @@ const styles = StyleSheet.create({
     spreadArea: { height: 360, width: '100%', position: 'relative', marginBottom: spacing.md },
     cardWrapper: { position: 'absolute', alignItems: 'center' },
     labelAbove: { position: 'absolute', top: 0, color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 1.5, fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+    financePositionDescription: { position: 'absolute', left: 0, right: 0, color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
     meaningsScroll: { flex: 1, paddingHorizontal: spacing.md },
     meaningsContent: { flexGrow: 1, paddingBottom: 200 },
 

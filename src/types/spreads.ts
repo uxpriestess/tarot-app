@@ -19,7 +19,7 @@
 export type SpreadLayoutMode = 'modern' | 'legacy';
 export type FetchStrategy = 'pre' | 'on-flip';
 export type SpreadId = 'love' | 'finance' | 'body' | 'moon' | 'decision' | 'week';
-export type ReadingMode = 'body_mind_spirit' | 'moon_phase' | 'love_3_card' | 'reading-screen';
+export type ReadingMode = 'body_mind_spirit' | 'moon_phase' | 'love_3_card' | 'finance_3_card' | 'reading-screen';
 
 /**
  * SpreadTemplate defines everything about a spread's behavior and appearance
@@ -132,12 +132,12 @@ export const SPREAD_TEMPLATES: Record<SpreadId, SpreadTemplate> = {
    */
   finance: {
     id: 'finance',
-    name: 'Finance',
+    name: 'Zázemí',
     layout: 'legacy',
     cardCount: 3,
     labels: ['Dnes', 'Výzva', 'Výsledek'],
     fetchStrategy: 'pre',
-    mode: 'reading-screen',
+    mode: 'finance_3_card',
     keywords: false,
     positionBadge: false,
   },

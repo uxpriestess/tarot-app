@@ -18,6 +18,7 @@ function evaluate(source, requireMock, globals = {}) {
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const forbiddenImport = name => { throw new Error(`Unexpected import: ${name}`); };
 const loveContract = evaluate(read('src/services/loveReading.ts'), forbiddenImport);
+const financeContract = evaluate(read('src/services/financeReading.ts'), forbiddenImport);
 
 // Execute the actual screen callback without rendering native UI or loading services.
 function screenCallback(globals) {
@@ -63,6 +64,7 @@ async function runReading(random, responseSections, success = true, responseOpti
   // Real API serializer, mocked fetch and profile store: no network/native imports.
   const service = evaluate(read('src/services/universe.ts'), name => {
     if (name === '../data') return { drawCard };
+    if (name === './financeReading') return financeContract;
     if (name === './loveReading') return loveContract;
     if (name === '../store/appStore') return {
       useAppStore: { getState: () => ({ getUserContext: () => undefined }) },
@@ -474,6 +476,7 @@ function timedService(fetchMock) {
     clearTimeout: token => { assert.equal(token, 123); clears++; },
   });
   const service = evaluate(read('src/services/universe.ts'), name => {
+    if (name === './financeReading') return financeContract;
     if (name === './loveReading') return contract;
     if (name === '../data') return {};
     if (name === '../store/appStore') return {
@@ -628,6 +631,7 @@ async function clientProbe({ status = 200, body = validReading(), jsonError, fet
   const diagnostics = [], logs = [];
   let jsonReads = 0;
   const service = evaluate(read('src/services/universe.ts'), name => {
+    if (name === './financeReading') return financeContract;
     if (name === './loveReading') return loveContract;
     if (name === '../data') return {};
     if (name === '../store/appStore') return {

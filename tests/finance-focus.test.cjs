@@ -18,7 +18,7 @@ function nodes(tree, predicate) {
   if (!tree || typeof tree !== 'object') return [];
   return [...(predicate(tree) ? [tree] : []), ...nodes(tree.props?.children, predicate)];
 }
-function harness(status = 'pending', controller) {
+function harness(status = 'pending', controller, layout = {}) {
   let progress = state.initialFinanceFocus(), tree, index = 0, mounted = true;
   const refs = [], animations = [], cleanups = [];
   let retryCount = 0;
@@ -29,6 +29,7 @@ function harness(status = 'pending', controller) {
     retry() { if (reading.status === 'error') { retryCount++; reading.status = 'pending'; } },
   };
   const react = {
+    useContext: () => layout.tabBarHeight,
     useReducer: () => [progress, action => { progress = state.financeFocusReducer(progress, action); }],
     useRef: initial => refs[index++] ??= { current: initial },
     useEffect: effect => { if (mounted) cleanups.push(effect()); },
@@ -36,14 +37,15 @@ function harness(status = 'pending', controller) {
   const jsx = (type, props) => ({ type, props });
   const rn = Object.fromEntries(['View', 'Text', 'TouchableOpacity', 'Modal', 'ScrollView', 'ActivityIndicator'].map(s => [s, s]));
   rn.Platform = { OS: 'ios' }; rn.StyleSheet = { create: value => value };
-  rn.useWindowDimensions = () => ({ width: 375, height: 667 });
+  rn.useWindowDimensions = () => layout.window ?? ({ width: 375, height: 667 });
   rn.Animated = { View: 'AnimatedView', Value: class { setValue() {} interpolate() { return '0deg'; } }, timing: () => {
     const animation = { start(callback) { animation.callback = callback; animations.push(animation); }, stop() { animation.stopped = true; animation.callback?.({ finished: false }); } };
     return animation;
   } };
   const { FinanceSpread } = load('src/components/FinanceSpread.tsx', {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'react-native': rn,
-    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 44, bottom: 34 }) },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => layout.insets ?? ({ top: 44, bottom: 34 }) },
+    '@react-navigation/bottom-tabs': { BottomTabBarHeightContext: {} },
     '@expo/vector-icons': { Ionicons: 'Icon' }, './CardImage': { CardImage: 'CardImage' }, './financeFocusState': state,
   });
   const render = () => { index = 0; tree = FinanceSpread({ reading, onReset() {} }); mounted = false; return tree; };
@@ -144,4 +146,36 @@ test('actual request controller: Focus reopen never requests, rapid same-snapsho
   Object.assign(current, renderController());
   assert.match(h.text(), /CACHED_dnes/); h.close(); h.open(0);
   assert.match(h.text(), /CACHED_dnes/); assert.equal(calls.length, 2);
+});
+
+const flatten = style => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+for (const [name, layout, clearance] of [
+  ['small iPhone inside tabs', { window: { width: 320, height: 568 }, tabBarHeight: 83 }, 99],
+  ['standalone reading with home indicator', {}, 50],
+  ['standalone reading without home indicator', { insets: { top: 20, bottom: 0 } }, 16],
+]) {
+  test(`${name}: spread viewport clears bottom controls and positions flow without fixed offsets`, () => {
+    const h = harness('pending', undefined, layout);
+    const tree = h.render();
+    assert.equal(flatten(tree.props.style).paddingBottom, clearance);
+    const positions = nodes(tree, n => n.type === 'View' && flatten(n.props.style).paddingHorizontal === 8 && ['50%', '100%'].includes(flatten(n.props.style).width));
+    assert.deepEqual(positions.map(n => flatten(n.props.style).width), ['50%', '50%', '100%']);
+    positions.forEach(n => { assert.notEqual(flatten(n.props.style).position, 'absolute'); assert.equal(flatten(n.props.style).top, undefined); });
+  });
+}
+test('Focus masks underlying content and keeps small-screen illustration controls in a scrollable body', () => {
+  const h = harness('ready', undefined, { window: { width: 320, height: 568 } });
+  h.open(0);
+  const tree = h.render();
+  const modal = nodes(tree, n => n.type === 'Modal')[0];
+  const surface = nodes(modal, n => n.props.accessibilityViewIsModal)[0];
+  const surfaceStyle = flatten(surface.props.style);
+  assert.equal(surfaceStyle.backgroundColor, '#100b1b');
+  assert.equal(surfaceStyle.paddingTop, 52); assert.equal(surfaceStyle.paddingBottom, 42);
+  const body = nodes(modal, n => n.type === 'ScrollView')[0];
+  assert.ok(body); assert.equal(flatten(body.props.contentContainerStyle).flexGrow, 1);
+  assert.ok(nodes(body, n => n.type === 'Text' && n.props.children === 'Odhalit kartu').length);
+  h.flip('Odhalit kartu'); h.flip('Přečíst výklad');
+  assert.equal(nodes(nodes(h.render(), n => n.type === 'Modal')[0], n => n.type === 'ScrollView').length, 1);
+  assert.match(h.text(), /TEXT_dnes/);
 });

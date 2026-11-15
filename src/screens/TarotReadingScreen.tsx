@@ -175,7 +175,7 @@ interface Spread {
 
 const SPREADS: Spread[] = [
     { id: 'love', name: 'Láska a vztahy', iconImage: require('../../assets/icons/spreads/heart.png'), cards: 3, labels: ['Ty', 'Partner', 'Tvůj vztah'] },
-    { id: 'finance', name: 'Zázemí', description: 'O penězích, zdrojích, stabilitě a tom, na čem stavíš.', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnes', 'Výzva', 'Výsledek'] },
+    { id: 'finance', name: 'Zázemí', description: 'Peníze, práce, stabilita.', iconImage: require('../../assets/icons/spreads/money.png'), cards: 3, labels: ['Dnešní situace', 'Komplikace', 'Řešení'] },
     { id: 'body', name: 'Mysl, tělo a duše', iconImage: require('../../assets/icons/spreads/meditation.png'), cards: 3, labels: ['Mysl', 'Tělo', 'Duše'] },
     { id: 'moon', name: 'Měsíční fáze', iconImage: require('../../assets/icons/spreads/moon.png'), cards: 1, labels: ['Vzkaz luny'] },
     { id: 'decision', name: 'Rozhodnutí', iconImage: require('../../assets/icons/spreads/lightbulb.png'), cards: 3, labels: ['Cesta A', 'Cesta B', 'Rada'] },

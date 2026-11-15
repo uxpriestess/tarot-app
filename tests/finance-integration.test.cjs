@@ -302,7 +302,7 @@ test('selecting Zázemí starts once; pending flips do not fetch, log readings o
   const h = hookHarness(), screen = screenHandlers(h.render());
   const spread = screen.SPREADS.find(spread => spread.id === 'finance');
   assert.equal(spread.name, 'Zázemí');
-  assert.equal(spread.description, 'O penězích, zdrojích, stabilitě a tom, na čem stavíš.');
+  assert.equal(spread.description, 'Peníze, práce, stabilita.');
   screen.startReading(spread); screen.startReading(spread);
   assert.equal(h.calls.length, 1); assert.equal(h.draws.length, 3); assert.equal(screen.drawn.length, 1);
   const logCount = screen.logs.length; screen.flipCard(0);

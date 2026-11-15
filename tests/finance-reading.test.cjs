@@ -101,12 +101,12 @@ function nodes(tree, predicate) {
 test('Finance shows approved descriptions on corresponding positions without generic subtitle', () => {
   const api = renderSpread('finance');
   assert.equal(nodes(api.tree, n => n.type === 'Text' && n.props.children === 'Zázemí').length, 1);
-  assert.equal(nodes(api.tree, n => n.type === 'Text' && n.props.children === 'O penězích, zdrojích, stabilitě a tom, na čem stavíš.').length, 1);
+  assert.equal(nodes(api.tree, n => n.type === 'Text' && n.props.children === 'Peníze, práce, stabilita.').length, 1);
   assert.equal(nodes(api.tree, n => n.type === 'ScrollView').length, 0);
   assert.doesNotMatch(JSON.stringify(api.tree), /PRIVATE_STALE_OTHER_MODE/);
   assert.equal(nodes(api.tree, n => n.type === 'Text' && n.props.children === 'Ponořte se do své otázky...').length, 0);
   const cards = nodes(api.tree, n => n.type === api.CardComponent);
-  assert.deepEqual(cards.map(c => c.props.label), ['Dnes', 'Výzva', 'Výsledek']);
+  assert.deepEqual(cards.map(c => c.props.label), ['Dnešní situace', 'Komplikace', 'Řešení']);
   assert.deepEqual(cards.map(c => c.props.description), ['Aktuální situace', 'Co vyžaduje pozornost', 'Možný směr vývoje']);
   cards.forEach((card, index) => {
     assert.equal(card.props.position, api.positions[index]);

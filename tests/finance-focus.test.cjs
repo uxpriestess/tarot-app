@@ -179,3 +179,31 @@ test('Focus masks underlying content and keeps small-screen illustration control
   assert.equal(nodes(nodes(h.render(), n => n.type === 'Modal')[0], n => n.type === 'ScrollView').length, 1);
   assert.match(h.text(), /TEXT_dnes/);
 });
+
+test('approved spread copy removes progress instructions while preserving the next available card', () => {
+  const h = harness('ready');
+  assert.match(h.text(), /Peníze, práce, stabilita\./);
+  assert.doesNotMatch(h.text(), /Pokračuj kartou|Ke kartám se můžeš kdykoli vrátit/);
+  const cards = nodes(h.render(), n => n.type === 'TouchableOpacity' && n.props.accessibilityLabel?.includes('otevřít kartu'));
+  assert.deepEqual(cards.map(n => n.props.accessibilityLabel.split(',')[0]), ['Dnešní situace', 'Komplikace', 'Řešení']);
+  assert.deepEqual(cards.map(n => n.props.disabled), [false, true, true]);
+  assert.deepEqual(cards.map(n => flatten(n.props.style).opacity), [1, 0.5, 0.5]);
+});
+
+test('each revealed Focus orders name, orientation, artwork, exact microcopy and interpretation action', () => {
+  const h = harness('ready');
+  const labels = ['Dnešní situace', 'Komplikace', 'Řešení'];
+  const copy = ['Co je teď ve hře', 'Co ti stojí v cestě', 'Co s tím'];
+  for (let i = 0; i < 3; i++) {
+    h.open(i);
+    let modal = nodes(h.render(), n => n.type === 'Modal')[0];
+    assert.ok(nodes(modal, n => n.type === 'Text' && n.props.children === 'Odhalit kartu').length);
+    h.flip('Odhalit kartu');
+    modal = nodes(h.render(), n => n.type === 'Modal')[0];
+    const content = nodes(modal, n => n.type === 'Text' || n.type === 'CardImage')
+      .map(n => n.type === 'CardImage' ? `IMAGE_${n.props.imageName}` : n.props.children);
+    assert.deepEqual(content, ['Zpět ke kartám', `CARD_${keys[i]}`, i === 1 ? 'Obrácená poloha' : 'Přímá poloha', `IMAGE_${keys[i]}.png`, copy[i], 'Přečíst výklad']);
+    assert.ok(!content.includes(labels[i]));
+    h.flip('Přečíst výklad'); h.close();
+  }
+});

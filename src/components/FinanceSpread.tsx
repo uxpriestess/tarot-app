@@ -8,8 +8,9 @@ import { useFinanceReading } from '../hooks/useFinanceReading';
 import { canOpenFinanceCard, financeFocusReducer, initialFinanceFocus } from './financeFocusState';
 
 type Props = { reading: ReturnType<typeof useFinanceReading>; onReset: () => void };
-const labels = ['Dnes', 'Výzva', 'Výsledek'];
+const labels = ['Dnešní situace', 'Komplikace', 'Řešení'];
 const descriptions = ['Aktuální situace', 'Co vyžaduje pozornost', 'Možný směr vývoje'];
+const focusCopy = ['Co je teď ve hře', 'Co ti stojí v cestě', 'Co s tím'];
 
 export function FinanceSpread({ reading, onReset }: Props) {
     const [progress, dispatch] = useReducer(financeFocusReducer, undefined, initialFinanceFocus);
@@ -60,8 +61,7 @@ export function FinanceSpread({ reading, onReset }: Props) {
                 <Ionicons name="arrow-back" size={26} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.title}>Zázemí</Text>
-            <Text style={styles.description}>O penězích, zdrojích, stabilitě a tom, na čem stavíš.</Text>
-            <Text style={styles.hint}>{progress.completed.length === 3 ? 'Ke kartám se můžeš kdykoli vrátit.' : `Pokračuj kartou ${labels[progress.completed.length]}.`}</Text>
+            <Text style={styles.description}>Peníze, práce, stabilita.</Text>
             <View style={styles.triangle}>
                 {cards.map((draw, index) => {
                     const available = canOpenFinanceCard(progress, draw.key);
@@ -84,8 +84,14 @@ export function FinanceSpread({ reading, onReset }: Props) {
                     style={styles.focusBody}
                     {...(face === 'interpretation' ? {} : { contentContainerStyle: styles.focusContent })}
                 >
-                    <Text accessibilityRole="header" style={styles.title}>{labels[focusedIndex]}</Text>
-                    <Text style={styles.description}>{descriptions[focusedIndex]}</Text>
+                    {face === 'back' && <>
+                        <Text accessibilityRole="header" style={styles.title}>{labels[focusedIndex]}</Text>
+                        <Text style={styles.description}>{descriptions[focusedIndex]}</Text>
+                    </>}
+                    {face === 'illustration' && <>
+                        <Text accessibilityRole="header" style={styles.cardName}>{focused.card.nameCzech || focused.card.name}</Text>
+                        <Text style={styles.caption}>{focused.position === 'reversed' ? 'Obrácená poloha' : 'Přímá poloha'}</Text>
+                    </>}
                     <Animated.View style={[styles.focusCard, { width: face === 'interpretation' ? Math.min(400, width - 32) : focusWidth, height: face === 'interpretation' ? undefined : focusWidth * 1.5, flex: face === 'interpretation' ? 1 : undefined, transform: [{ perspective: 1000 }, { rotateY: turn.interpolate({ inputRange: [-90, 90], outputRange: ['-90deg', '90deg'] }) }] }]}>
                         {face === 'interpretation' ? <ScrollView contentContainerStyle={styles.interpretation}>
                             <Text style={styles.cardName}>{focused.card.nameCzech || focused.card.name}</Text>
@@ -98,7 +104,7 @@ export function FinanceSpread({ reading, onReset }: Props) {
                             {face === 'back' ? back : cardArt(focusedIndex, focusWidth)}
                         </TouchableOpacity>}
                     </Animated.View>
-                    {face !== 'back' && face !== 'interpretation' && <><Text style={styles.cardName}>{focused.card.nameCzech || focused.card.name}</Text><Text style={styles.caption}>{focused.position === 'reversed' ? 'Obrácená poloha' : 'Přímá poloha'}</Text></>}
+                    {face === 'illustration' && <Text style={styles.description}>{focusCopy[focusedIndex]}</Text>}
                     {face !== 'interpretation' && <TouchableOpacity accessibilityRole="button" onPress={flip} style={styles.action}><Text style={styles.buttonText}>{face === 'back' ? 'Odhalit kartu' : 'Přečíst výklad'}</Text></TouchableOpacity>}
                 </FocusBody>}
             </View>
@@ -112,7 +118,6 @@ const styles = StyleSheet.create({
     focusContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 16 },
     title: { color: '#fff', fontSize: 30, textAlign: 'center', fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif', marginVertical: 8 },
     description: { color: '#e0d5eb', fontSize: 16, textAlign: 'center', lineHeight: 23, marginBottom: 12 },
-    hint: { color: '#cfb8e8', textAlign: 'center', fontSize: 14, marginBottom: 16 },
     exit: { minHeight: 44, minWidth: 44, alignSelf: 'flex-start', justifyContent: 'center' },
     triangle: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 28 },
     position: { alignItems: 'center', paddingHorizontal: 8 },

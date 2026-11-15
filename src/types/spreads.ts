@@ -135,7 +135,7 @@ export const SPREAD_TEMPLATES: Record<SpreadId, SpreadTemplate> = {
     name: 'Zázemí',
     layout: 'legacy',
     cardCount: 3,
-    labels: ['Dnes', 'Výzva', 'Výsledek'],
+    labels: ['Dnešní situace', 'Komplikace', 'Řešení'],
     fetchStrategy: 'pre',
     mode: 'finance_3_card',
     keywords: false,

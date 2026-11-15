@@ -40,6 +40,7 @@ import { performReading, ReadingSection } from '../services/universe';
 import { getMoonPhase } from '../utils/moonPhase';
 import { SPREAD_TEMPLATES, isModernSpread, isLegacySpread } from '../types/spreads';
 import { useFinanceReading } from '../hooks/useFinanceReading';
+import { FinanceSpread } from '../components/FinanceSpread';
 
 const { width } = Dimensions.get('window');
 
@@ -774,6 +775,10 @@ ${moonPhase.energy}`;
     // ───────────────────────────────────────────────────────────────────────────
     const renderReading = () => {
         if (!selectedSpread) return null;
+
+        if (selectedSpread.id === 'finance') {
+            return <FinanceSpread reading={financeReading} onReset={resetReading} />;
+        }
 
         // Route modern spreads (body, future spreads)
         if (isModernSpread(selectedSpread.id as any)) {

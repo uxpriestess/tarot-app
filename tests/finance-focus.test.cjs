@@ -1,0 +1,147 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const ts = require('typescript');
+function load(file, imports) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, { exports, AbortController, require: name => { if (!(name in imports)) throw Error(name); return imports[name]; } });
+  return exports;
+}
+const keys = ['dnes', 'vyzva', 'vysledek'];
+const state = load('src/components/financeFocusState.ts', { '../services/financeReading': { FINANCE_SECTION_KEYS: keys } });
+function nodes(tree, predicate) {
+  if (Array.isArray(tree)) return tree.flatMap(t => nodes(t, predicate));
+  if (!tree || typeof tree !== 'object') return [];
+  return [...(predicate(tree) ? [tree] : []), ...nodes(tree.props?.children, predicate)];
+}
+function harness(status = 'pending', controller) {
+  let progress = state.initialFinanceFocus(), tree, index = 0, mounted = true;
+  const refs = [], animations = [], cleanups = [];
+  let retryCount = 0;
+  const reading = controller || {
+    status, snapshot: { cards: keys.map((key, i) => ({ key, position: i === 1 ? 'reversed' : 'upright', card: { imageName: `${key}.png`, nameCzech: `CARD_${key}` } })) },
+    meanings: { vysledek: 'TEXT_vysledek', dnes: 'TEXT_dnes', vyzva: 'TEXT_vyzva' },
+    error: null,
+    retry() { if (reading.status === 'error') { retryCount++; reading.status = 'pending'; } },
+  };
+  const react = {
+    useReducer: () => [progress, action => { progress = state.financeFocusReducer(progress, action); }],
+    useRef: initial => refs[index++] ??= { current: initial },
+    useEffect: effect => { if (mounted) cleanups.push(effect()); },
+  };
+  const jsx = (type, props) => ({ type, props });
+  const rn = Object.fromEntries(['View', 'Text', 'TouchableOpacity', 'Modal', 'ScrollView', 'ActivityIndicator'].map(s => [s, s]));
+  rn.Platform = { OS: 'ios' }; rn.StyleSheet = { create: value => value };
+  rn.useWindowDimensions = () => ({ width: 375, height: 667 });
+  rn.Animated = { View: 'AnimatedView', Value: class { setValue() {} interpolate() { return '0deg'; } }, timing: () => {
+    const animation = { start(callback) { animation.callback = callback; animations.push(animation); }, stop() { animation.stopped = true; animation.callback?.({ finished: false }); } };
+    return animation;
+  } };
+  const { FinanceSpread } = load('src/components/FinanceSpread.tsx', {
+    react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'react-native': rn,
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 44, bottom: 34 }) },
+    '@expo/vector-icons': { Ionicons: 'Icon' }, './CardImage': { CardImage: 'CardImage' }, './financeFocusState': state,
+  });
+  const render = () => { index = 0; tree = FinanceSpread({ reading, onReset() {} }); mounted = false; return tree; };
+  const buttons = () => nodes(render(), n => n.type === 'TouchableOpacity');
+  const byText = text => buttons().find(n => nodes(n, child => child.type === 'Text' && child.props.children === text).length);
+  return {
+    reading, render, get progress() { return progress; }, get retryCount() { return retryCount; },
+    open(i) { const button = buttons().filter(n => n.props.accessibilityLabel?.includes('otevřít kartu') || n.props.accessibilityLabel?.includes('přečíst výklad znovu'))[i]; if (!button.props.disabled) button.props.onPress(); },
+    close() { byText('Zpět ke kartám').props.onPress(); },
+    press(text) { const button = byText(text); assert.ok(button, text); button.props.onPress(); },
+    finish() { const animation = animations.shift(); assert.ok(animation); if (!animation.stopped) animation.callback({ finished: true }); },
+    flip(text) { this.press(text); this.finish(); render(); this.finish(); render(); },
+    unmount() { cleanups.forEach(cleanup => cleanup?.()); },
+    text() { return nodes(render(), n => n.type === 'Text').map(n => n.props.children).join(' '); },
+  };
+}
+
+test('only the next position opens; focus does not reveal; closing and reopening preserve both incomplete faces', () => {
+  const h = harness(); h.open(1); assert.equal(h.progress.focused, null);
+  h.open(0); assert.equal(h.progress.faces.dnes, 'back'); h.close(); h.open(0);
+  assert.equal(h.progress.faces.dnes, 'back'); h.flip('Odhalit kartu'); h.close(); h.open(0);
+  assert.equal(h.progress.faces.dnes, 'illustration');
+  h.flip('Přečíst výklad'); h.close(); h.open(1); assert.equal(h.progress.focused, null);
+  h.open(0); assert.equal(h.progress.faces.dnes, 'interpretation');
+});
+test('pending interpretation shows loading; late response preserves face and maps keyed text', () => {
+  const h = harness(); h.open(0); h.flip('Odhalit kartu'); h.flip('Přečíst výklad');
+  assert.match(h.text(), /připravuje tvůj výklad/); assert.doesNotMatch(h.text(), /TEXT_/);
+  h.reading.status = 'ready'; assert.match(h.text(), /TEXT_dnes/); assert.doesNotMatch(h.text(), /TEXT_vyzva|TEXT_vysledek/);
+  assert.equal(h.progress.faces.dnes, 'interpretation');
+});
+test('early response never automatically flips; all completed cards reopen cached interpretations in canonical order', () => {
+  const h = harness('ready');
+  for (let i = 0; i < 3; i++) {
+    h.open(i); assert.equal(h.progress.faces[keys[i]], 'back'); assert.doesNotMatch(h.text(), /TEXT_/);
+    h.flip('Odhalit kartu'); assert.doesNotMatch(h.text(), /TEXT_/); h.flip('Přečíst výklad');
+    assert.match(h.text(), new RegExp(`TEXT_${keys[i]}`)); h.close();
+  }
+  assert.deepEqual(Array.from(h.progress.completed), keys);
+  h.open(1); assert.match(h.text(), /TEXT_vyzva/); assert.match(h.text(), /Obrácená poloha/);
+  assert.equal(h.progress.faces.vyzva, 'interpretation'); assert.equal(h.retryCount, 0);
+});
+test('response arriving during flip does not skip the illustration', () => {
+  const h = harness(); h.open(0); h.press('Odhalit kartu'); h.reading.status = 'ready'; h.finish(); h.render(); h.finish();
+  assert.equal(h.progress.faces.dnes, 'illustration'); assert.doesNotMatch(h.text(), /TEXT_/);
+});
+test('rapid flip taps cannot skip a face, and closing cancels an unfinished flip', () => {
+  const h = harness(); h.open(0); h.press('Odhalit kartu'); h.press('Odhalit kartu'); h.finish(); h.render();
+  h.press('Přečíst výklad'); h.finish(); assert.equal(h.progress.faces.dnes, 'illustration');
+  h.press('Přečíst výklad'); h.close(); h.finish(); h.open(0); assert.equal(h.progress.faces.dnes, 'illustration');
+});
+test('timeout/error exposes explicit retry, keeps progress, and duplicate retry taps start only once', () => {
+  const h = harness('error'); h.reading.error = { code: 'timeout' };
+  h.open(0); h.flip('Odhalit kartu'); h.flip('Přečíst výklad'); assert.match(h.text(), /příliš dlouho/);
+  h.press('Zkusit znovu'); h.render(); assert.match(h.text(), /připravuje tvůj výklad/);
+  assert.equal(h.retryCount, 1); assert.equal(h.progress.faces.dnes, 'interpretation');
+  h.close(); h.open(0); assert.equal(h.progress.completed.length, 0);
+});
+test('Focus retains reversed artwork, safe areas, scrollable selectable text and accessible return', () => {
+  const h = harness('ready'); h.open(0); h.flip('Odhalit kartu'); h.flip('Přečíst výklad'); h.close();
+  h.open(1); h.flip('Odhalit kartu');
+  const tree = h.render();
+  assert.ok(nodes(tree, n => n.type === 'View' && n.props.style?.transform?.[0]?.rotate === '180deg').length);
+  h.flip('Přečíst výklad');
+  assert.ok(nodes(h.render(), n => n.type === 'Text' && n.props.selectable && n.props.children === 'TEXT_vyzva').length);
+  assert.ok(nodes(h.render(), n => n.type === 'View' && n.props.accessibilityViewIsModal).length);
+  h.unmount();
+});
+
+test('actual request controller: Focus reopen never requests, rapid same-snapshot retry is guarded and late cache stays keyed', async () => {
+  const contract = load('src/services/financeReading.ts', {});
+  const states = [], refs = [], calls = [];
+  let si = 0, ri = 0;
+  const hooks = {
+    useState(initial) { const i = si++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], value => { states[i] = value; }]; },
+    useRef(initial) { return refs[ri++] ??= { current: initial }; }, useEffect() {},
+  };
+  const { useFinanceReading } = load('src/hooks/useFinanceReading.ts', {
+    react: hooks, '../services/financeReading': contract,
+    '../data': { drawCard: () => ({ card: { id: 'same', name: 'Card', nameCzech: 'Karta', keywords: [], imageName: 'card.png' }, position: 'reversed' }) },
+    '../store/appStore': { useAppStore: { getState: () => ({ getUserContext: () => undefined }) } },
+    '../services/universe': { performReading(request) { return new Promise((resolve, reject) => calls.push({ request, resolve, reject })); } },
+  });
+  const renderController = () => { si = ri = 0; return useFinanceReading(); };
+  const current = renderController(); const snapshot = current.start(); current.start();
+  Object.assign(current, renderController());
+  const h = harness('pending', current);
+  h.open(0); h.flip('Odhalit kartu'); h.flip('Přečíst výklad'); h.close(); h.open(0);
+  assert.equal(calls.length, 1);
+  calls[0].reject(new contract.FinanceReadingError('timeout'));
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+  Object.assign(current, renderController());
+  const retry = nodes(h.render(), n => n.type === 'TouchableOpacity' && nodes(n, c => c.type === 'Text' && c.props.children === 'Zkusit znovu').length)[0];
+  retry.props.onPress(); retry.props.onPress();
+  assert.equal(calls.length, 2); assert.equal(calls[1].request, snapshot.request);
+  calls[1].resolve({ readingType: 'finance_3_card', sections: ['vysledek', 'vyzva', 'dnes'].map(key => ({ key, text: `CACHED_${key}` })) });
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+  Object.assign(current, renderController());
+  assert.match(h.text(), /CACHED_dnes/); h.close(); h.open(0);
+  assert.match(h.text(), /CACHED_dnes/); assert.equal(calls.length, 2);
+});
